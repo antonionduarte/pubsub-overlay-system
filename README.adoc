@@ -1,0 +1,31 @@
+= pubsub-overlay-system
+Publish Subscribe System with Structured and Unstructured Overlays - Algorithms and Distributed Systems Course 22/23 @ FCT-UNL
+
+== CONFIGURATION
+
+[cols="2,1,5"]
+|===
+| **Variable**
+| **Required**
+| **Description**
+
+| `babel_port`
+| Yes
+| Port to bind to
+
+| `babel_address`
+| Yes
+| Address to bind to
+
+| `kad_k`
+| No
+| Kademlia `k` parameter . Default = `20`.
+
+| `kad_alpha`
+| No
+| Kademlia `alpha` parameter. Default = `3`.
+
+| `kad_bootstrap`
+| No
+| Kademlia bootstrap node address.
+|===
