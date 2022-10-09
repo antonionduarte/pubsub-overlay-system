@@ -15,6 +15,11 @@ public class KadPeer {
 		this.host = host;
 	}
 
+	@Override
+	public String toString() {
+		return "[" + this.host.toString() + " " + this.id.toString() + "]";
+	}
+
 	public static final ISerializer<KadPeer> serializer = new ISerializer<KadPeer>() {
 		@Override
 		public KadPeer deserialize(ByteBuf buf) throws IOException {

@@ -4,6 +4,7 @@ import java.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import asd.protocols.overlay.kad.Kademlia;
 import asd.utils.InterfaceToIp;
 import pt.unl.fct.di.novasys.babel.core.Babel;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -43,6 +44,12 @@ public class Main {
 					Integer.parseInt(props.getProperty("babel_port")));
 
 			logger.info("Hello, I am {}", myself);
+
+			Kademlia kad = new Kademlia(props, myself);
+
+			babel.registerProtocol(kad);
+
+			kad.init(props);
 
 			// Start babel and protocol threads
 			babel.start();

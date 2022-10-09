@@ -12,21 +12,16 @@
     </Appenders>
 
     <Loggers>
-        <!-- UNCOMMENT TO SPECIFY LOG LEVEL OF PACKAGES
-        <Logger level="info" name="protocols.apps"/>
-        <Logger level="info" name="protocols.overlays"/>
-        <Logger level="debug" name="protocols.dissemination"/>
-        -->
+        <Logger level="trace" name="asd.protocols"/>
 
         <Logger level="info" name="io.netty"/>
         <Logger level="info" name="network"/>
         <Logger level="info" name="channel"/>
         <Logger level="info" name="babel"/>
 
-
-        <Root level="debug">
+        <Root level="trace">
             <AppenderRef ref="Console" level="info"/>
-           <AppenderRef ref="MyFile" level="all"/>
+            <AppenderRef ref="MyFile" level="all"/>
        </Root>
    </Loggers>
 

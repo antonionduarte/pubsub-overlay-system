@@ -4,6 +4,8 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import java.util.HexFormat;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.google.common.hash.Hashing;
@@ -43,6 +45,26 @@ public class KadID {
 				break;
 		}
 		return cpl;
+	}
+
+	@Override
+	public String toString() {
+		return HexFormat.of().formatHex(this.id);
+	}
+
+	@Override
+	public boolean equals(Object other) {
+		if (other == null || !(other instanceof KadID))
+			return false;
+		if (other == this)
+			return true;
+		var other_id = (KadID) other;
+		return Objects.equals(this.id, other_id.id);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(this.id);
 	}
 
 	static KadID create(int... id) {
