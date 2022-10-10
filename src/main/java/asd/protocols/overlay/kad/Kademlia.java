@@ -2,7 +2,6 @@ package asd.protocols.overlay.kad;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
@@ -11,7 +10,10 @@ import org.apache.logging.log4j.Logger;
 import asd.protocols.overlay.common.ChannelCreatedNotification;
 import asd.protocols.overlay.kad.messages.FindNodeRequest;
 import asd.protocols.overlay.kad.messages.FindNodeResponse;
+import asd.protocols.overlay.kad.messages.FindValueRequest;
+import asd.protocols.overlay.kad.messages.FindValueResponse;
 import asd.protocols.overlay.kad.messages.Handshake;
+import asd.protocols.overlay.kad.messages.StoreRequest;
 import asd.utils.ASDUtils;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
@@ -33,6 +35,7 @@ public class Kademlia extends GenericProtocol {
 	private final int channel_id;
 	private final KadPeer self;
 	private final KadRT rt;
+	private final KadStorage storage;
 
 	// Hosts with a connection established and handshaked
 	private final HashMap<Host, KadID> established_peers;
@@ -53,14 +56,23 @@ public class Kademlia extends GenericProtocol {
 		this.channel_id = createChannel(TCPChannel.NAME, channel_props); // Create the channel with the given properties
 		this.self = new KadPeer(KadID.random(), self);
 		this.rt = new KadRT(Integer.parseInt(props.getProperty("kad_k", "20")), this.self.id);
+		this.storage = new KadStorage();
 
 		this.established_peers = new HashMap<>();
 
 		this.registerMessageSerializer(this.channel_id, FindNodeRequest.ID, FindNodeRequest.serializer);
+		this.registerMessageSerializer(this.channel_id, FindNodeResponse.ID, FindNodeResponse.serializer);
+		this.registerMessageSerializer(this.channel_id, FindValueRequest.ID, FindValueRequest.serializer);
+		this.registerMessageSerializer(this.channel_id, FindValueResponse.ID, FindValueResponse.serializer);
 		this.registerMessageSerializer(this.channel_id, Handshake.ID, Handshake.serializer);
+		this.registerMessageSerializer(this.channel_id, StoreRequest.ID, StoreRequest.serializer);
 
 		this.registerMessageHandler(this.channel_id, FindNodeRequest.ID, this::onFindNodeRequest);
+		this.registerMessageHandler(this.channel_id, FindNodeResponse.ID, this::onFindNodeResponse);
+		this.registerMessageHandler(this.channel_id, FindValueRequest.ID, this::onFindValueRequest);
+		this.registerMessageHandler(this.channel_id, FindValueResponse.ID, this::onFindValueResponse);
 		this.registerMessageHandler(this.channel_id, Handshake.ID, this::onHandshake);
+		this.registerMessageHandler(this.channel_id, StoreRequest.ID, this::onStoreRequest);
 
 		this.registerChannelEventHandler(this.channel_id, OutConnectionDown.EVENT_ID, this::onOutConnectionDown);
 		this.registerChannelEventHandler(this.channel_id, OutConnectionFailed.EVENT_ID, this::onOutConnectionFailed);
@@ -114,6 +126,35 @@ public class Kademlia extends GenericProtocol {
 		this.sendMessage(new FindNodeResponse(closest), from);
 	}
 
+	private void onFindNodeResponse(FindNodeResponse msg, Host from, short source_proto, int channel_id) {
+		assert channel_id == this.channel_id;
+		assert source_proto == ID;
+
+		if (!this.isEstablished(from))
+			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
+	}
+
+	private void onFindValueRequest(FindValueRequest msg, Host from, short source_proto, int channel_id) {
+		assert channel_id == this.channel_id;
+		assert source_proto == ID;
+
+		if (!this.isEstablished(from))
+			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
+
+		var closest = this.rt.closest(msg.key);
+		var value = this.storage.get(msg.key);
+		var response = new FindValueResponse(closest, value);
+		this.sendMessage(response, from);
+	}
+
+	private void onFindValueResponse(FindValueResponse msg, Host from, short source_proto, int channel_id) {
+		assert channel_id == this.channel_id;
+		assert source_proto == ID;
+
+		if (!this.isEstablished(from))
+			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
+	}
+
 	private void onHandshake(Handshake msg, Host from, short source_proto, int channel_id) {
 		assert channel_id == this.channel_id;
 		assert source_proto == ID;
@@ -125,6 +166,14 @@ public class Kademlia extends GenericProtocol {
 		logger.info("Received handshake from " + remote);
 		this.established_peers.put(from, msg.id);
 		this.onPeerConnect(remote);
+	}
+
+	private void onStoreRequest(StoreRequest msg, Host from, short source_proto, int channel_id) {
+		assert channel_id == this.channel_id;
+		assert source_proto == ID;
+
+		if (!this.isEstablished(from))
+			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
 	}
 
 	/*--------------------------------- Channel Event Handlers ---------------------------------------- */
