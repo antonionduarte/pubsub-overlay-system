@@ -53,6 +53,22 @@ public class QueryManager {
         }
     }
 
+    public void startQuery(FindValueQueryDescriptor descriptor) {
+        var context = this.allocateContext();
+        var seeds = this.routing_table.closest(descriptor.target);
+        var query = new FindValueQuery(context, this.kadparams, descriptor.target, seeds,
+                this.addrbook,
+                this.queue, this.self, descriptor);
+        this.queries.put(context, query);
+
+        logger.info("Starting query {} with target {} and {} seeds", context, descriptor.target, seeds.size());
+        query.start();
+        if (query.isFinished()) {
+            logger.info("Query " + context + " finished");
+            this.queries.remove(context);
+        }
+    }
+
     public void onFindNodeResponse(FindNodeResponse msg, KadPeer from) {
         var context = msg.context;
         var query = this.queries.get(context);

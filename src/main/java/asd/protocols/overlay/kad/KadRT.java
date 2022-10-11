@@ -29,6 +29,10 @@ public class KadRT {
 		return bucket.removeByID(id);
 	}
 
+	public int size() {
+		return this.buckets.stream().mapToInt(KadBucket::size).sum();
+	}
+
 	public List<KadPeer> closest(KadID id) {
 		var peers = new ArrayList<KadPeer>(this.k);
 		var cpl = Math.min(this.self.cpl(id), this.bucketsSize() - 1);
@@ -42,6 +46,12 @@ public class KadRT {
 		while (peers.size() > this.k)
 			peers.remove(peers.size() - 1);
 		return peers;
+	}
+
+	public boolean contains(KadID id) {
+		var cpl = this.self.cpl(id);
+		var bucket = this.getBucketForCpl(cpl);
+		return bucket.contains(id);
 	}
 
 	private KadBucket getBucketForCpl(int cpl) {
@@ -71,6 +81,7 @@ public class KadRT {
 		var last_cpl = this.buckets.size() - 1;
 		var last = this.buckets.get(last_cpl);
 		var new_last = new KadBucket(this.k);
+		this.buckets.add(new_last);
 		assert last.isFull();
 
 		int index = 0;

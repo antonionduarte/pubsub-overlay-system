@@ -10,6 +10,8 @@ import org.checkerframework.checker.units.qual.K;
 import asd.protocols.overlay.common.ChannelCreatedNotification;
 import asd.protocols.overlay.kad.ipc.FindClosest;
 import asd.protocols.overlay.kad.ipc.FindClosestReply;
+import asd.protocols.overlay.kad.ipc.FindValue;
+import asd.protocols.overlay.kad.ipc.FindValueReply;
 import asd.protocols.overlay.kad.ipc.StoreValue;
 import asd.protocols.overlay.kad.messages.FindNodeRequest;
 import asd.protocols.overlay.kad.messages.FindNodeResponse;
@@ -18,6 +20,7 @@ import asd.protocols.overlay.kad.messages.FindValueResponse;
 import asd.protocols.overlay.kad.messages.Handshake;
 import asd.protocols.overlay.kad.messages.StoreRequest;
 import asd.protocols.overlay.kad.query.FindClosestQueryDescriptor;
+import asd.protocols.overlay.kad.query.FindValueQueryDescriptor;
 import asd.protocols.overlay.kad.query.QueryManager;
 import asd.utils.ASDUtils;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
@@ -87,6 +90,7 @@ public class Kademlia extends GenericProtocol {
 
 		/*--------------------- Register Request Handlers ----------------------------- */
 		this.registerRequestHandler(FindClosest.ID, this::onFindClosest);
+		this.registerRequestHandler(FindValue.ID, this::onFindValue);
 		this.registerRequestHandler(StoreValue.ID, this::onStoreValue);
 
 		/*-------------------- Register Channel Event ------------------------------- */
@@ -118,11 +122,17 @@ public class Kademlia extends GenericProtocol {
 		this.rt.remove(peer.id);
 	}
 
-	/*--------------------------------- Helpers ---------------------------------------- */
+	/*--------------------------------- Public Helpers ---------------------------------------- */
 
 	public void printRoutingTable() {
 		System.out.println(this.rt);
 	}
+
+	public KadID getID() {
+		return this.self.id;
+	}
+
+	/*--------------------------------- Helpers ---------------------------------------- */
 
 	private void sendHandshake(Host other) {
 		logger.info("Sending handshake to " + other);
@@ -148,6 +158,11 @@ public class Kademlia extends GenericProtocol {
 		this.flushQueryMessages();
 	}
 
+	private void startQuery(FindValueQueryDescriptor descriptor) {
+		this.query_manager.startQuery(descriptor);
+		this.flushQueryMessages();
+	}
+
 	/*--------------------------------- Message Handlers ---------------------------------------- */
 	private void onFindNodeRequest(FindNodeRequest msg, Host from, short source_proto, int channel_id) {
 		assert channel_id == this.channel_id;
@@ -167,6 +182,9 @@ public class Kademlia extends GenericProtocol {
 
 		if (!this.isEstablished(from))
 			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
+
+		for (var peer : msg.peers)
+			this.addrbook.add(peer);
 
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.query_manager.onFindNodeResponse(msg, peer);
@@ -192,6 +210,9 @@ public class Kademlia extends GenericProtocol {
 
 		if (!this.isEstablished(from))
 			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
+
+		for (var peer : msg.peers)
+			this.addrbook.add(peer);
 
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.query_manager.onFindValueResponse(msg, peer);
@@ -226,11 +247,22 @@ public class Kademlia extends GenericProtocol {
 
 	/*--------------------------------- Request Handlers ---------------------------------------- */
 	private void onFindClosest(FindClosest msg, short source_proto) {
-		var descriptor = new FindClosestQueryDescriptor(msg.target, closest -> {
+		this.startQuery(new FindClosestQueryDescriptor(msg.target, closest -> {
 			var reply = new FindClosestReply(msg.target, closest);
 			this.sendReply(reply, source_proto);
-		});
-		this.startQuery(descriptor);
+		}));
+	}
+
+	private void onFindValue(FindValue msg, short source_proto) {
+		this.startQuery(new FindValueQueryDescriptor(msg.key, (closest, value) -> {
+			if (closest.isPresent() && value.isPresent()) {
+				var host = this.addrbook.getHostFromID(closest.get());
+				var request = new StoreRequest(msg.key, value.get());
+				this.sendMessage(request, host);
+			}
+			var reply = new FindValueReply(value);
+			this.sendReply(reply, source_proto);
+		}));
 	}
 
 	private void onStoreValue(StoreValue msg, short source_proto) {

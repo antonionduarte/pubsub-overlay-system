@@ -87,6 +87,18 @@ public class KadID {
 		return new KadID(id);
 	}
 
+	public static KadID randomWithCpl(KadID reference, int cpl) {
+		var id = new byte[ID_LENGTH];
+		ThreadLocalRandom.current().nextBytes(id);
+		var cpl_bytes = cpl / 8;
+		var cpl_bits = cpl % 8;
+		for (int i = 0; i < cpl_bytes; ++i)
+			id[i] = reference.id[i];
+		var mask = (byte) (1 << (7 - cpl_bits));
+		id[cpl_bytes] = (byte) (reference.id[cpl_bytes] ^ mask);
+		return new KadID(id);
+	}
+
 	public static KadID ofData(byte[] data) {
 		try {
 			return KadID.ofData(new ByteArrayInputStream(data));

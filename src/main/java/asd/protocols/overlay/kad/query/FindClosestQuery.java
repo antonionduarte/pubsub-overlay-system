@@ -29,7 +29,7 @@ class FindClosestQuery extends Query {
     }
 
     @Override
-    void onFinish(List<KadPeer> closest) {
+    void onFinish(QPeerSet set, List<KadPeer> closest) {
         if (this.callbacks != null)
             this.callbacks.onQueryResult(closest);
     }

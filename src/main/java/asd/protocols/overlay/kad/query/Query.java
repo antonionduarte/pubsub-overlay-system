@@ -49,7 +49,7 @@ abstract class Query {
 
     abstract void request(KadID target, KadID peer);
 
-    abstract void onFinish(List<KadPeer> closest);
+    abstract void onFinish(QPeerSet set, List<KadPeer> closest);
 
     protected void onFindNodeResponse(FindNodeResponse msg, KadPeer from) {
         assert msg.context == this.context;
@@ -69,7 +69,7 @@ abstract class Query {
         if (this.isFinished())
             return;
         this.peers.markFinished(from.id);
-        this.addExtraPeers(msg.closest);
+        this.addExtraPeers(msg.peers);
         this.makeRequests();
     }
 
@@ -82,7 +82,7 @@ abstract class Query {
         this.finished = true;
         var closest = this.peers.streamFinishedKClosest().map(id -> this.addrbook.getPeerFromID(id))
                 .collect(Collectors.toList());
-        this.onFinish(closest);
+        this.onFinish(this.peers, closest);
     }
 
     protected final void sendMessage(KadID destination, FindNodeRequest msg) {

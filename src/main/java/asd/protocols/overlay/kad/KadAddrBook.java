@@ -35,6 +35,10 @@ public class KadAddrBook {
         return this.host2id.get(host);
     }
 
+    public void add(KadPeer peer) {
+        this.add(peer.id, peer.host);
+    }
+
     public void add(KadID id, Host host) {
         this.host2id.put(host, id);
         this.id2host.put(id, host);

@@ -16,7 +16,7 @@ public class FindValueResponse extends ProtoMessage {
 
     public final int context;
     public final Optional<byte[]> value;
-    public final List<KadPeer> closest;
+    public final List<KadPeer> peers;
 
     public FindValueResponse(int context, List<KadPeer> closest) {
         this(context, closest, Optional.empty());
@@ -29,7 +29,7 @@ public class FindValueResponse extends ProtoMessage {
     public FindValueResponse(int context, List<KadPeer> closest, Optional<byte[]> value) {
         super(ID);
         this.context = context;
-        this.closest = closest;
+        this.peers = closest;
         this.value = value;
     }
 
@@ -38,7 +38,7 @@ public class FindValueResponse extends ProtoMessage {
         return "FindValueResponse{" +
                 "context=" + context +
                 ", value=" + value +
-                ", closest=" + closest +
+                ", closest=" + peers +
                 '}';
     }
 
@@ -51,8 +51,8 @@ public class FindValueResponse extends ProtoMessage {
                 out.writeInt(t.value.get().length);
                 out.writeBytes(t.value.get());
             }
-            out.writeInt(t.closest.size());
-            for (KadPeer peer : t.closest) {
+            out.writeInt(t.peers.size());
+            for (KadPeer peer : t.peers) {
                 KadPeer.serializer.serialize(peer, out);
             }
         }

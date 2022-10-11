@@ -3,6 +3,7 @@ package asd.protocols.overlay.kad.query;
 import java.util.HashMap;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.Map.Entry;
 import java.util.stream.Stream;
 
 import asd.protocols.overlay.kad.KadDistance;
@@ -119,6 +120,11 @@ class QPeerSet {
     public KadID getCandidate() {
         return this.peers.entrySet().stream().limit(this.k).filter(entry -> entry.getValue() == State.PENDING)
                 .findFirst().map(entry -> entry.getKey().id).orElse(null);
+    }
+
+    public Stream<Entry<KadID, State>> stream() {
+        return this.peers.entrySet().stream()
+                .map(entry -> new HashMap.SimpleEntry<>(entry.getKey().id, entry.getValue()));
     }
 
     Stream<KadID> streamFinishedKClosest() {

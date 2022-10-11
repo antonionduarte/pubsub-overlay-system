@@ -20,6 +20,10 @@ public class KadBucket {
 		return true;
 	}
 
+	public boolean contains(KadID id) {
+		return this.findPeerIndex(id) != -1;
+	}
+
 	/**
 	 * Perform a swap-remove on `index`.
 	 * 

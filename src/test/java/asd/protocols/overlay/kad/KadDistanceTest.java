@@ -32,6 +32,11 @@ public class KadDistanceTest {
 		assertEquals(2, id3.cpl(id0));
 
 		assertEquals(KadID.ID_LENGTH * 8, id0.cpl(id0));
+
+		var id4 = KadID.create(0b0000_0000, 0b0010_0000);
+		var id5 = KadID.create(0b0000_0000, 0b0001_0000);
+
+		assertEquals(10, id4.cpl(id5));
 	}
 
 	@Test
