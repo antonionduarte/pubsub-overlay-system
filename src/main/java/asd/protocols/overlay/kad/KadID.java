@@ -59,7 +59,7 @@ public class KadID {
 		if (other == this)
 			return true;
 		var other_id = (KadID) other;
-		return Objects.equals(this.id, other_id.id);
+		return Arrays.equals(this.id, other_id.id);
 	}
 
 	@Override

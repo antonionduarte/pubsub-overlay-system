@@ -31,7 +31,7 @@ public class KadRT {
 
 	public List<KadPeer> closest(KadID id) {
 		var peers = new ArrayList<KadPeer>(this.k);
-		var cpl = this.self.cpl(id);
+		var cpl = Math.min(this.self.cpl(id), this.bucketsSize() - 1);
 		while (peers.size() < this.k && cpl >= 0) {
 			var bucket = this.buckets.get(cpl);
 			for (int i = 0; i < bucket.size(); ++i)
@@ -84,6 +84,20 @@ public class KadRT {
 				new_last.add(peer);
 			}
 		}
+	}
+
+	@Override
+	public String toString() {
+		var sb = new StringBuilder();
+		for (int i = 0; i < this.buckets.size(); ++i) {
+			var bucket = this.buckets.get(i);
+			sb.append(String.format("Bucket %d:\n", i));
+			for (int j = 0; j < bucket.size(); ++j) {
+				var peer = bucket.get(j);
+				sb.append(String.format("\t%s cpl: %d\n", peer, this.self.cpl(peer.id)));
+			}
+		}
+		return sb.toString();
 	}
 
 	// Testing utilities

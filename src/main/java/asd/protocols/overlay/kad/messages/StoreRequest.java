@@ -38,7 +38,10 @@ public class StoreRequest extends ProtoMessage {
 
 		@Override
 		public StoreRequest deserialize(ByteBuf in) throws IOException {
-			return new StoreRequest(KadID.serializer.deserialize(in), in.readBytes(in.readInt()).array());
+			var key = KadID.serializer.deserialize(in);
+			var value = new byte[in.readInt()];
+			in.readBytes(value);
+			return new StoreRequest(key, value);
 		}
 	};
 }

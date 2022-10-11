@@ -2,7 +2,6 @@ package asd.protocols.overlay.kad;
 
 import java.util.Comparator;
 
-// TODO: Can be improved. Instead of using this comparator store the precomputed distance and use that to compare.
 class PeerDistanceComparator implements Comparator<KadPeer> {
 	private final KadID from;
 

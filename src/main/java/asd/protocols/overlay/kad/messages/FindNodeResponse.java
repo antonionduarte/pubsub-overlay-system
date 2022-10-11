@@ -1,6 +1,7 @@
 package asd.protocols.overlay.kad.messages;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 import asd.protocols.overlay.kad.KadPeer;
@@ -12,22 +13,28 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 public class FindNodeResponse extends ProtoMessage {
     public static final short ID = Kademlia.ID + 2;
 
-    public final KadPeer[] peers;
+    public final int context;
+    public final List<KadPeer> peers;
 
-    public FindNodeResponse(List<KadPeer> closest) {
+    public FindNodeResponse(int context, List<KadPeer> closest) {
         super(ID);
-        this.peers = closest.toArray(new KadPeer[closest.size()]);
+        this.context = context;
+        this.peers = List.copyOf(closest);
     }
 
-    private FindNodeResponse(KadPeer[] peers) {
-        super(ID);
-        this.peers = peers;
+    @Override
+    public String toString() {
+        return "FindNodeResponse{" +
+                "context=" + context +
+                ", peers=" + peers +
+                '}';
     }
 
     public static final ISerializer<FindNodeResponse> serializer = new ISerializer<FindNodeResponse>() {
         @Override
         public void serialize(FindNodeResponse t, ByteBuf out) throws IOException {
-            out.writeInt(t.peers.length);
+            out.writeInt(t.context);
+            out.writeInt(t.peers.size());
             for (KadPeer peer : t.peers) {
                 KadPeer.serializer.serialize(peer, out);
             }
@@ -35,12 +42,13 @@ public class FindNodeResponse extends ProtoMessage {
 
         @Override
         public FindNodeResponse deserialize(ByteBuf in) throws IOException {
-            int size = in.readInt();
-            KadPeer[] peers = new KadPeer[size];
+            var context = in.readInt();
+            var size = in.readInt();
+            var peers = new ArrayList<KadPeer>(size);
             for (int i = 0; i < size; i++) {
-                peers[i] = KadPeer.serializer.deserialize(in);
+                peers.add(KadPeer.serializer.deserialize(in));
             }
-            return new FindNodeResponse(peers);
+            return new FindNodeResponse(context, peers);
         }
     };
 }
