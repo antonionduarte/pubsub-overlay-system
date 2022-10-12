@@ -12,4 +12,10 @@ public class KadTestUtils {
 		var host = new Host(Inet4Address.getLoopbackAddress(), port);
 		return new KadPeer(id, host);
 	}
+
+	public static KadPeer randomPeer(KadID id) {
+		var port = ThreadLocalRandom.current().nextInt() % 0xFFFF;
+		var host = new Host(Inet4Address.getLoopbackAddress(), port);
+		return new KadPeer(id, host);
+	}
 }

@@ -10,13 +10,13 @@ import asd.protocols.overlay.kad.KadDistance;
 import asd.protocols.overlay.kad.KadID;
 
 class QPeerSet {
-    public enum State {
+    public static enum State {
         PENDING,
         INPROGRESS,
         FINISHED,
     }
 
-    private static class Key implements Comparable<Key> {
+    static class Key implements Comparable<Key> {
         public final KadID id;
         public final KadDistance distance;
 
@@ -43,7 +43,7 @@ class QPeerSet {
 
         @Override
         public String toString() {
-            return "DistanceIDKey{" +
+            return "Key{" +
                     "id=" + id +
                     ", distance=" + distance +
                     '}';
@@ -62,7 +62,7 @@ class QPeerSet {
     private final int k;
     private final KadID target;
     private final HashMap<KadID, Key> keys;
-    private final SortedMap<Key, State> peers;
+    final SortedMap<Key, State> peers;
     private int inprogress;
 
     public QPeerSet(int k, KadID target) {
@@ -99,6 +99,13 @@ class QPeerSet {
 
     public boolean contains(KadID id) {
         return this.keys.containsKey(id);
+    }
+
+    public State getState(KadID id) {
+        var key = this.keys.get(id);
+        if (key == null)
+            return null;
+        return this.peers.get(key);
     }
 
     public boolean isInState(KadID id, State state) {

@@ -35,14 +35,14 @@ public class KadRT {
 
 	public List<KadPeer> closest(KadID id) {
 		var peers = new ArrayList<KadPeer>(this.k);
-		var cpl = Math.min(this.self.cpl(id), this.bucketsSize() - 1);
-		while (peers.size() < this.k && cpl >= 0) {
-			var bucket = this.buckets.get(cpl);
+		var bucket_idx = Math.min(this.self.cpl(id), this.bucketsSize() - 1);
+		while (peers.size() < this.k && bucket_idx >= 0) {
+			var bucket = this.buckets.get(bucket_idx);
 			for (int i = 0; i < bucket.size(); ++i)
 				peers.add(bucket.get(i));
-			cpl -= 1;
+			bucket_idx -= 1;
 		}
-		Collections.sort(peers, new PeerDistanceComparator(this.self));
+		Collections.sort(peers, new PeerDistanceComparator(id));
 		while (peers.size() > this.k)
 			peers.remove(peers.size() - 1);
 		return peers;

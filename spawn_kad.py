@@ -1,3 +1,4 @@
+import shutil
 import subprocess
 
 BOOTSTRAP_PORT = 5050
@@ -20,6 +21,8 @@ def spawn_kad(port: int):
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
         "java",
+        "-Xmx96M",
+        "-ea",
         "-cp",
         "/usr/local/app.jar",
         "Main",
@@ -31,9 +34,33 @@ def spawn_kad(port: int):
     subprocess.run(args)
 
 
+def spawn_kad2(port: int):
+    args = [
+        shutil.which("java"),
+        "-ea",
+        "-XX:NativeMemoryTracking=summary",
+        "-Xmx96M",
+        "-cp",
+        "./target/asdProj.jar",
+        "Main",
+        f"babel_port={port}",
+        "babel_address=127.0.0.1",
+    ]
+    if port != BOOTSTRAP_PORT:
+        args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
+    subprocess.Popen(
+        args,
+        start_new_session=True,
+        close_fds=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
 def main():
     spawn_kad(BOOTSTRAP_PORT)
-    for i in range(1, 120):
+    for i in range(1, 100):
+        print("Spawning kad ", 5050 + i)
         spawn_kad(5050 + i)
 
 

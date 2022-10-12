@@ -8,7 +8,7 @@ class KadUtils {
 	static int byteLeadingZeroes(byte v) {
 		var lz = 0;
 		for (int j = 7; j >= 0; --j) {
-			var b = ((v & (1 << j)) >> j);
+			var b = v & (1 << j);
 			if (b == 0)
 				lz += 1;
 			else

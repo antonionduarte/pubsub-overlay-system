@@ -1,7 +1,5 @@
 package asd.protocols.overlay.kad;
 
-import java.util.Objects;
-
 public class KadDistance implements Comparable<KadDistance> {
 	private final byte[] distance;
 
@@ -19,6 +17,17 @@ public class KadDistance implements Comparable<KadDistance> {
 	}
 
 	@Override
+	public String toString() {
+		var builder = new StringBuilder();
+		for (int i = 0; i < KadID.ID_LENGTH; ++i) {
+			if (i != 0)
+				builder.append(", ");
+			builder.append(String.format("%03d", this.distance[i] & 0xFF));
+		}
+		return builder.toString();
+	}
+
+	@Override
 	public boolean equals(Object other) {
 		if (other == null)
 			return false;
@@ -26,16 +35,15 @@ public class KadDistance implements Comparable<KadDistance> {
 			return true;
 		if (!(other instanceof KadDistance))
 			return false;
-		return Objects.equals(this.distance, ((KadDistance) other).distance);
+		return this.compareTo((KadDistance) other) == 0;
 	}
 
 	@Override
 	public int compareTo(KadDistance o) {
 		for (int i = 0; i < KadID.ID_LENGTH; ++i) {
-			if (this.distance[i] < o.distance[i])
-				return -1;
-			if (this.distance[i] > o.distance[i])
-				return 1;
+			var diff = (this.distance[i] & 0xFF) - (o.distance[i] & 0xFF);
+			if (diff != 0)
+				return diff;
 		}
 		return 0;
 	}

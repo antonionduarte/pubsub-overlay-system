@@ -53,8 +53,9 @@ abstract class Query {
 
     protected void onFindNodeResponse(FindNodeResponse msg, KadPeer from) {
         assert msg.context == this.context;
-        if (!this.peers.contains(from.id))
-            throw new IllegalStateException("Received FindNodeResponse from peer that was not requested");
+        if (!this.peers.isInState(from.id, QPeerSet.State.INPROGRESS))
+            throw new IllegalStateException("Received FindNodeResponse from peer that was not requested: " + from
+                    + ". Peer state is " + this.peers.getState(from.id));
         if (this.isFinished())
             return;
         this.peers.markFinished(from.id);
@@ -65,7 +66,8 @@ abstract class Query {
     protected void onFindValueResponse(FindValueResponse msg, KadPeer from) {
         assert msg.context == this.context;
         if (!this.peers.isInState(from.id, QPeerSet.State.INPROGRESS))
-            throw new IllegalStateException("Received FindValueResponse from peer that was not requested");
+            throw new IllegalStateException("Received FindValueResponse from peer that was not requested: " + from
+                    + ". Peer state is " + this.peers.getState(from.id));
         if (this.isFinished())
             return;
         this.peers.markFinished(from.id);

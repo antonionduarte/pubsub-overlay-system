@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HexFormat;
-import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
 import com.google.common.hash.Hashing;
@@ -64,7 +63,7 @@ public class KadID {
 
 	@Override
 	public int hashCode() {
-		return Objects.hash(this.id);
+		return Arrays.hashCode(this.id);
 	}
 
 	static KadID create(int... id) {
