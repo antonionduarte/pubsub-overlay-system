@@ -1,0 +1,58 @@
+= babel-rs
+
+babel but its rust.
+
+== Wire Format
+
+Message Encoder/Decoder::
+	i32 - message size - The message code counts 1 byte into the size
+	i8	- message code
+		Control Message = 0
+		App Message		= 1
+	msg - remaining message payload. Either a control message or an app message
+
+Attributes::
+	i32	- number of elements in the map
+	repeated n times:
+		i32 	- key size
+		key 	- key with size specified just before. Keys are utf-8 encoded strings.
+		i32		- value size
+		value 	- value with size specified just before
+
+Control Message::
+	i32 - opcode
+		Heartbeat 			= 0
+		First Handshake 	= 1
+		Second Handshake 	= 2
+		Invalid Attribute	= 3
+
+	Heartbeat::
+		this message has no payload
+
+	First Handshake::
+		i32		- magic number = 0x79676472
+		attrs 	- attributes
+
+	Second Handshake::
+		i32		- magic number = same as above
+		attrs	- attributes
+
+	Invalid Attribute::	
+		i32 - magic number = same as above
+	
+App Message::
+	User defined message.
+	In this case this is just a BabelMessage.
+
+Babel Message::
+	i16	- source protocol id
+	i16 - destination protocol id
+	i16 - message type id
+	msg - message payload
+
+=== Protocol
+
+1. Establish connection
+2. Send First Handshake
+3. Receive Second Handshake
+4. Exchange application messages / Heartbeats
