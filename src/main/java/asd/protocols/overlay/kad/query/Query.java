@@ -1,40 +1,47 @@
 package asd.protocols.overlay.kad.query;
 
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Queue;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
-import asd.protocols.overlay.kad.KadAddrBook;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadParams;
 import asd.protocols.overlay.kad.KadPeer;
-import asd.protocols.overlay.kad.messages.FindNodeRequest;
-import asd.protocols.overlay.kad.messages.FindNodeResponse;
-import asd.protocols.overlay.kad.messages.FindValueRequest;
-import asd.protocols.overlay.kad.messages.FindValueResponse;
-import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 
 abstract class Query {
-    private final int context;
+    private static final Logger logger = LogManager.getLogger(Query.class);
+
+    private static class ActiveRequest {
+        public final KadID peer;
+        public final Instant start;
+
+        public ActiveRequest(KadID peer) {
+            this.peer = peer;
+            this.start = Instant.now();
+        }
+    }
+
+    private final QueryIO qio;
+    private final KadID self;
     private final KadParams kadparams;
     private final KadID target;
-    private final KadAddrBook addrbook;
-    private final Queue<QueryMessage> queue;
-    private final KadID self;
     private final QPeerSet peers;
+    private final ArrayList<ActiveRequest> active_requests;
 
     private boolean finished;
 
-    Query(int context, KadParams kadparams, KadID target, List<KadPeer> seeds, KadAddrBook addrbook,
-            Queue<QueryMessage> queue, KadID self) {
-        this.context = context;
+    Query(QueryIO qio, KadID self, KadParams kadparams, KadID target, List<KadPeer> seeds) {
+        this.qio = qio;
+        this.self = self;
         this.kadparams = kadparams;
         this.target = target;
-        this.addrbook = addrbook;
-        this.queue = queue;
-        this.self = self;
         this.peers = new QPeerSet(this.kadparams.k, target);
         this.finished = false;
+        this.active_requests = new ArrayList<>();
 
         this.addExtraPeers(seeds);
     }
@@ -47,61 +54,65 @@ abstract class Query {
         return this.finished;
     }
 
-    abstract void request(KadID target, KadID peer);
+    abstract void request(QueryIO qio, KadID peer, KadID target);
 
-    abstract void onFinish(QPeerSet set, List<KadPeer> closest);
+    abstract void onFinish(QPeerSet set);
 
-    protected void onFindNodeResponse(FindNodeResponse msg, KadPeer from) {
-        assert msg.context == this.context;
-        if (!this.peers.isInState(from.id, QPeerSet.State.INPROGRESS))
+    protected void onFindNodeResponse(KadID from, List<KadPeer> closest) {
+        if (!this.peers.isInState(from, QPeerSet.State.INPROGRESS))
             throw new IllegalStateException("Received FindNodeResponse from peer that was not requested: " + from
-                    + ". Peer state is " + this.peers.getState(from.id));
+                    + ". Peer state is " + this.peers.getState(from));
         if (this.isFinished())
             return;
-        this.peers.markFinished(from.id);
-        this.addExtraPeers(msg.peers);
+        this.peers.markFinished(from);
+        this.addExtraPeers(closest);
         this.makeRequests();
     }
 
-    protected void onFindValueResponse(FindValueResponse msg, KadPeer from) {
-        assert msg.context == this.context;
-        if (!this.peers.isInState(from.id, QPeerSet.State.INPROGRESS))
+    protected void onFindValueResponse(KadID from, List<KadPeer> closest, Optional<byte[]> value) {
+        if (!this.peers.isInState(from, QPeerSet.State.INPROGRESS))
             throw new IllegalStateException("Received FindValueResponse from peer that was not requested: " + from
-                    + ". Peer state is " + this.peers.getState(from.id));
+                    + ". Peer state is " + this.peers.getState(from));
         if (this.isFinished())
             return;
-        this.peers.markFinished(from.id);
-        this.addExtraPeers(msg.peers);
+        this.peers.markFinished(from);
+        this.addExtraPeers(closest);
         this.makeRequests();
     }
 
-    protected final int getContext() {
-        return this.context;
+    final void onPeerError(KadID peer) {
+        if (!this.peers.isInState(peer, QPeerSet.State.INPROGRESS))
+            throw new IllegalStateException("Received PeerError from peer that was not requested: " + peer
+                    + ". Peer state is " + this.peers.getState(peer));
+        if (this.isFinished())
+            return;
+        logger.debug("Peer {} failed", peer);
+        this.removeActiveRequest(peer);
+        this.peers.markFailed(peer);
+        this.makeRequests();
+    }
+
+    final void checkTimeouts() {
+        if (this.isFinished())
+            return;
+
+        var timedout = new ArrayList<KadID>();
+        var now = Instant.now();
+
+        for (var req : this.active_requests) {
+            var elapsed = now.toEpochMilli() - req.start.toEpochMilli();
+            if (elapsed > 3000)
+                timedout.add(req.peer);
+        }
+
+        for (var peer : timedout)
+            this.onPeerError(peer);
     }
 
     protected final void finish() {
         assert !this.finished;
         this.finished = true;
-        var closest = this.peers.streamFinishedKClosest().map(id -> this.addrbook.getPeerFromID(id))
-                .collect(Collectors.toList());
-        this.onFinish(this.peers, closest);
-    }
-
-    protected final void sendMessage(KadID destination, FindNodeRequest msg) {
-        this.sendMessage(destination, msg.context, msg);
-    }
-
-    protected final void sendMessage(KadID destination, FindValueRequest msg) {
-        this.sendMessage(destination, msg.context, msg);
-    }
-
-    private void sendMessage(KadID destination, int context, ProtoMessage msg) {
-        if (context != this.context)
-            throw new IllegalArgumentException("Message context does not match query context");
-        var host = this.addrbook.getHostFromID(destination);
-        if (host == null)
-            throw new IllegalArgumentException("Destination ID is not in address book");
-        this.queue.add(new QueryMessage(host, msg));
+        this.onFinish(this.peers);
     }
 
     private void makeRequests() {
@@ -111,7 +122,8 @@ abstract class Query {
             var candidate = this.peers.getCandidate();
             assert candidate != null;
             this.peers.markInProgress(candidate);
-            this.request(this.target, candidate);
+            this.addActiveRequest(candidate);
+            this.request(this.qio, candidate, this.target);
         }
 
         if (this.peers.getNumInProgress() == 0 && this.peers.getNumCandidates() == 0)
@@ -119,8 +131,21 @@ abstract class Query {
     }
 
     private void addExtraPeers(List<KadPeer> peers) {
-        for (var peer : peers)
-            if (!peer.id.equals(this.self))
+        for (var peer : peers) {
+            if (!peer.id.equals(this.self)) {
+                this.qio.discover(peer);
                 this.peers.add(peer.id);
+            }
+        }
+    }
+
+    private void addActiveRequest(KadID peer) {
+        this.active_requests.add(new ActiveRequest(peer));
+    }
+
+    private void removeActiveRequest(KadID peer) {
+        assert this.active_requests.size() <= this.kadparams.alpha;
+        var removed = this.active_requests.removeIf(r -> r.peer.equals(peer));
+        assert removed;
     }
 }

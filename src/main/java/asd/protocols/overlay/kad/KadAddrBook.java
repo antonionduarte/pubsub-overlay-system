@@ -1,6 +1,7 @@
 package asd.protocols.overlay.kad;
 
 import java.util.HashMap;
+import java.util.List;
 
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -66,5 +67,9 @@ public class KadAddrBook {
             return;
         this.host2id.remove(host);
         this.id2host.remove(id);
+    }
+
+    public List<KadPeer> idsToPeers(List<KadID> ids) {
+        return ids.stream().map(this::getPeerFromID).filter(p -> p != null).toList();
     }
 }

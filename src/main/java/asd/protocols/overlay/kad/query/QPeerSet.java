@@ -1,9 +1,11 @@
 package asd.protocols.overlay.kad.query;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import asd.protocols.overlay.kad.KadDistance;
@@ -14,6 +16,7 @@ class QPeerSet {
         PENDING,
         INPROGRESS,
         FINISHED,
+        FAILED,
     }
 
     static class Key implements Comparable<Key> {
@@ -97,6 +100,14 @@ class QPeerSet {
             this.inprogress -= 1;
     }
 
+    public void markFailed(KadID id) {
+        assert this.contains(id);
+        var key = this.keys.get(id);
+        var prev = this.peers.put(key, State.FAILED);
+        if (prev == State.INPROGRESS)
+            this.inprogress -= 1;
+    }
+
     public boolean contains(KadID id) {
         return this.keys.containsKey(id);
     }
@@ -134,7 +145,11 @@ class QPeerSet {
                 .map(entry -> new HashMap.SimpleEntry<>(entry.getKey().id, entry.getValue()));
     }
 
-    Stream<KadID> streamFinishedKClosest() {
+    public List<KadID> closest() {
+        return this.streamFinishedKClosest().collect(Collectors.toList());
+    }
+
+    private Stream<KadID> streamFinishedKClosest() {
         return this.peers.entrySet().stream().filter(entry -> entry.getValue() == State.FINISHED).limit(this.k)
                 .map(entry -> entry.getKey().id);
     }

@@ -2,14 +2,10 @@ package asd.protocols.overlay.kad.query;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.Queue;
 
-import asd.protocols.overlay.kad.KadAddrBook;
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadParams;
 import asd.protocols.overlay.kad.KadPeer;
-import asd.protocols.overlay.kad.messages.FindValueRequest;
-import asd.protocols.overlay.kad.messages.FindValueResponse;
 
 class FindValueQuery extends Query {
 
@@ -17,21 +13,21 @@ class FindValueQuery extends Query {
     private KadID provider;
     private Optional<byte[]> value;
 
-    public FindValueQuery(int context, KadParams kadparams, KadID target, List<KadPeer> seeds, KadAddrBook addrbook,
-            Queue<QueryMessage> queue, KadID self, FindValueQueryDescriptor descriptor) {
-        super(context, kadparams, target, seeds, addrbook, queue, self);
+    public FindValueQuery(QueryIO qio, KadID self, KadParams kadparams, KadID target, List<KadPeer> seeds,
+            FindValueQueryDescriptor descriptor) {
+        super(qio, self, kadparams, target, seeds);
         this.callbacks = descriptor.callbacks;
         this.provider = null;
         this.value = Optional.empty();
     }
 
     @Override
-    void request(KadID target, KadID peer) {
-        this.sendMessage(peer, new FindValueRequest(this.getContext(), target));
+    void request(QueryIO qio, KadID peer, KadID target) {
+        qio.findValueRequest(peer, target);
     }
 
     @Override
-    void onFinish(QPeerSet set, List<KadPeer> closest) {
+    void onFinish(QPeerSet set) {
         if (this.callbacks == null)
             return;
         var cache_target = set.stream().filter(entry -> entry.getValue() == QPeerSet.State.FINISHED)
@@ -40,11 +36,11 @@ class FindValueQuery extends Query {
     }
 
     @Override
-    protected final void onFindValueResponse(FindValueResponse msg, KadPeer from) {
-        super.onFindValueResponse(msg, from);
-        if (msg.value.isPresent()) {
-            this.provider = from.id;
-            this.value = msg.value;
+    protected final void onFindValueResponse(KadID from, List<KadPeer> closest, Optional<byte[]> value) {
+        super.onFindValueResponse(from, closest, value);
+        if (value.isPresent()) {
+            this.provider = from;
+            this.value = value;
             this.finish();
         }
     }

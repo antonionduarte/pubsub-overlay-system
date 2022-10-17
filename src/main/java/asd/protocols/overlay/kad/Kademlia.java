@@ -25,6 +25,7 @@ import asd.protocols.overlay.kad.messages.StoreRequest;
 import asd.protocols.overlay.kad.query.FindClosestQueryDescriptor;
 import asd.protocols.overlay.kad.query.FindValueQueryDescriptor;
 import asd.protocols.overlay.kad.query.QueryManager;
+import asd.protocols.overlay.kad.timers.CheckQueryTimeoutsTimer;
 import asd.protocols.overlay.kad.timers.RefreshRTTimer;
 import asd.utils.ASDUtils;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
@@ -50,6 +51,7 @@ public class Kademlia extends GenericProtocol {
 	private final KadStorage storage;
 	private final KadAddrBook addrbook;
 	private final QueryManager query_manager;
+	private final KadQueryManagerIO query_manager_io;
 
 	private final HashSet<Host> open_connections;
 	// Messages that are waiting for a connection to be established
@@ -78,7 +80,9 @@ public class Kademlia extends GenericProtocol {
 		this.rt = new KadRT(params.k, this.self.id);
 		this.storage = new KadStorage();
 		this.addrbook = new KadAddrBook();
-		this.query_manager = new QueryManager(params, this.rt, this.addrbook, this.self.id);
+		var query_manager_io = new KadQueryManagerIO(this.addrbook);
+		this.query_manager = new QueryManager(params, this.rt, this.self.id, query_manager_io);
+		this.query_manager_io = query_manager_io;
 
 		this.open_connections = new HashSet<>();
 		this.pending_messages = new HashMap<>();
@@ -112,6 +116,7 @@ public class Kademlia extends GenericProtocol {
 		this.registerChannelEventHandler(this.channel_id, InConnectionDown.EVENT_ID, this::onInConnectionDown);
 
 		/*-------------------- Register Channel Events ------------------------------- */
+		this.registerTimerHandler(CheckQueryTimeoutsTimer.ID, this::onCheckQueryTimeouts);
 		this.registerTimerHandler(RefreshRTTimer.ID, this::onRefreshRT);
 	}
 
@@ -125,6 +130,7 @@ public class Kademlia extends GenericProtocol {
 			this.openConnection(bootstrap_host);
 		}
 
+		this.setupPeriodicTimer(new CheckQueryTimeoutsTimer(), 1 * 1000, 1 * 1000);
 		this.setupPeriodicTimer(new RefreshRTTimer(), (5 + (long) (Math.random() * 30)) * 1000, 60 * 1000);
 	}
 
@@ -169,15 +175,21 @@ public class Kademlia extends GenericProtocol {
 
 	private void flushQueryMessages() {
 		while (true) {
-			var msg_opt = this.query_manager.popMessage();
-			if (msg_opt.isEmpty())
+			var request = this.query_manager_io.pop();
+			if (request == null)
 				break;
-			var msg = msg_opt.get();
-			if (this.isEstablished(msg.destination)) {
-				this.sendMessage(msg.message, msg.destination);
+
+			var host = this.addrbook.getHostFromID(request.destination);
+			if (host == null) {
+				this.query_manager.onPeerError(request.context, request.destination);
+				continue;
+			}
+
+			if (this.isEstablished(host)) {
+				this.sendMessage(request.message, host);
 			} else {
-				this.openConnection(msg.destination);
-				this.pending_messages.computeIfAbsent(msg.destination, k -> new ArrayList<>()).add(msg.message);
+				this.openConnection(host);
+				this.pending_messages.computeIfAbsent(host, k -> new ArrayList<>()).add(request.message);
 			}
 		}
 	}
@@ -216,7 +228,7 @@ public class Kademlia extends GenericProtocol {
 			this.addrbook.add(peer);
 
 		var peer = this.addrbook.getPeerFromHost(from);
-		this.query_manager.onFindNodeResponse(msg, peer);
+		this.query_manager.onFindNodeResponse(msg.context, peer.id, msg.peers);
 		this.flushQueryMessages();
 	}
 
@@ -244,7 +256,7 @@ public class Kademlia extends GenericProtocol {
 			this.addrbook.add(peer);
 
 		var peer = this.addrbook.getPeerFromHost(from);
-		this.query_manager.onFindValueResponse(msg, peer);
+		this.query_manager.onFindValueResponse(msg.context, peer.id, msg.peers, msg.value);
 		this.flushQueryMessages();
 	}
 
@@ -277,7 +289,8 @@ public class Kademlia extends GenericProtocol {
 	/*--------------------------------- Request Handlers ---------------------------------------- */
 	private void onFindClosest(FindClosest msg, short source_proto) {
 		this.startQuery(new FindClosestQueryDescriptor(msg.target, closest -> {
-			var reply = new FindClosestReply(msg.target, closest);
+			var closest_peers = this.addrbook.idsToPeers(closest);
+			var reply = new FindClosestReply(msg.target, closest_peers);
 			this.sendReply(reply, source_proto);
 		}));
 	}
@@ -297,9 +310,14 @@ public class Kademlia extends GenericProtocol {
 	private void onStoreValue(StoreValue msg, short source_proto) {
 		var descriptor = new FindClosestQueryDescriptor(msg.key, closest -> {
 			var request = new StoreRequest(msg.key, msg.value);
-			for (var peer : closest) {
-				logger.info("Sending StoreRequest to " + peer);
-				this.sendMessage(request, peer.host);
+			for (var id : closest) {
+				var host = this.addrbook.getHostFromID(id);
+				if (host == null) {
+					logger.warn("Could not find host for peer " + id + " while storing value");
+					continue;
+				}
+				logger.info("Sending StoreRequest to " + host);
+				this.sendMessage(request, host);
 			}
 		});
 		this.startQuery(descriptor);
@@ -345,6 +363,10 @@ public class Kademlia extends GenericProtocol {
 	}
 
 	/*--------------------------------- Timer Handlers ---------------------------------------- */
+	private void onCheckQueryTimeouts(CheckQueryTimeoutsTimer timer, long timer_id) {
+		this.query_manager.checkTimeouts();
+	}
+
 	private void onRefreshRT(RefreshRTTimer timer, long timer_id) {
 		logger.info("Refreshing routing table");
 		this.startQuery(new FindClosestQueryDescriptor(this.self.id));
