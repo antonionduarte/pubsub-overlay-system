@@ -10,6 +10,7 @@ mod error;
 
 pub(crate) mod application;
 pub mod channel;
+pub mod ipc;
 pub(crate) mod mailbox;
 pub mod props;
 pub mod protocol;

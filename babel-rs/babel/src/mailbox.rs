@@ -5,15 +5,19 @@ use crossbeam::channel::{Receiver, Sender};
 
 use crate::{
     channel::ConnectionEvent,
+    ipc::{BoxedNotification, BoxedReply, BoxedRequest},
     protocol::{ProtocolID, ProtocolMessageID},
     ChannelID, TimerID,
 };
 
 #[derive(Debug)]
-pub enum MailboxEvent {
+pub(crate) enum MailboxEvent {
     TimerExpired(TimerID),
     MessageReceived(ChannelID, SocketAddr, ProtocolMessageID, Bytes),
     ConnectionEvent(ChannelID, ConnectionEvent),
+    RequestReceived(BoxedRequest),
+    ReplyReceived(BoxedReply),
+    NotificationReceived(BoxedNotification),
 }
 
 #[derive(Debug, Default)]

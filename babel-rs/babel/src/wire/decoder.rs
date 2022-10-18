@@ -19,20 +19,18 @@ impl Default for State {
     }
 }
 
-pub struct Decoder<R, M> {
+pub struct Decoder<R> {
     buffer: Vec<u8>,
     state: State,
     reader: R,
-    _phatom: std::marker::PhantomData<M>,
 }
 
-impl<R, M> Decoder<R, M> {
+impl<R> Decoder<R> {
     pub fn new(reader: R) -> Self {
         Self {
             buffer: Default::default(),
             state: Default::default(),
             reader,
-            _phatom: std::marker::PhantomData,
         }
     }
 
@@ -41,12 +39,14 @@ impl<R, M> Decoder<R, M> {
     }
 }
 
-impl<R, M> Decoder<R, M>
+impl<R> Decoder<R>
 where
     R: AsyncRead + Unpin,
-    M: Deserialize,
 {
-    pub async fn decode(&mut self) -> std::io::Result<Message<M>> {
+    pub async fn decode<M>(&mut self) -> std::io::Result<Message<M>>
+    where
+        M: Deserialize,
+    {
         loop {
             match self.state {
                 State::ReadingSize { ref mut read } => {

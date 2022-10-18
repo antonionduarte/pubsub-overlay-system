@@ -1,9 +1,9 @@
 use crate::{
     channel::ChannelFactory,
+    ipc::IpcService,
     mailbox::{MailboxRouter, MailboxRouterBuilder},
     protocol::{Protocol, ProtocolExecutor},
     service::{
-        ipc::IpcService,
         network::{NetworkService, NetworkServiceBuilder},
         timer::TimerService,
     },
@@ -55,9 +55,9 @@ impl ApplicationBuilder {
 
     pub async fn build(self) -> Application {
         let router = self.router_builder.build();
-        let timer_service = TimerService::spawn(router.clone());
+        let timer_service = TimerService::new(router.clone());
         let network_service = self.network_builder.build(router.clone());
-        let ipc_service = IpcService::spawn(router.clone());
+        let ipc_service = IpcService::new(router.clone());
 
         Application {
             router,

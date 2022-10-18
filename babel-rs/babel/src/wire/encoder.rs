@@ -4,18 +4,16 @@ use crate::Serialize;
 
 use super::{ControlMessage, Message, MessageCode};
 
-pub struct Encoder<W, M> {
+pub struct Encoder<W> {
     buffer: Vec<u8>,
     writer: W,
-    _phatom: std::marker::PhantomData<M>,
 }
 
-impl<W, M> Encoder<W, M> {
+impl<W> Encoder<W> {
     pub fn new(writer: W) -> Self {
         Self {
             buffer: Default::default(),
             writer,
-            _phatom: std::marker::PhantomData,
         }
     }
 
@@ -24,12 +22,11 @@ impl<W, M> Encoder<W, M> {
     }
 }
 
-impl<W, M> Encoder<W, M>
+impl<W> Encoder<W>
 where
     W: AsyncWrite + Unpin,
-    M: Serialize,
 {
-    pub async fn encode(&mut self, message: &Message<M>) -> std::io::Result<()> {
+    pub async fn encode(&mut self, message: &Message<impl Serialize>) -> std::io::Result<()> {
         match message {
             Message::Control(ref msg) => self.control(msg).await,
             Message::Application(ref msg) => self.application(msg).await,
@@ -40,7 +37,7 @@ where
         self.write(MessageCode::Control, message).await
     }
 
-    pub async fn application(&mut self, message: &M) -> std::io::Result<()> {
+    pub async fn application(&mut self, message: &impl Serialize) -> std::io::Result<()> {
         self.write(MessageCode::Application, message).await
     }
 

@@ -353,10 +353,7 @@ async fn connection_task<E>(
 
     let (reader, writer) = stream.into_split();
     let (reader, writer) = (BufReader::new(reader), BufWriter::new(writer));
-    let (mut encoder, mut decoder) = (
-        wire::Encoder::<_, BabelMessage>::new(writer),
-        wire::Decoder::<_, BabelMessage>::new(reader),
-    );
+    let (mut encoder, mut decoder) = (wire::Encoder::new(writer), wire::Decoder::new(reader));
 
     // Handshake
     let mut properties = Properties::default();
@@ -365,7 +362,7 @@ async fn connection_task<E>(
     match direction {
         ConnectionDirection::Incoming => {
             // just assume their handshake is correct, dont have time for this right now.
-            decoder.decode().await.unwrap();
+            decoder.decode::<BabelMessage>().await.unwrap();
             encoder
                 .control(&ControlMessage::SecondHandshake(handshake))
                 .await
@@ -376,7 +373,7 @@ async fn connection_task<E>(
                 .control(&ControlMessage::FirstHandshake(handshake))
                 .await
                 .unwrap();
-            decoder.decode().await.unwrap(); // same crap, just assume its correct
+            decoder.decode::<BabelMessage>().await.unwrap(); // same crap, just assume its correct
         }
     }
 
