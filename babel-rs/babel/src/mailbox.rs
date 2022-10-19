@@ -5,7 +5,7 @@ use crossbeam::channel::{Receiver, Sender};
 
 use crate::{
     channel::ConnectionEvent,
-    ipc::{BoxedNotification, BoxedReply, BoxedRequest},
+    ipc::IpcMessage,
     protocol::{ProtocolID, ProtocolMessageID},
     ChannelID, TimerID,
 };
@@ -15,9 +15,7 @@ pub(crate) enum MailboxEvent {
     TimerExpired(TimerID),
     MessageReceived(ChannelID, SocketAddr, ProtocolMessageID, Bytes),
     ConnectionEvent(ChannelID, ConnectionEvent),
-    RequestReceived(BoxedRequest),
-    ReplyReceived(BoxedReply),
-    NotificationReceived(BoxedNotification),
+    IpcMessage(IpcMessage),
 }
 
 #[derive(Debug, Default)]
@@ -61,6 +59,10 @@ impl MailboxRouter {
     pub fn get(&self, protocol_id: ProtocolID) -> Option<&MailboxSender> {
         self.mailboxes.get(&protocol_id)
     }
+
+    pub fn iter(&self) -> impl Iterator<Item = (ProtocolID, &MailboxSender)> {
+        self.mailboxes.iter().map(|(k, v)| (*k, v))
+    }
 }
 
 impl MailboxSender {
@@ -82,6 +84,10 @@ impl MailboxSender {
 
     pub fn connection_event(&self, channel_id: ChannelID, event: ConnectionEvent) {
         self.send_event(MailboxEvent::ConnectionEvent(channel_id, event))
+    }
+
+    pub fn ipc_message(&self, message: IpcMessage) {
+        self.send_event(MailboxEvent::IpcMessage(message))
     }
 
     fn send_event(&self, event: MailboxEvent) {

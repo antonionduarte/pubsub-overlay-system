@@ -33,7 +33,8 @@ pub struct ConnectionEvent {
 }
 
 pub trait ChannelEvents: Clone + Send + Sync + 'static {
-    fn emit(&self, event: ConnectionEvent);
+    fn connection(&self, event: ConnectionEvent);
+    // TODO: direction
     fn message(&self, source: SocketAddr, message: BabelMessage);
 }
 
@@ -50,6 +51,7 @@ pub trait Channel: Send + Sync + 'static {
 
     fn disconnect(&self, addr: SocketAddr);
 
+    // TODO: direction, BabelMessage
     fn send(
         &self,
         addr: SocketAddr,
@@ -59,7 +61,6 @@ pub trait Channel: Send + Sync + 'static {
         message: Bytes,
     );
 }
-
 
 impl std::fmt::Display for ConnectionDirection {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

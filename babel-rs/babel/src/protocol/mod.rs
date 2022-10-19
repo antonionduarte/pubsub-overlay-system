@@ -19,11 +19,16 @@ pub trait ProtocolMessage: Serialize + Deserialize + Send + 'static {
     const ID: ProtocolMessageID;
 }
 
+// TODO: direction
 pub type ProtocolMessageHandler<P, M> = fn(&mut P, Context<P>, ChannelID, SocketAddr, M);
+pub type ProtocolIpcHandler<P, M> = fn(&mut P, Context<P>, ProtocolID, &M);
 
 pub trait Protocol: Send + Sized + 'static {
     const ID: ProtocolID;
     const NAME: &'static str;
+
+    #[allow(unused_variables)]
+    fn setup(&mut self, ctx: SetupContext<Self>) {}
 
     #[allow(unused_variables)]
     fn init(&mut self, ctx: Context<Self>) {}
@@ -74,7 +79,3 @@ impl ProtocolMessageID {
         Self(id)
     }
 }
-
-type MessageDeserializer<P> =
-    Box<dyn for<'p> Fn(&'p mut P, Context<'p, P>, ChannelID, SocketAddr, Bytes) + 'static>;
-type MessageDeserializers<P> = RefCell<HashMap<ProtocolMessageID, MessageDeserializer<P>>>;

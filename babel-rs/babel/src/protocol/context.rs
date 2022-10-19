@@ -1,21 +1,58 @@
 use std::{net::SocketAddr, time::Duration};
 
-use bytes::Bytes;
-
 use crate::{
     ipc::{IpcService, Notification, Reply, Request},
-    service::{network::NetworkService, timer::TimerService},
+    network::NetworkService,
+    timer::TimerService,
     ChannelID, Properties, TimerID,
 };
 
-use super::{MessageDeserializers, Protocol, ProtocolID, ProtocolMessage, ProtocolMessageHandler};
+use super::{
+    IpcDispatcher, MessageDispatcher, Protocol, ProtocolID, ProtocolIpcHandler, ProtocolMessage,
+    ProtocolMessageHandler,
+};
+
+pub struct SetupContext<'p, P> {
+    pub(super) message_dispatcher: &'p mut MessageDispatcher<P>,
+    pub(super) ipc_dispatcher: &'p mut IpcDispatcher<P>,
+}
+
+impl<'p, P> SetupContext<'p, P>
+where
+    P: Protocol,
+{
+    pub(super) fn new(
+        message_dispatcher: &'p mut MessageDispatcher<P>,
+        ipc_dispatcher: &'p mut IpcDispatcher<P>,
+    ) -> Self {
+        Self {
+            message_dispatcher,
+            ipc_dispatcher,
+        }
+    }
+
+    pub fn message_handler<M: ProtocolMessage>(&mut self, handler: ProtocolMessageHandler<P, M>) {
+        self.message_dispatcher.register(handler);
+    }
+
+    pub fn request_handler<R: Request>(&mut self, handler: ProtocolIpcHandler<P, R>) {
+        self.ipc_dispatcher.register_request(handler);
+    }
+
+    pub fn reply_handler<R: Reply>(&mut self, handler: ProtocolIpcHandler<P, R>) {
+        self.ipc_dispatcher.register_reply(handler);
+    }
+
+    pub fn notification_handler<N: Notification>(&mut self, handler: ProtocolIpcHandler<P, N>) {
+        self.ipc_dispatcher.register_notification(handler);
+    }
+}
 
 pub struct Context<'p, P> {
     pub(super) default_channel: &'p mut Option<ChannelID>,
     pub(super) timer_service: &'p TimerService,
     pub(super) network_service: &'p NetworkService,
     pub(super) ipc_service: &'p IpcService,
-    pub(super) deserializers: &'p MessageDeserializers<P>,
     pub(super) protocol: std::marker::PhantomData<P>,
 }
 
@@ -28,14 +65,12 @@ where
         timer_service: &'p TimerService,
         network_service: &'p NetworkService,
         ipc_service: &'p IpcService,
-        deserializers: &'p MessageDeserializers<P>,
     ) -> Self {
         Self {
             default_channel,
             timer_service,
             network_service,
             ipc_service,
-            deserializers,
             protocol: std::marker::PhantomData,
         }
     }
@@ -75,28 +110,6 @@ where
         self.network_service.disconnect(channel_id, addr)
     }
 
-    pub fn register_message_handler<M: ProtocolMessage>(
-        &mut self,
-        handler: ProtocolMessageHandler<P, M>,
-    ) {
-        let mut deserializers = self.deserializers.borrow_mut();
-        if deserializers.contains_key(&M::ID) {
-            panic!("Attempt to register a deserializer for the same message twice");
-        }
-        let deserializer = Box::new(
-            for<'a> move |p: &'a mut P,
-                          ctx: Context<'a, P>,
-                          cid: ChannelID,
-                          addr: SocketAddr,
-                          buf: Bytes|
-                          -> () {
-                let msg = M::deserialize(buf).unwrap();
-                (handler)(p, ctx, cid, addr, msg);
-            },
-        );
-        deserializers.insert(M::ID, deserializer);
-    }
-
     pub fn send_message(&mut self, addr: SocketAddr, message: &impl ProtocolMessage) {
         match *self.default_channel {
             Some(channel_id) => self.send_message_with(channel_id, addr, message),
@@ -109,6 +122,7 @@ where
     pub fn send_message_with(
         &mut self,
         channel_id: ChannelID,
+        // TODO: direction
         addr: SocketAddr,
         message: &impl ProtocolMessage,
     ) {

@@ -63,7 +63,7 @@ impl<C: ChannelFactory> EraseChannelFactory for C {
 }
 
 impl ChannelEvents for NetworkServiceChannelEvents {
-    fn emit(&self, event: ConnectionEvent) {
+    fn connection(&self, event: ConnectionEvent) {
         self.events_mailbox.connection_event(self.channel_id, event);
     }
 

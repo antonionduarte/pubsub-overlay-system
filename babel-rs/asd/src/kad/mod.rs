@@ -2,7 +2,7 @@ mod message;
 use std::net::SocketAddr;
 
 use babel::{
-    protocol::{Context, Protocol, ProtocolID},
+    protocol::{Context, Protocol, ProtocolID, SetupContext},
     ChannelID, Properties,
 };
 
@@ -38,16 +38,18 @@ impl Protocol for Kademlia {
 
     const NAME: &'static str = "Kademlia";
 
-    fn init(&mut self, mut ctx: babel::protocol::Context<Self>) {
-        ctx.create_channel("tcp", Properties::builder().with_i16("port", 4500).build());
-
+    fn setup(&mut self, mut ctx: SetupContext<Self>) {
         // Register message handlers
-        ctx.register_message_handler(Self::on_handshake);
-        ctx.register_message_handler(Self::on_find_node_request);
-        ctx.register_message_handler(Self::on_find_node_response);
-        ctx.register_message_handler(Self::on_find_value_request);
-        ctx.register_message_handler(Self::on_find_value_response);
-        ctx.register_message_handler(Self::on_store_request);
+        ctx.message_handler(Self::on_handshake);
+        ctx.message_handler(Self::on_find_node_request);
+        ctx.message_handler(Self::on_find_node_response);
+        ctx.message_handler(Self::on_find_value_request);
+        ctx.message_handler(Self::on_find_value_response);
+        ctx.message_handler(Self::on_store_request);
+    }
+
+    fn init(&mut self, mut ctx: Context<Self>) {
+        ctx.create_channel("tcp", Properties::builder().with_i16("port", 4500).build());
     }
 }
 

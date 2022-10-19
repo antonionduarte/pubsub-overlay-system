@@ -12,9 +12,10 @@ pub(crate) mod application;
 pub mod channel;
 pub mod ipc;
 pub(crate) mod mailbox;
+pub(crate) mod network;
 pub mod props;
 pub mod protocol;
-pub(crate) mod service;
+pub(crate) mod timer;
 pub mod wire;
 
 pub use application::{Application, ApplicationBuilder};

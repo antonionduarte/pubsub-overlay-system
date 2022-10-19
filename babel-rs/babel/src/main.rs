@@ -46,9 +46,13 @@ impl Protocol for TestProtocol {
 
     const NAME: &'static str = "Kademlia";
 
+    fn setup(&mut self, mut ctx: babel::protocol::SetupContext<Self>) {
+        ctx.message_handler(Self::on_handshake);
+        ctx.notification_handler(Self::on_notification);
+    }
+
     fn init(&mut self, mut ctx: babel::protocol::Context<Self>) {
         ctx.create_channel("tcp", Properties::builder().with_i16("port", 4500).build());
-        ctx.register_message_handler(Self::on_handshake);
     }
 
     fn on_timer(&mut self, ctx: babel::protocol::Context<Self>, timer_id: babel::TimerID) {}
@@ -73,7 +77,31 @@ impl TestProtocol {
         println!("received handshake from remote peer at : {addr}");
         ctx.send_message(addr, &Handshake::default());
     }
+
+    fn on_notification(
+        &mut self,
+        ctx: Context<Self>,
+        source: ProtocolID,
+        notification: &TestNotification,
+    ) {
+        println!("received notification from {source} : {notification:?}");
+    }
 }
+
+struct TestProtocol2;
+
+impl Protocol for TestProtocol2 {
+    const ID: ProtocolID = ProtocolID::new(200);
+
+    const NAME: &'static str = "TestProtocol2";
+
+    fn init(&mut self, mut ctx: Context<Self>) {
+        ctx.send_notification(TestNotification(String::from("Hello from protocol 2")));
+    }
+}
+
+#[derive(Debug)]
+struct TestNotification(String);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -82,6 +110,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let application = ApplicationBuilder::default()
         .register_channel("tcp", TcpChannelFactory)
         .register_protocol(TestProtocol)
+        .register_protocol(TestProtocol2)
         .build()
         .await;
 

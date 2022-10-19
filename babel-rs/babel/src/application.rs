@@ -2,11 +2,9 @@ use crate::{
     channel::ChannelFactory,
     ipc::IpcService,
     mailbox::{MailboxRouter, MailboxRouterBuilder},
+    network::{NetworkService, NetworkServiceBuilder},
     protocol::{Protocol, ProtocolExecutor},
-    service::{
-        network::{NetworkService, NetworkServiceBuilder},
-        timer::TimerService,
-    },
+    timer::TimerService,
 };
 
 type ProtocolExecutorSpawner =

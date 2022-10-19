@@ -184,7 +184,7 @@ where
                 return;
             }
         };
-        self.events.emit(ConnectionEvent {
+        self.events.connection(ConnectionEvent {
             remote_addr: addr,
             direction: conn.direction,
             kind: ConnectionEventKind::ConnectionDown,
@@ -250,7 +250,7 @@ where
         if self.connections.contains_key(&addr) {
             return;
         }
-        self.events.emit(ConnectionEvent {
+        self.events.connection(ConnectionEvent {
             remote_addr: addr,
             direction: ConnectionDirection::Outgoing,
             kind: ConnectionEventKind::ConnectionFailed,
@@ -262,7 +262,7 @@ where
             .connections
             .remove(&addr)
             .expect("connection must exist");
-        self.events.emit(ConnectionEvent {
+        self.events.connection(ConnectionEvent {
             remote_addr: addr,
             direction: conn.direction,
             kind: ConnectionEventKind::ConnectionDown,
