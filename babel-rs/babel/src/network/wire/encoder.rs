@@ -1,6 +1,6 @@
 use tokio::io::{AsyncWrite, AsyncWriteExt};
 
-use crate::Serialize;
+use crate::network::Serialize;
 
 use super::{ControlMessage, Message, MessageCode};
 

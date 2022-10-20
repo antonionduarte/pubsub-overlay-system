@@ -1,6 +1,6 @@
 use babel::{
+    network::{Deserialize, Serialize},
     protocol::{Protocol, ProtocolMessage, ProtocolMessageID},
-    Deserialize, Serialize,
 };
 
 use crate::kad::{KadID, Kademlia};

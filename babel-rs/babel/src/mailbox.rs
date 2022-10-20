@@ -1,20 +1,19 @@
-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
-use bytes::Bytes;
 use crossbeam::channel::{Receiver, Sender};
 
 use crate::{
-    channel::ConnectionEvent,
     ipc::IpcMessage,
-    protocol::{ProtocolID, ProtocolMessageID},
-    ChannelID, TimerID,
+    network::{ConnectionEvent, ReceivedMessage},
+    protocol::ProtocolID,
+    TimerID,
 };
 
 #[derive(Debug)]
 pub(crate) enum MailboxEvent {
     TimerExpired(TimerID),
-    MessageReceived(ChannelID, SocketAddr, ProtocolMessageID, Bytes),
-    ConnectionEvent(ChannelID, ConnectionEvent),
+    MessageReceived(ReceivedMessage),
+    ConnectionEvent(ConnectionEvent),
     IpcMessage(IpcMessage),
 }
 
@@ -70,20 +69,12 @@ impl MailboxSender {
         self.send_event(MailboxEvent::TimerExpired(timer_id))
     }
 
-    pub fn message_received(
-        &self,
-        channel_id: ChannelID,
-        addr: SocketAddr,
-        message_id: ProtocolMessageID,
-        message: Bytes,
-    ) {
-        self.send_event(MailboxEvent::MessageReceived(
-            channel_id, addr, message_id, message,
-        ))
+    pub fn message_received(&self, received_message: ReceivedMessage) {
+        self.send_event(MailboxEvent::MessageReceived(received_message))
     }
 
-    pub fn connection_event(&self, channel_id: ChannelID, event: ConnectionEvent) {
-        self.send_event(MailboxEvent::ConnectionEvent(channel_id, event))
+    pub fn connection_event(&self, event: ConnectionEvent) {
+        self.send_event(MailboxEvent::ConnectionEvent(event))
     }
 
     pub fn ipc_message(&self, message: IpcMessage) {

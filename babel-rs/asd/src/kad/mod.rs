@@ -1,9 +1,10 @@
 mod message;
+
 use std::net::SocketAddr;
 
 use babel::{
+    network::{channel::tcp::TcpChannelParams, ConnectionID},
     protocol::{Context, Protocol, ProtocolID, SetupContext},
-    ChannelID, Properties,
 };
 
 pub use message::*;
@@ -49,73 +50,66 @@ impl Protocol for Kademlia {
     }
 
     fn init(&mut self, mut ctx: Context<Self>) {
-        ctx.create_channel("tcp", Properties::builder().with_i16("port", 4500).build());
+        ctx.create_channel(
+            "tcp",
+            TcpChannelParams {
+                listen_addr: SocketAddr::from(([127, 0, 0, 1], 4500)),
+            },
+        );
     }
 }
 
 // Message Handlers
 impl Kademlia {
-    fn on_handshake(
-        &mut self,
-        mut ctx: Context<Self>,
-        _: ChannelID,
-        addr: SocketAddr,
-        msg: Handshake,
-    ) {
-        log::info!("Received handshake from {}: {msg:#?}", addr);
-        ctx.send_message(addr, &Handshake::new(self.id));
+    fn on_handshake(&mut self, mut ctx: Context<Self>, conn: ConnectionID, msg: Handshake) {
+        log::info!("Received handshake from {}: {msg:#?}", conn);
+        ctx.connect(conn.host);
+        ctx.send_message(conn.host, &Handshake::new(self.id));
     }
 
     fn on_find_node_request(
         &mut self,
         mut ctx: Context<Self>,
-        _: ChannelID,
-        addr: SocketAddr,
+        conn: ConnectionID,
         msg: FindNodeRequest,
     ) {
-        log::info!("Received find node request from {}: {msg:#?}", addr);
+        log::info!("Received find node request from {}: {msg:#?}", conn);
 
         let closest_peers = self.routing_table.closest(&msg.target);
-        ctx.send_message(addr, &FindNodeResponse::new(msg.context, closest_peers));
+        ctx.send_message(
+            conn.host,
+            &FindNodeResponse::new(msg.context, closest_peers),
+        );
     }
 
     fn on_find_node_response(
         &mut self,
         ctx: Context<Self>,
-        channel_id: ChannelID,
-        addr: SocketAddr,
+        conn: ConnectionID,
         msg: FindNodeResponse,
     ) {
-        log::info!("Received find node response from {}: {msg:#?}", addr);
+        log::info!("Received find node response from {}: {msg:#?}", conn);
     }
 
     fn on_find_value_request(
         &mut self,
         ctx: Context<Self>,
-        channel_id: ChannelID,
-        addr: SocketAddr,
+        conn: ConnectionID,
         msg: FindValueRequest,
     ) {
-        log::info!("Received find value request from {}: {msg:#?}", addr);
+        log::info!("Received find value request from {}: {msg:#?}", conn);
     }
 
     fn on_find_value_response(
         &mut self,
         ctx: Context<Self>,
-        channel_id: ChannelID,
-        addr: SocketAddr,
+        conn: ConnectionID,
         msg: FindValueResponse,
     ) {
-        log::info!("Received find value response from {}: {msg:#?}", addr);
+        log::info!("Received find value response from {}: {msg:#?}", conn);
     }
 
-    fn on_store_request(
-        &mut self,
-        ctx: Context<Self>,
-        channel_id: ChannelID,
-        addr: SocketAddr,
-        msg: StoreRequest,
-    ) {
-        log::info!("Received store request from {}: {msg:#?}", addr);
+    fn on_store_request(&mut self, ctx: Context<Self>, conn: ConnectionID, msg: StoreRequest) {
+        log::info!("Received store request from {}: {msg:#?}", conn);
     }
 }

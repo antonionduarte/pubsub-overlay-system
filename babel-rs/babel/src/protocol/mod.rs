@@ -1,8 +1,7 @@
-use std::{cell::RefCell, collections::HashMap, net::SocketAddr};
-
-use bytes::Bytes;
-
-use crate::{channel::ConnectionEvent, ChannelID, Deserialize, Serialize, TimerID};
+use crate::{
+    network::{ConnectionEvent, ConnectionID, Deserialize, Serialize},
+    TimerID,
+};
 
 mod context;
 pub use context::*;
@@ -19,8 +18,8 @@ pub trait ProtocolMessage: Serialize + Deserialize + Send + 'static {
     const ID: ProtocolMessageID;
 }
 
-// TODO: direction
-pub type ProtocolMessageHandler<P, M> = fn(&mut P, Context<P>, ChannelID, SocketAddr, M);
+pub type ProtocolMessageHandler<P, M> = fn(&mut P, Context<P>, ConnectionID, M);
+
 pub type ProtocolIpcHandler<P, M> = fn(&mut P, Context<P>, ProtocolID, &M);
 
 pub trait Protocol: Send + Sized + 'static {
@@ -37,13 +36,7 @@ pub trait Protocol: Send + Sized + 'static {
     fn on_timer(&mut self, ctx: Context<Self>, timer_id: TimerID) {}
 
     #[allow(unused_variables)]
-    fn on_connection_event(
-        &mut self,
-        ctx: Context<Self>,
-        channel_id: ChannelID,
-        event: ConnectionEvent,
-    ) {
-    }
+    fn on_connection_event(&mut self, ctx: Context<Self>, event: ConnectionEvent) {}
 }
 
 impl From<i16> for ProtocolID {

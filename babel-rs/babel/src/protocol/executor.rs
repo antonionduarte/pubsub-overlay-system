@@ -1,17 +1,14 @@
 use std::{
     any::{Any, TypeId},
     collections::HashMap,
-    net::SocketAddr,
 };
-
-use bytes::Bytes;
 
 use crate::{
     ipc::{IpcMessage, IpcService, Notification, Reply, Request},
-    mailbox::MailboxReceiver,
-    network::NetworkService,
+    mailbox::{MailboxEvent, MailboxReceiver},
+    network::{ConnectionEvent, NetworkService, ReceivedMessage},
     timer::TimerService,
-    ChannelID,
+    ChannelID, TimerID,
 };
 
 use super::{
@@ -126,8 +123,7 @@ where
     }
 }
 
-type MessageHandler<P> =
-    Box<dyn for<'p> Fn(&'p mut P, Context<'p, P>, ChannelID, SocketAddr, Bytes) + 'static>;
+type MessageHandler<P> = Box<dyn for<'p> Fn(&'p mut P, Context<'p, P>, ReceivedMessage) + 'static>;
 
 pub(super) struct MessageDispatcher<P> {
     dispatchers: HashMap<ProtocolMessageID, MessageHandler<P>>,
@@ -153,31 +149,18 @@ where
             panic!("Attempt to register a deserializer for the same message twice");
         }
         let deserializer = Box::new(
-            for<'a> move |p: &'a mut P,
-                          ctx: Context<'a, P>,
-                          cid: ChannelID,
-                          addr: SocketAddr,
-                          buf: Bytes|
-                          -> () {
-                let msg = M::deserialize(buf).unwrap();
-                (handler)(p, ctx, cid, addr, msg);
+            for<'a> move |p: &'a mut P, ctx: Context<'a, P>, message: ReceivedMessage| -> () {
+                let msg = M::deserialize(message.payload).unwrap();
+                (handler)(p, ctx, message.connection, msg);
             },
         );
         self.dispatchers.insert(M::ID, deserializer);
     }
 
-    fn dispatch(
-        &self,
-        protocol: &mut P,
-        context: Context<P>,
-        message_id: ProtocolMessageID,
-        cid: ChannelID,
-        addr: SocketAddr,
-        buf: Bytes,
-    ) {
-        match self.dispatchers.get(&message_id) {
-            Some(handler) => handler(protocol, context, cid, addr, buf),
-            None => log::warn!("No handler for message: {:?}", message_id),
+    fn dispatch(&self, protocol: &mut P, context: Context<P>, message: ReceivedMessage) {
+        match self.dispatchers.get(&message.message_id) {
+            Some(handler) => handler(protocol, context, message),
+            None => log::warn!("No handler for message: {:?}", message.message_id),
         }
     }
 }
@@ -224,30 +207,35 @@ impl<P: Protocol> ProtocolExecutor<P> {
 
         while let Some(event) = self.mailbox.recv() {
             match event {
-                crate::mailbox::MailboxEvent::TimerExpired(timer_id) => {
-                    log::trace!("Calling protocol {} on_timer({:?})", P::NAME, timer_id);
-                    let (protocol, context) = self.create_context();
-                    protocol.on_timer(context, timer_id);
-                }
-                // take now or leave it
-                crate::mailbox::MailboxEvent::MessageReceived(channel_id, addr, msg_id, msg) => {
-                    let (protocol, context, message_dispatcher, _) =
-                        self.create_context_with_dispatchers();
-                    message_dispatcher.dispatch(protocol, context, msg_id, channel_id, addr, msg);
-                }
-                crate::mailbox::MailboxEvent::ConnectionEvent(channel_id, event) => {
-                    let (protocol, context) = self.create_context();
-                    protocol.on_connection_event(context, channel_id, event);
-                }
-                crate::mailbox::MailboxEvent::IpcMessage(message) => {
-                    let (protocol, context, _, ipc_dispatcher) =
-                        self.create_context_with_dispatchers();
-                    ipc_dispatcher.dispatch(protocol, context, message);
-                }
+                MailboxEvent::TimerExpired(timer_id) => self.on_timer_expired(timer_id),
+                MailboxEvent::MessageReceived(message) => self.on_message_received(message),
+                MailboxEvent::ConnectionEvent(event) => self.on_connection_event(event),
+                MailboxEvent::IpcMessage(message) => self.on_ipc_message(message),
             }
         }
 
         log::info!("Protocol {} stopped", P::NAME);
+    }
+
+    fn on_timer_expired(&mut self, timer_id: TimerID) {
+        log::trace!("Calling protocol {} on_timer({:?})", P::NAME, timer_id);
+        let (protocol, context) = self.create_context();
+        protocol.on_timer(context, timer_id);
+    }
+
+    fn on_message_received(&mut self, message: ReceivedMessage) {
+        let (protocol, context, message_dispatcher, _) = self.create_context_with_dispatchers();
+        message_dispatcher.dispatch(protocol, context, message);
+    }
+
+    fn on_connection_event(&mut self, event: ConnectionEvent) {
+        let (protocol, context) = self.create_context();
+        protocol.on_connection_event(context, event);
+    }
+
+    fn on_ipc_message(&mut self, message: IpcMessage) {
+        let (protocol, context, _, ipc_dispatcher) = self.create_context_with_dispatchers();
+        ipc_dispatcher.dispatch(protocol, context, message);
     }
 
     fn create_setup_context(&mut self) -> (&mut P, SetupContext<P>) {

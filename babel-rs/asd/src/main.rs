@@ -1,6 +1,6 @@
 #![feature(drain_filter)]
 
-use babel::{channel::tcp::TcpChannelFactory, ApplicationBuilder};
+use babel::{network::channel::tcp::TcpChannelFactory, ApplicationBuilder};
 use kad::Kademlia;
 
 pub mod kad;

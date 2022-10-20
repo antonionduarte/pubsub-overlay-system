@@ -2,7 +2,7 @@ use std::{net::SocketAddr, time::Duration};
 
 use crate::{
     ipc::{IpcService, Notification, Reply, Request},
-    network::NetworkService,
+    network::{ConnectionDirection, ConnectionID, NetworkService},
     timer::TimerService,
     ChannelID, Properties, TimerID,
 };
@@ -110,24 +110,21 @@ where
         self.network_service.disconnect(channel_id, addr)
     }
 
-    pub fn send_message(&mut self, addr: SocketAddr, message: &impl ProtocolMessage) {
+    pub fn send_message(&mut self, host: SocketAddr, message: &impl ProtocolMessage) {
         match *self.default_channel {
-            Some(channel_id) => self.send_message_with(channel_id, addr, message),
+            Some(channel_id) => {
+                let connection = ConnectionID::new(channel_id, host, ConnectionDirection::Outgoing);
+                self.send_message_to(connection, message)
+            }
             None => log::error!(
                 "Attempt to send message using default channel but there is not default channel"
             ),
         }
     }
 
-    pub fn send_message_with(
-        &mut self,
-        channel_id: ChannelID,
-        // TODO: direction
-        addr: SocketAddr,
-        message: &impl ProtocolMessage,
-    ) {
+    pub fn send_message_to(&mut self, connection: ConnectionID, message: &impl ProtocolMessage) {
         self.network_service
-            .send_message(channel_id, addr, P::ID, message)
+            .send_message(connection, P::ID, message)
     }
 
     pub fn send_request<R: Request>(&mut self, protocol_id: ProtocolID, request: R) {

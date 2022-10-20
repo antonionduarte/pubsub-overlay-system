@@ -1,4 +1,4 @@
-use babel::{Deserialize, Serialize};
+use babel::network::{Deserialize, Serialize};
 use bytes::{Buf, BufMut};
 use rand::RngCore;
 

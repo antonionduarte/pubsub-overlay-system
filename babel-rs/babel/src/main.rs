@@ -1,43 +1,11 @@
 #![feature(io_error_other)]
 #![feature(const_type_name)]
 
-use std::net::SocketAddr;
-
 use babel::{
-    channel::tcp::TcpChannelFactory,
-    protocol::{Context, Protocol, ProtocolID, ProtocolMessage, ProtocolMessageID},
-    ApplicationBuilder, ChannelID, Deserialize, Properties, Serialize,
+    network::channel::tcp::TcpChannelFactory,
+    protocol::{Context, Protocol, ProtocolID},
+    ApplicationBuilder, Properties,
 };
-
-#[derive(Debug, Default)]
-struct Handshake {
-    kad_id: [u8; 20],
-}
-
-impl Serialize for Handshake {
-    fn serialize<B>(&self, mut buf: B) -> std::io::Result<()>
-    where
-        B: bytes::BufMut,
-    {
-        buf.put_slice(&self.kad_id);
-        Ok(())
-    }
-}
-
-impl Deserialize for Handshake {
-    fn deserialize<B>(mut buf: B) -> std::io::Result<Self>
-    where
-        B: bytes::Buf,
-    {
-        let mut id = [0u8; 20];
-        buf.copy_to_slice(&mut id);
-        Ok(Self { kad_id: id })
-    }
-}
-
-impl ProtocolMessage for Handshake {
-    const ID: ProtocolMessageID = ProtocolMessageID::new(105);
-}
 
 struct TestProtocol;
 
@@ -47,7 +15,6 @@ impl Protocol for TestProtocol {
     const NAME: &'static str = "Kademlia";
 
     fn setup(&mut self, mut ctx: babel::protocol::SetupContext<Self>) {
-        ctx.message_handler(Self::on_handshake);
         ctx.notification_handler(Self::on_notification);
     }
 
@@ -56,28 +23,9 @@ impl Protocol for TestProtocol {
     }
 
     fn on_timer(&mut self, ctx: babel::protocol::Context<Self>, timer_id: babel::TimerID) {}
-
-    fn on_connection_event(
-        &mut self,
-        ctx: babel::protocol::Context<Self>,
-        channel_id: babel::ChannelID,
-        event: babel::channel::ConnectionEvent,
-    ) {
-    }
 }
 
 impl TestProtocol {
-    fn on_handshake(
-        &mut self,
-        mut ctx: Context<Self>,
-        _: ChannelID,
-        addr: SocketAddr,
-        _: Handshake,
-    ) {
-        println!("received handshake from remote peer at : {addr}");
-        ctx.send_message(addr, &Handshake::default());
-    }
-
     fn on_notification(
         &mut self,
         ctx: Context<Self>,

@@ -1,8 +1,7 @@
 use crate::{
-    channel::ChannelFactory,
     ipc::IpcService,
-    mailbox::{MailboxRouter, MailboxRouterBuilder},
-    network::{NetworkService, NetworkServiceBuilder},
+    mailbox::MailboxRouterBuilder,
+    network::{channel::ChannelFactory, NetworkService, NetworkServiceBuilder},
     protocol::{Protocol, ProtocolExecutor},
     timer::TimerService,
 };
@@ -18,7 +17,6 @@ pub struct ApplicationBuilder {
 }
 
 pub struct Application {
-    router: MailboxRouter,
     timer_service: TimerService,
     network_service: NetworkService,
     ipc_service: IpcService,
@@ -58,7 +56,6 @@ impl ApplicationBuilder {
         let ipc_service = IpcService::new(router.clone());
 
         Application {
-            router,
             timer_service,
             network_service,
             ipc_service,

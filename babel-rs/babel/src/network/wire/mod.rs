@@ -2,7 +2,7 @@ use bytes::Bytes;
 
 use crate::{
     protocol::{ProtocolID, ProtocolMessageID},
-    Deserialize, Properties, Serialize,
+    Properties,
 };
 
 mod decoder;
@@ -10,6 +10,8 @@ mod encoder;
 
 pub use decoder::*;
 pub use encoder::*;
+
+use super::{Deserialize, Serialize};
 
 const CONTROL_MAGIC_NUMBER: i32 = 0x79676472;
 
@@ -52,7 +54,7 @@ pub struct InvalidAttribute {
 }
 
 #[derive(Debug, Clone)]
-pub struct BabelMessage {
+pub(crate) struct BabelMessage {
     pub source_protocol: ProtocolID,
     pub target_protocol: ProtocolID,
     pub message_id: ProtocolMessageID,
