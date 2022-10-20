@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use tokio::io::{AsyncRead, AsyncReadExt};
 
-use crate::Deserialize;
+use crate::network::Deserialize;
 
 use super::{ControlMessage, Message, MessageCode};
 
@@ -19,20 +19,18 @@ impl Default for State {
     }
 }
 
-pub struct Decoder<R, M> {
+pub struct Decoder<R> {
     buffer: Vec<u8>,
     state: State,
     reader: R,
-    _phatom: std::marker::PhantomData<M>,
 }
 
-impl<R, M> Decoder<R, M> {
+impl<R> Decoder<R> {
     pub fn new(reader: R) -> Self {
         Self {
             buffer: Default::default(),
             state: Default::default(),
             reader,
-            _phatom: std::marker::PhantomData,
         }
     }
 
@@ -41,19 +39,20 @@ impl<R, M> Decoder<R, M> {
     }
 }
 
-impl<R, M> Decoder<R, M>
+impl<R> Decoder<R>
 where
     R: AsyncRead + Unpin,
-    M: Deserialize,
 {
-    pub async fn decode(&mut self) -> std::io::Result<Message<M>> {
+    pub async fn decode<M>(&mut self) -> std::io::Result<Message<M>>
+    where
+        M: Deserialize,
+    {
         loop {
             match self.state {
                 State::ReadingSize { ref mut read } => {
                     if *read == 4 {
                         let size = i32::from_be_bytes(self.buffer[..4].try_into().unwrap()) - 1;
                         let size = usize::try_from(size).unwrap();
-                        log::trace!("read size = {size}");
                         self.buffer.resize(size, 0);
                         self.state = State::ReadingCode;
                         continue;
@@ -64,14 +63,11 @@ where
                 }
                 State::ReadingCode => {
                     let code = self.reader.read_i8().await?;
-                    log::trace!("read code i8 = {code}");
                     let code = MessageCode::from_i8(code).expect("invalid message code received");
-                    log::trace!("read code = {code:?}");
                     self.state = State::ReadingPayload { read: 0, code };
                     continue;
                 }
                 State::ReadingPayload { ref mut read, code } => {
-                    log::trace!("reading payload {} / {}", read, self.buffer.len());
                     if *read == self.buffer.len() {
                         let cursor = Cursor::new(&self.buffer);
                         let msg = match code {

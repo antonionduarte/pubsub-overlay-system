@@ -1,12 +1,9 @@
 use crate::{
-    channel::ChannelFactory,
-    mailbox::{MailboxRouter, MailboxRouterBuilder},
+    ipc::IpcService,
+    mailbox::MailboxRouterBuilder,
+    network::{channel::ChannelFactory, NetworkService, NetworkServiceBuilder},
     protocol::{Protocol, ProtocolExecutor},
-    service::{
-        ipc::IpcService,
-        network::{NetworkService, NetworkServiceBuilder},
-        timer::TimerService,
-    },
+    timer::TimerService,
 };
 
 type ProtocolExecutorSpawner =
@@ -20,7 +17,6 @@ pub struct ApplicationBuilder {
 }
 
 pub struct Application {
-    router: MailboxRouter,
     timer_service: TimerService,
     network_service: NetworkService,
     ipc_service: IpcService,
@@ -55,12 +51,11 @@ impl ApplicationBuilder {
 
     pub async fn build(self) -> Application {
         let router = self.router_builder.build();
-        let timer_service = TimerService::spawn(router.clone());
+        let timer_service = TimerService::new(router.clone());
         let network_service = self.network_builder.build(router.clone());
-        let ipc_service = IpcService::spawn(router.clone());
+        let ipc_service = IpcService::new(router.clone());
 
         Application {
-            router,
             timer_service,
             network_service,
             ipc_service,

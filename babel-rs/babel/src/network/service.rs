@@ -9,12 +9,18 @@ use bytes::BytesMut;
 use slotmap::SlotMap;
 
 use crate::{
-    channel::{ArcChannel, ChannelEvents, ChannelFactory, ConnectionEvent},
     mailbox::{MailboxRouter, MailboxSender},
     protocol::{ProtocolID, ProtocolMessage},
-    wire::BabelMessage,
     ChannelID, Properties,
 };
+
+use super::{
+    channel::{Channel, ChannelEvents, ChannelFactory},
+    wire::BabelMessage,
+    ConnectionDirection, ConnectionEvent, ConnectionEventKind, ConnectionID, ReceivedMessage,
+};
+
+type ArcChannel = Arc<dyn Channel<BabelMessage>>;
 
 type ArcEraseChannelFactory = Arc<dyn EraseChannelFactory>;
 
@@ -62,20 +68,48 @@ impl<C: ChannelFactory> EraseChannelFactory for C {
     }
 }
 
-impl ChannelEvents for NetworkServiceChannelEvents {
-    fn emit(&self, event: ConnectionEvent) {
-        self.events_mailbox.connection_event(self.channel_id, event);
+impl ChannelEvents<BabelMessage> for NetworkServiceChannelEvents {
+    fn connection_up(&self, host: SocketAddr, direction: ConnectionDirection) {
+        let connection = ConnectionID::new(self.channel_id, host, direction);
+        let event = ConnectionEvent {
+            connection,
+            kind: ConnectionEventKind::ConnectionUp,
+        };
+        self.events_mailbox.connection_event(event);
     }
 
-    fn message(&self, source: SocketAddr, message: BabelMessage) {
+    fn connection_down(&self, host: SocketAddr, direction: ConnectionDirection) {
+        let connection = ConnectionID::new(self.channel_id, host, direction);
+        let event = ConnectionEvent {
+            connection,
+            kind: ConnectionEventKind::ConnectionDown,
+        };
+        self.events_mailbox.connection_event(event);
+    }
+
+    fn connection_failed(&self, host: SocketAddr, direction: ConnectionDirection) {
+        let connection = ConnectionID::new(self.channel_id, host, direction);
+        let event = ConnectionEvent {
+            connection,
+            kind: ConnectionEventKind::ConnectionFailed,
+        };
+        self.events_mailbox.connection_event(event);
+    }
+
+    fn received_message(
+        &self,
+        host: SocketAddr,
+        direction: ConnectionDirection,
+        message: BabelMessage,
+    ) {
         match self.router.get(message.target_protocol) {
             Some(sender) => {
-                sender.message_received(
-                    self.channel_id,
-                    source,
-                    message.message_id,
-                    message.message,
-                );
+                sender.message_received(ReceivedMessage {
+                    connection: ConnectionID::new(self.channel_id, host, direction),
+                    _source_protocol: message.source_protocol,
+                    message_id: message.message_id,
+                    payload: message.message,
+                });
             }
             None => log::warn!(
                 "Received message for protocol {:?} but that protocol does not exist",
@@ -104,20 +138,16 @@ impl NetworkServiceBuilder {
     }
 
     pub fn build(self, router: MailboxRouter) -> NetworkService {
-        NetworkService::build(self, router)
+        let inner = Arc::new(Mutex::new(NetworkServiceInner {
+            router,
+            factories: self.factories,
+            channels: Default::default(),
+        }));
+        NetworkService(inner)
     }
 }
 
 impl NetworkService {
-    fn build(builder: NetworkServiceBuilder, router: MailboxRouter) -> Self {
-        let inner = Arc::new(Mutex::new(NetworkServiceInner {
-            router,
-            factories: builder.factories,
-            channels: Default::default(),
-        }));
-        Self(inner)
-    }
-
     pub fn create_channel(
         &self,
         protocol_id: ProtocolID,
@@ -184,15 +214,14 @@ impl NetworkService {
 
     pub fn send_message<M>(
         &self,
-        channel_id: ChannelID,
-        addr: SocketAddr,
+        connection: ConnectionID,
         source_protocol: ProtocolID,
         message: &M,
     ) where
         M: ProtocolMessage,
     {
         let inner = self.0.lock().unwrap();
-        let channel = match inner.channels.get(channel_id) {
+        let channel = match inner.channels.get(connection.channel_id) {
             Some(channel) => channel,
             None => {
                 log::error!("Attempt to send message on invalid channel");
@@ -201,6 +230,15 @@ impl NetworkService {
         };
         let mut buf = BytesMut::new();
         message.serialize(&mut buf).unwrap();
-        channel.send(addr, source_protocol, source_protocol, M::ID, buf.freeze());
+        channel.send(
+            connection.host,
+            connection.direction,
+            BabelMessage {
+                source_protocol,
+                target_protocol: source_protocol,
+                message_id: M::ID,
+                message: buf.freeze(),
+            },
+        );
     }
 }

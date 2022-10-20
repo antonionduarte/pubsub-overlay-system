@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use babel::{Deserialize, Serialize};
+use babel::network::{Deserialize, Serialize};
 
 use super::KadID;
 

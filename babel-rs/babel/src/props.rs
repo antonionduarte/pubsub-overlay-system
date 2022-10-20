@@ -1,9 +1,9 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, net::SocketAddr};
 
 use bytes::{Buf, BufMut};
 use thiserror::Error;
 
-use crate::{Deserialize, Serialize};
+use crate::network::{Deserialize, Serialize};
 
 #[derive(Debug, Error)]
 #[error("invalid property value for key {key}, exptected a {expected}")]
@@ -77,12 +77,42 @@ impl Properties {
         self.0.insert(key.into(), value.into());
     }
 
+    pub fn insert_addr(&mut self, key: impl Into<String>, value: SocketAddr) {
+        let mut data = Vec::new();
+        value.serialize(&mut data).unwrap();
+        self.insert(key, data);
+    }
+
     pub fn insert_i16(&mut self, key: impl Into<String>, value: i16) {
         self.0.insert(key.into(), i16::to_be_bytes(value).into());
     }
 
+    pub fn insert_u16(&mut self, key: impl Into<String>, value: u16) {
+        self.0.insert(key.into(), u16::to_be_bytes(value).into());
+    }
+
+    pub fn insert_i32(&mut self, key: impl Into<String>, value: i32) {
+        self.0.insert(key.into(), i32::to_be_bytes(value).into());
+    }
+
+    pub fn insert_u32(&mut self, key: impl Into<String>, value: u32) {
+        self.0.insert(key.into(), u32::to_be_bytes(value).into());
+    }
+
     pub fn get(&self, key: impl AsRef<str>) -> Option<&[u8]> {
         self.0.get(key.as_ref()).map(|v| v.as_slice())
+    }
+
+    pub fn get_addr(
+        &self,
+        key: impl AsRef<str>,
+    ) -> Option<Result<SocketAddr, InvalidPropertyValue>> {
+        let key = key.as_ref();
+        let value = self.get(key)?;
+        Some(
+            SocketAddr::deserialize(&value[..])
+                .map_err(|_| InvalidPropertyValue::new(key, "SocketAddr")),
+        )
     }
 
     pub fn get_i16(&self, key: impl AsRef<str>) -> Option<Result<i16, InvalidPropertyValue>> {

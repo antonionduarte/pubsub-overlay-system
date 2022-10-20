@@ -5,7 +5,7 @@ use std::{
 };
 
 use slotmap::SlotMap;
-use tokio::sync::Notify;
+use tokio::{sync::Notify, task::JoinHandle};
 
 use crate::{mailbox::MailboxRouter, protocol::ProtocolID, TimerID};
 
@@ -34,10 +34,10 @@ struct TimerHeap {
 }
 
 #[derive(Debug)]
-struct TimerServiceInner {
+pub(crate) struct TimerServiceInner {
     notifier: Arc<Notify>,
     heap: Arc<Mutex<TimerHeap>>,
-    handle: tokio::task::JoinHandle<()>,
+    handle: JoinHandle<()>,
 }
 
 #[derive(Debug, Clone)]
@@ -81,16 +81,13 @@ impl Drop for TimerServiceInner {
 }
 
 impl TimerService {
-    pub fn spawn(router: MailboxRouter) -> Self {
+    pub fn new(router: MailboxRouter) -> Self {
         let heap = Arc::new(Mutex::new(TimerHeap::default()));
         let notifier = Arc::new(Notify::new());
         let mut executor =
             TimerServiceExecutor::new(router.clone(), heap.clone(), notifier.clone());
 
-        let handle = tokio::spawn(async move {
-            executor.run().await;
-        });
-
+        let handle = tokio::spawn(async move { executor.run().await });
         let inner = Arc::new(TimerServiceInner {
             notifier,
             heap,
