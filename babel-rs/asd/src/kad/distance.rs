@@ -1,6 +1,6 @@
 use super::KadID;
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Distance([u8; KadID::LENGTH]);
 
 impl Distance {

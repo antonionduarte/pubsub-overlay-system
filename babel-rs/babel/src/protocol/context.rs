@@ -3,8 +3,9 @@ use std::{net::SocketAddr, time::Duration};
 use crate::{
     ipc::{IpcService, Notification, Reply, Request},
     network::{ConnectionDirection, ConnectionID, NetworkService},
+    timer::TimerID,
     timer::TimerService,
-    ChannelID, Properties, TimerID,
+    ChannelID, Properties,
 };
 
 use super::{

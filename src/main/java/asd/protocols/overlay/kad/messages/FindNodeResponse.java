@@ -13,10 +13,10 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 public class FindNodeResponse extends ProtoMessage {
     public static final short ID = Kademlia.ID + 2;
 
-    public final int context;
+    public final long context;
     public final List<KadPeer> peers;
 
-    public FindNodeResponse(int context, List<KadPeer> closest) {
+    public FindNodeResponse(long context, List<KadPeer> closest) {
         super(ID);
         this.context = context;
         this.peers = List.copyOf(closest);
@@ -33,7 +33,7 @@ public class FindNodeResponse extends ProtoMessage {
     public static final ISerializer<FindNodeResponse> serializer = new ISerializer<FindNodeResponse>() {
         @Override
         public void serialize(FindNodeResponse t, ByteBuf out) throws IOException {
-            out.writeInt(t.context);
+            out.writeLong(t.context);
             out.writeInt(t.peers.size());
             for (KadPeer peer : t.peers) {
                 KadPeer.serializer.serialize(peer, out);
@@ -42,7 +42,7 @@ public class FindNodeResponse extends ProtoMessage {
 
         @Override
         public FindNodeResponse deserialize(ByteBuf in) throws IOException {
-            var context = in.readInt();
+            var context = in.readLong();
             var size = in.readInt();
             var peers = new ArrayList<KadPeer>(size);
             for (int i = 0; i < size; i++) {

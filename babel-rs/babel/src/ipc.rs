@@ -9,6 +9,19 @@ pub trait Reply: std::fmt::Debug + Send + 'static {}
 pub trait Notification: std::fmt::Debug + Send + Sync + 'static {}
 
 #[derive(Debug)]
+pub struct NotificationSender(IpcService);
+
+impl NotificationSender {
+    pub(crate) fn new(service: IpcService) -> Self {
+        Self(service)
+    }
+
+    pub fn send<N: Notification>(&self, notification: N) {
+        self.0.notification(ProtocolID::new(0), notification)
+    }
+}
+
+#[derive(Debug)]
 pub(crate) enum IpcMessage {
     Request {
         source: ProtocolID,

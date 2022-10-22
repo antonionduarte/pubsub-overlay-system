@@ -19,8 +19,8 @@ public class QueryManager {
     private final KadRT routing_table;
     private final KadID self;
     private final QueryManagerIO qmio;
-    private final HashMap<Integer, Query> queries;
-    private int next_context;
+    private final HashMap<Long, Query> queries;
+    private long next_context;
 
     public QueryManager(KadParams kadparams, KadRT routing_table, KadID self, QueryManagerIO qmio) {
         this.kadparams = kadparams;
@@ -55,7 +55,7 @@ public class QueryManager {
         this.checkQueryFinished(context);
     }
 
-    public void onFindNodeResponse(int context, KadID from, List<KadPeer> closest) {
+    public void onFindNodeResponse(long context, KadID from, List<KadPeer> closest) {
         var query = this.queries.get(context);
         if (query == null) {
             logger.warn("Received FindNodeResponse with unknown context " + context);
@@ -65,7 +65,7 @@ public class QueryManager {
         this.checkQueryFinished(context);
     }
 
-    public void onFindValueResponse(int context, KadID from, List<KadPeer> closest, Optional<byte[]> value) {
+    public void onFindValueResponse(long context, KadID from, List<KadPeer> closest, Optional<byte[]> value) {
         var query = this.queries.get(context);
         if (query == null) {
             logger.warn("Received FindValueResponse with unknown context " + context);
@@ -75,7 +75,7 @@ public class QueryManager {
         this.checkQueryFinished(context);
     }
 
-    public void onPeerError(int context, KadID peer) {
+    public void onPeerError(long context, KadID peer) {
         var query = this.queries.get(context);
         if (query == null) {
             logger.warn("Received PeerError with unknown context " + context);
@@ -94,7 +94,7 @@ public class QueryManager {
         }
     }
 
-    private void checkQueryFinished(int context) {
+    private void checkQueryFinished(long context) {
         var query = this.queries.get(context);
         if (query.isFinished()) {
             logger.info("Query " + context + " finished");
@@ -102,7 +102,7 @@ public class QueryManager {
         }
     }
 
-    private int allocateContext() {
+    private long allocateContext() {
         return this.next_context++;
     }
 }

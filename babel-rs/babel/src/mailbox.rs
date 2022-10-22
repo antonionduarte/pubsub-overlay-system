@@ -6,7 +6,7 @@ use crate::{
     ipc::IpcMessage,
     network::{ConnectionEvent, ReceivedMessage},
     protocol::ProtocolID,
-    TimerID,
+    timer::TimerID,
 };
 
 #[derive(Debug)]
@@ -15,6 +15,7 @@ pub(crate) enum MailboxEvent {
     MessageReceived(ReceivedMessage),
     ConnectionEvent(ConnectionEvent),
     IpcMessage(IpcMessage),
+    Exit,
 }
 
 #[derive(Debug, Default)]
@@ -79,6 +80,10 @@ impl MailboxSender {
 
     pub fn ipc_message(&self, message: IpcMessage) {
         self.send_event(MailboxEvent::IpcMessage(message))
+    }
+
+    pub fn exit(&self) {
+        self.send_event(MailboxEvent::Exit)
     }
 
     fn send_event(&self, event: MailboxEvent) {

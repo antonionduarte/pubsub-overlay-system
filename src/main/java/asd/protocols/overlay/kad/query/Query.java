@@ -81,11 +81,13 @@ abstract class Query {
     }
 
     final void onPeerError(KadID peer) {
+        if (this.isFinished())
+            return;
+        if (!this.peers.contains(peer))
+            return;
         if (!this.peers.isInState(peer, QPeerSet.State.INPROGRESS))
             throw new IllegalStateException("Received PeerError from peer that was not requested: " + peer
                     + ". Peer state is " + this.peers.getState(peer));
-        if (this.isFinished())
-            return;
         logger.debug("Peer {} failed", peer);
         this.removeActiveRequest(peer);
         this.peers.markFailed(peer);

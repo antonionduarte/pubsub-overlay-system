@@ -7,12 +7,12 @@ use crate::kad::{KadID, Kademlia};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FindNodeRequest {
-    pub context: u32,
+    pub context: u64,
     pub target: KadID,
 }
 
 impl FindNodeRequest {
-    pub fn new(context: u32, target: KadID) -> Self {
+    pub fn new(context: u64, target: KadID) -> Self {
         Self { context, target }
     }
 }
@@ -22,7 +22,7 @@ impl Serialize for FindNodeRequest {
     where
         B: bytes::BufMut,
     {
-        buf.put_u32(self.context);
+        buf.put_u64(self.context);
         self.target.serialize(buf)?;
         Ok(())
     }
@@ -33,7 +33,7 @@ impl Deserialize for FindNodeRequest {
     where
         B: bytes::Buf,
     {
-        let context = buf.get_u32();
+        let context = buf.get_u64();
         let target = KadID::deserialize(buf)?;
         Ok(Self { context, target })
     }

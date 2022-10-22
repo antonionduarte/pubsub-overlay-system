@@ -7,7 +7,9 @@ use std::{
 use slotmap::SlotMap;
 use tokio::{sync::Notify, task::JoinHandle};
 
-use crate::{mailbox::MailboxRouter, protocol::ProtocolID, TimerID};
+use crate::{mailbox::MailboxRouter, protocol::ProtocolID};
+
+slotmap::new_key_type! { pub struct TimerID; }
 
 #[derive(Debug)]
 enum TimerKind {

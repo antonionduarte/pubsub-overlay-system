@@ -1,6 +1,6 @@
 use crate::{
-    ipc::IpcService,
-    mailbox::MailboxRouterBuilder,
+    ipc::{IpcService, NotificationSender},
+    mailbox::{MailboxRouter, MailboxRouterBuilder},
     network::{channel::ChannelFactory, NetworkService, NetworkServiceBuilder},
     protocol::{Protocol, ProtocolExecutor},
     timer::TimerService,
@@ -17,6 +17,7 @@ pub struct ApplicationBuilder {
 }
 
 pub struct Application {
+    mailbox_router: MailboxRouter,
     timer_service: TimerService,
     network_service: NetworkService,
     ipc_service: IpcService,
@@ -56,6 +57,7 @@ impl ApplicationBuilder {
         let ipc_service = IpcService::new(router.clone());
 
         Application {
+            mailbox_router: router,
             timer_service,
             network_service,
             ipc_service,
@@ -64,7 +66,19 @@ impl ApplicationBuilder {
     }
 }
 
+impl Drop for Application {
+    fn drop(&mut self) {
+        for (_, mailbox) in self.mailbox_router.iter() {
+            mailbox.exit();
+        }
+    }
+}
+
 impl Application {
+    pub fn notification_sender(&self) -> NotificationSender {
+        NotificationSender::new(self.ipc_service.clone())
+    }
+
     pub async fn run(mut self) {
         let mut handles = Vec::new();
 

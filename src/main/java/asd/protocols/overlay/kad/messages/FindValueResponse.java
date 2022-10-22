@@ -14,19 +14,19 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 public class FindValueResponse extends ProtoMessage {
     public static final short ID = Kademlia.ID + 4;
 
-    public final int context;
+    public final long context;
     public final Optional<byte[]> value;
     public final List<KadPeer> peers;
 
-    public FindValueResponse(int context, List<KadPeer> closest) {
+    public FindValueResponse(long context, List<KadPeer> closest) {
         this(context, closest, Optional.empty());
     }
 
-    public FindValueResponse(int context, List<KadPeer> closest, byte[] value) {
+    public FindValueResponse(long context, List<KadPeer> closest, byte[] value) {
         this(context, closest, Optional.of(value));
     }
 
-    public FindValueResponse(int context, List<KadPeer> closest, Optional<byte[]> value) {
+    public FindValueResponse(long context, List<KadPeer> closest, Optional<byte[]> value) {
         super(ID);
         this.context = context;
         this.peers = closest;
@@ -45,7 +45,7 @@ public class FindValueResponse extends ProtoMessage {
     public static final ISerializer<FindValueResponse> serializer = new ISerializer<FindValueResponse>() {
         @Override
         public void serialize(FindValueResponse t, ByteBuf out) throws IOException {
-            out.writeInt(t.context);
+            out.writeLong(t.context);
             out.writeBoolean(t.value.isPresent());
             if (t.value.isPresent()) {
                 out.writeInt(t.value.get().length);
@@ -59,7 +59,7 @@ public class FindValueResponse extends ProtoMessage {
 
         @Override
         public FindValueResponse deserialize(ByteBuf in) throws IOException {
-            var context = in.readInt();
+            var context = in.readLong();
             var hasValue = in.readBoolean();
             Optional<byte[]> value = Optional.empty();
             if (hasValue) {

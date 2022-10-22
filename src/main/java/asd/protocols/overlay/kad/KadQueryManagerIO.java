@@ -10,11 +10,11 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 
 class KadQueryManagerIO implements QueryManagerIO {
     public static class Request {
-        public final int context;
+        public final long context;
         public final KadID destination;
         public final ProtoMessage message;
 
-        Request(int context, KadID destination, ProtoMessage message) {
+        Request(long context, KadID destination, ProtoMessage message) {
             this.context = context;
             this.destination = destination;
             this.message = message;
@@ -35,13 +35,13 @@ class KadQueryManagerIO implements QueryManagerIO {
     }
 
     @Override
-    public void findNodeRequest(int context, KadID id, KadID target) {
+    public void findNodeRequest(long context, KadID id, KadID target) {
         var message = new FindNodeRequest(context, target);
         this.requests.add(new Request(context, id, message));
     }
 
     @Override
-    public void findValueRequest(int context, KadID id, KadID key) {
+    public void findValueRequest(long context, KadID id, KadID key) {
         var message = new FindValueRequest(context, key);
         this.requests.add(new Request(context, id, message));
     }

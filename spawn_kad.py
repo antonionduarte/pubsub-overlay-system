@@ -1,10 +1,11 @@
 import shutil
 import subprocess
+import time
 
 BOOTSTRAP_PORT = 5050
 
 
-def spawn_kad(port: int):
+def spawn_kad_java_podman(port: int):
     args = [
         "podman",
         "run",
@@ -21,7 +22,7 @@ def spawn_kad(port: int):
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
         "java",
-        "-Xmx96M",
+        # "-Xmx96M",
         "-ea",
         "-cp",
         "/usr/local/app.jar",
@@ -34,7 +35,7 @@ def spawn_kad(port: int):
     subprocess.run(args)
 
 
-def spawn_kad2(port: int):
+def spawn_kad_java_native(port: int):
     args = [
         shutil.which("java"),
         "-ea",
@@ -57,11 +58,58 @@ def spawn_kad2(port: int):
     )
 
 
+def spawn_kad_rust_podman(port: int):
+    args = [
+        "podman",
+        "run",
+        "--rm",
+        "-itd",
+        "-v",
+        "/home/diogo464/.cargo-target/debug/asd:/usr/local/asd:z",
+        "--network=host",
+        f"--name=kad_{port}",
+        "-e",
+        "RUST_BACKTRACE=1",
+        "-e",
+        "RUST_LOG=error",
+        #"RUST_LOG=babel=trace,asd=trace",
+        "fedora:latest",
+        "/usr/local/asd",
+        f"--port={port}",
+    ]
+    if port != BOOTSTRAP_PORT:
+        args.append(f"--kad-bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
+    subprocess.run(args)
+
+
+def spawn_kad_rust_native(port: int):
+    args = [
+        "/home/diogo464/.cargo-target/debug/asd",
+        "--port",
+        str(port),
+    ]
+    if port != BOOTSTRAP_PORT:
+        args.extend(["--kad-bootstrap", f"127.0.0.1:{BOOTSTRAP_PORT}"])
+    subprocess.Popen(
+        args,
+        start_new_session=True,
+        close_fds=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+    )
+
+
 def main():
-    spawn_kad(BOOTSTRAP_PORT)
-    for i in range(1, 100):
+    spawn_kad_rust_podman(BOOTSTRAP_PORT)
+    # spawn_kad_java_podman(BOOTSTRAP_PORT)
+    time.sleep(2)
+    for i in range(1, 1000):
         print("Spawning kad ", 5050 + i)
-        spawn_kad(5050 + i)
+        if i < 10:
+            spawn_kad_rust_podman(5050 + i)
+        else:
+            spawn_kad_rust_native(5050 + i)
 
 
 if __name__ == "__main__":

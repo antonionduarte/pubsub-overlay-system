@@ -7,18 +7,18 @@ use super::KadID;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Peer {
     pub id: KadID,
-    pub addr: SocketAddr,
+    pub host: SocketAddr,
 }
 
 impl Peer {
     pub fn new(id: KadID, addr: SocketAddr) -> Self {
-        Self { id, addr }
+        Self { id, host: addr }
     }
 }
 
 impl std::fmt::Display for Peer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}@{}", self.id, self.addr)
+        write!(f, "{}@{}", self.id, self.host)
     }
 }
 
@@ -28,7 +28,7 @@ impl Serialize for Peer {
         B: bytes::BufMut,
     {
         self.id.serialize(&mut buf)?;
-        self.addr.serialize(buf)?;
+        self.host.serialize(buf)?;
         Ok(())
     }
 }
@@ -40,6 +40,6 @@ impl Deserialize for Peer {
     {
         let id = KadID::deserialize(&mut buf)?;
         let addr = SocketAddr::deserialize(buf)?;
-        Ok(Self { id, addr })
+        Ok(Self { id, host: addr })
     }
 }
