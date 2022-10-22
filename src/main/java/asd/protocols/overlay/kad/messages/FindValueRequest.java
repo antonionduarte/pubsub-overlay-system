@@ -11,10 +11,10 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 public class FindValueRequest extends ProtoMessage {
 	public static final short ID = Kademlia.ID + 3;
 
-	public final int context;
+	public final long context;
 	public final KadID key;
 
-	public FindValueRequest(int context, KadID key) {
+	public FindValueRequest(long context, KadID key) {
 		super(ID);
 		this.context = context;
 		this.key = key;
@@ -31,13 +31,13 @@ public class FindValueRequest extends ProtoMessage {
 	public static final ISerializer<FindValueRequest> serializer = new ISerializer<FindValueRequest>() {
 		@Override
 		public void serialize(FindValueRequest t, ByteBuf out) throws IOException {
-			out.writeInt(t.context);
+			out.writeLong(t.context);
 			KadID.serializer.serialize(t.key, out);
 		}
 
 		@Override
 		public FindValueRequest deserialize(ByteBuf in) throws IOException {
-			return new FindValueRequest(in.readInt(), KadID.serializer.deserialize(in));
+			return new FindValueRequest(in.readLong(), KadID.serializer.deserialize(in));
 		}
 	};
 }

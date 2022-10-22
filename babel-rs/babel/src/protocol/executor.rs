@@ -7,8 +7,8 @@ use crate::{
     ipc::{IpcMessage, IpcService, Notification, Reply, Request},
     mailbox::{MailboxEvent, MailboxReceiver},
     network::{ConnectionEvent, NetworkService, ReceivedMessage},
-    timer::TimerService,
-    ChannelID, TimerID,
+    timer::{TimerID, TimerService},
+    ChannelID,
 };
 
 use super::{
@@ -211,6 +211,7 @@ impl<P: Protocol> ProtocolExecutor<P> {
                 MailboxEvent::MessageReceived(message) => self.on_message_received(message),
                 MailboxEvent::ConnectionEvent(event) => self.on_connection_event(event),
                 MailboxEvent::IpcMessage(message) => self.on_ipc_message(message),
+                MailboxEvent::Exit => break,
             }
         }
 

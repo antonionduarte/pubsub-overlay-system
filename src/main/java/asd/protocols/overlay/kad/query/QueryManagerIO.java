@@ -6,7 +6,7 @@ import asd.protocols.overlay.kad.KadPeer;
 public interface QueryManagerIO {
     void discover(KadPeer peer);
 
-    void findNodeRequest(int context, KadID id, KadID target);
+    void findNodeRequest(long context, KadID id, KadID target);
 
-    void findValueRequest(int context, KadID id, KadID key);
+    void findValueRequest(long context, KadID id, KadID key);
 }

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, net::SocketAddr};
+use std::{collections::HashMap, net::SocketAddr, time::Duration};
 
 use tokio::{
     io::{BufReader, BufWriter},
@@ -20,6 +20,7 @@ use super::{Channel, ChannelEvents, ChannelFactory, ChannelMessage};
 const TCP_MAGIC_NUMBER: i16 = 0x4505;
 const PROP_MAGIC_NUMBER: &'static str = "magic_number";
 const PROP_LISTEN_ADDR: &'static str = "listen_address";
+const HEARTBEAT_INTERVAL: Duration = Duration::SECOND;
 
 /// If more than this number of events get queued up then we assume there is something wrong with
 /// the connection and terminate it.
@@ -389,9 +390,39 @@ async fn connection_task<E, M>(
     E: ChannelEvents<M>,
     M: ChannelMessage,
 {
+    let result = connection_task_helper(
+        sender.clone(),
+        receiver,
+        events,
+        addr,
+        stream,
+        direction,
+        local_listen_address,
+    )
+    .await;
+    if let Some(err) = result.err() {
+        log::error!("TCP connection to {addr} failed: {err}");
+    }
+    let _ = sender.send(Event::ConnectionClosed(addr, direction));
+}
+
+async fn connection_task_helper<E, M>(
+    sender: EventSender<M>,
+    mut receiver: CommandReceiver<M>,
+    events: E,
+    addr: SocketAddr,
+    stream: TcpStream,
+    direction: ConnectionDirection,
+    local_listen_address: SocketAddr,
+) -> std::io::Result<()>
+where
+    E: ChannelEvents<M>,
+    M: ChannelMessage,
+{
     enum LoopEv<M: ChannelMessage> {
         Command(Command<M>),
         Message(Message<M>),
+        Heartbeat,
     }
 
     let (reader, writer) = stream.into_split();
@@ -410,8 +441,7 @@ async fn connection_task<E, M>(
             let hs = decoder.decode::<M>().await.unwrap();
             encoder
                 .control(&ControlMessage::SecondHandshake(handshake))
-                .await
-                .unwrap();
+                .await?;
             match hs {
                 Message::Control(ControlMessage::FirstHandshake(hs)) => hs.properties,
                 _ => panic!("Expected first handshake"),
@@ -420,9 +450,8 @@ async fn connection_task<E, M>(
         ConnectionDirection::Outgoing => {
             encoder
                 .control(&ControlMessage::FirstHandshake(handshake))
-                .await
-                .unwrap();
-            let hs = decoder.decode::<M>().await.unwrap();
+                .await?;
+            let hs = decoder.decode::<M>().await?;
             match hs {
                 Message::Control(ControlMessage::SecondHandshake(hs)) => hs.properties,
                 _ => panic!("Expected second handshake"),
@@ -444,34 +473,36 @@ async fn connection_task<E, M>(
         Event::HandshakeComplete(addr, direction, listen_addr),
     );
 
+    let mut heartbeat_ticker = tokio::time::interval(HEARTBEAT_INTERVAL);
+
     // Exchange messages
     loop {
         let ev = tokio::select! {
             Some(cmd) = receiver.recv() => LoopEv::Command(cmd),
             Ok(msg) = decoder.decode() => LoopEv::Message(msg),
+            _ = heartbeat_ticker.tick() => LoopEv::Heartbeat,
         };
 
         match ev {
             LoopEv::Command(cmd) => match cmd {
                 Command::SendMessage(message) => {
-                    encoder.application(&message).await.unwrap();
+                    encoder.application(&message).await?;
                 }
                 Command::Close => break,
             },
             LoopEv::Message(msg) => match msg {
                 Message::Control(msg) => match msg {
-                    wire::ControlMessage::Heartbeat => {
-                        encoder.control(&ControlMessage::Heartbeat).await.unwrap();
-                        // just echo hearbeats for now
-                        encoder.control(&ControlMessage::Heartbeat).await.unwrap();
-                    }
+                    wire::ControlMessage::Heartbeat => {} // Ignore heartbeats for now
                     _ => panic!("unexpetect control message: {msg:?}"),
                 },
                 // voulez-vouz ahaa
                 Message::Application(msg) => events.received_message(listen_addr, direction, msg),
             },
+            LoopEv::Heartbeat => {
+                encoder.control(&ControlMessage::Heartbeat).await?;
+            }
         }
     }
 
-    let _ = sender.send(Event::ConnectionClosed(addr, direction));
+    Ok(())
 }

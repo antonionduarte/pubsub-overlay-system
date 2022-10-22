@@ -5,9 +5,9 @@ import asd.protocols.overlay.kad.KadPeer;
 
 class QMQueryIO implements QueryIO {
     private final QueryManagerIO qmio;
-    private final int context;
+    private final long context;
 
-    public QMQueryIO(QueryManagerIO qmio, int context) {
+    public QMQueryIO(QueryManagerIO qmio, long context) {
         this.qmio = qmio;
         this.context = context;
     }

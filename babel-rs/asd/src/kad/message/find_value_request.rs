@@ -7,12 +7,12 @@ use crate::kad::{KadID, Kademlia};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FindValueRequest {
-    pub context: u32,
+    pub context: u64,
     pub key: KadID,
 }
 
 impl FindValueRequest {
-    pub fn new(context: u32, key: KadID) -> Self {
+    pub fn new(context: u64, key: KadID) -> Self {
         Self { context, key }
     }
 }
@@ -22,7 +22,7 @@ impl Serialize for FindValueRequest {
     where
         B: bytes::BufMut,
     {
-        buf.put_u32(self.context);
+        buf.put_u64(self.context);
         self.key.serialize(buf)?;
         Ok(())
     }
@@ -33,7 +33,7 @@ impl Deserialize for FindValueRequest {
     where
         B: bytes::Buf,
     {
-        let context = buf.get_u32();
+        let context = buf.get_u64();
         let key = KadID::deserialize(buf)?;
         Ok(Self { context, key })
     }

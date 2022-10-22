@@ -1,6 +1,6 @@
 use crate::{
     network::{ConnectionEvent, ConnectionID, Deserialize, Serialize},
-    TimerID,
+    timer::TimerID,
 };
 
 mod context;

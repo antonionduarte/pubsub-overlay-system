@@ -4,6 +4,7 @@
 use babel::{
     network::channel::tcp::TcpChannelFactory,
     protocol::{Context, Protocol, ProtocolID},
+    timer::TimerID,
     ApplicationBuilder, Properties,
 };
 
@@ -22,7 +23,7 @@ impl Protocol for TestProtocol {
         ctx.create_channel("tcp", Properties::builder().with_i16("port", 4500).build());
     }
 
-    fn on_timer(&mut self, ctx: babel::protocol::Context<Self>, timer_id: babel::TimerID) {}
+    fn on_timer(&mut self, ctx: babel::protocol::Context<Self>, timer_id: TimerID) {}
 }
 
 impl TestProtocol {
