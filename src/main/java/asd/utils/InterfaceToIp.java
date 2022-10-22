@@ -27,11 +27,10 @@ public class InterfaceToIp {
 		String interfaceName;
 		if ((interfaceName = props.getProperty("interface")) != null) {
 			String ip = InterfaceToIp.getIpOfInterface(interfaceName);
-			if (ip != null)
+			if (ip != null) {
 				props.setProperty("address", ip);
-			else {
-				throw new InvalidParameterException(
-						"Property interface is set to " + interfaceName + ", but has no ip");
+			} else {
+				throw new InvalidParameterException("Property interface is set to " + interfaceName + ", but has no ip");
 			}
 		}
 	}

@@ -1,8 +1,8 @@
 package asd.utils;
 
-import java.net.InetAddress;
-
 import pt.unl.fct.di.novasys.network.data.Host;
+
+import java.net.InetAddress;
 
 public class ASDUtils {
 	public static Host hostFromProp(String value) {
