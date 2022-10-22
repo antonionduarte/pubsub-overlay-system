@@ -1,4 +1,4 @@
-package protocols.pubsub.common;
+package asd.protocols.pubsub.common;
 
 import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
