@@ -2,9 +2,8 @@ package asd.protocols.overlay.hyparview;
 
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.util.HashSet;
-import java.util.Random;
-import java.util.Set;
+import java.sql.Array;
+import java.util.*;
 
 public class View {
 
@@ -54,6 +53,23 @@ public class View {
 		var nodeIndex = random.nextInt(membership.size());
 		var list = membership.toArray();
 		return (Host) list[nodeIndex];
+	}
+
+	public Host selectRandomDiffNode(Host node) {
+		var randomSelect = this.selectRandomNode();
+		while (!node.equals(randomSelect))
+			randomSelect = this.selectRandomNode();
+		return randomSelect;
+	}
+
+	public Set<Host> subsetRandomElements(int size) {
+		List<Host> list = new ArrayList<>(membership);
+		Set<Host> subset = new HashSet<>();
+		Collections.shuffle(list);
+		for (int i = 0; i < size; i++) {
+			subset.add(list.get(i));
+		}
+		return subset;
 	}
 
 	public int getSize() {

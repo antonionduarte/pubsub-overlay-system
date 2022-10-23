@@ -1,6 +1,7 @@
 package asd.protocols.overlay.hyparview;
 
 import asd.protocols.overlay.hyparview.messages.*;
+import asd.protocols.overlay.hyparview.timers.ShuffleTimer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
@@ -12,6 +13,7 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
 
@@ -23,15 +25,20 @@ public class Hyparview extends GenericProtocol {
 	public static final String PROTOCOL_NAME = "Hyparview";
 	public static final String CONTACT_PROPERTY = "contact";
 
-	public static final int ACTIVE_RANDOM_WALK_LENGTH = 5;
-	public static final int PASSIVE_RANDOM_WALK_LENGTH = 5;
+	public final int ACTIVE_RANDOM_WALK_LENGTH = 5;
+	public final int PASSIVE_RANDOM_WALK_LENGTH = 5;
 
-	private View passiveView;
-	private View activeView;
+	private final View passiveView;
+	private final View activeView;
+
+	private final short kActive = 5; // TODO: Make config param.
+	private final short kPassive = 5; // TODO: Make config param.
+	private final short shufflePeriod = 5; // TODO: Make config param.
+	private final short shuffleTtl = 5; // TODO: Make config param.
 
 	private Host self;
 
-	private Set<Host> pending; // The nodes that are pending to be added into the activeView.
+	private final Set<Host> pending; // The nodes that are pending to be added into the activeView.
 
 	private final int channelId;
 
@@ -39,8 +46,9 @@ public class Hyparview extends GenericProtocol {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
 
 		this.self = self;
-		this.passiveView = new View(0, self); // TODO: Change size
-		this.activeView = new View(0, self); // TODO: Change size
+		this.passiveView = new View(0, self); // TODO: Change size.
+		this.activeView = new View(0, self); // TODO: Change size.
+		this.pending = new HashSet<>();
 
 		var channelMetricsInterval = properties.getProperty("channel_metrics_interval", "10000"); // 10 seconds
 
@@ -55,7 +63,7 @@ public class Hyparview extends GenericProtocol {
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
 		/*---------------------- Register Message Serializers ---------------------- */
-
+		
 
 		/*---------------------- Register Message Handlers -------------------------- */
 		this.registerMessageHandler(this.channelId, ForwardJoin.MESSAGE_ID, this::uponForwardJoin);
@@ -64,6 +72,8 @@ public class Hyparview extends GenericProtocol {
 		this.registerMessageHandler(this.channelId, Neighbor.MESSAGE_ID, this::uponNeighbor);
 		this.registerMessageHandler(this.channelId, NeighborReply.MESSAGE_ID, this::uponNeighborReply);
 		this.registerMessageHandler(this.channelId, JoinReply.MESSAGE_ID, this::uponJoinReply);
+		this.registerMessageHandler(this.channelId, Shuffle.MESSAGE_ID, this::uponShuffle);
+		this.registerMessageHandler(this.channelId, ShuffleReply.MESSAGE_ID, this::uponShuffleReply);
 
 		/*--------------------- Register Request Handlers ----------------------------- */
 
@@ -75,7 +85,7 @@ public class Hyparview extends GenericProtocol {
 		registerChannelEventHandler(channelId, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
 
 		/*-------------------- Register Timer Handler ------------------------------- */
-
+		registerTimerHandler(ShuffleTimer.TIMER_ID, this::uponShuffleTimer);
 	}
 
 	@Override
@@ -87,6 +97,8 @@ public class Hyparview extends GenericProtocol {
 				var contactHost = new Host(InetAddress.getByName(hostElements[0]), Short.parseShort(hostElements[1]));
 				activeView.addNode(contactHost);
 				openConnection(contactHost);
+				sendMessage(new Join(), contactHost);
+				setupPeriodicTimer(new ShuffleTimer(), shufflePeriod, shufflePeriod);
 			}
 		} catch (Exception exception) {
 			logger.error("Invalid contact on configuration: '" + properties.getProperty(CONTACT_PROPERTY));
@@ -160,6 +172,33 @@ public class Hyparview extends GenericProtocol {
 		}
 	}
 
+	private void uponShuffle(Shuffle msg, Host from, short sourceProtocol, int channelId) {
+		var timeToLive = msg.getTimeToLive() - 1;
+		if (timeToLive > 0 && activeView.getSize() > 1) {
+			var node = activeView.selectRandomDiffNode(from);
+			var toSend = new Shuffle(msg.getTimeToLive() - 1, msg.getShuffleList(), msg.getOriginalNode());
+			sendMessage(toSend, node);
+		} else {
+			var numberNodes = msg.getShuffleList().size();
+			var replyList = passiveView.subsetRandomElements(numberNodes);
+			openConnection(msg.getOriginalNode());
+			sendMessage(new ShuffleReply(replyList), msg.getOriginalNode());
+			closeConnection(msg.getOriginalNode());
+			for (Host node : msg.getShuffleList()) {
+				if (!node.equals(self) && !activeView.getView().contains(node))
+					passiveView.addNode(node);
+			}
+		}
+	}
+
+	private void uponShuffleReply(ShuffleReply msg, Host from, short sourceProtocol, int channelId) {
+		var shuffleSet = msg.getShuffleSet();
+		for (Host node : shuffleSet) {
+			if (!node.equals(self) && !activeView.getView().contains(node))
+				passiveView.addNode(node);
+		}
+	}
+
 	/*--------------------------------- TCPChannel Events ---------------------------- */
 
 	// An out connection is down.
@@ -190,6 +229,20 @@ public class Hyparview extends GenericProtocol {
 
 	private void uponInConnectionDown(InConnectionDown event, int channelId) {
 		// nothing;
+	}
+
+	/*--------------------------------- Timers ---------------------------- */
+
+	private void uponShuffleTimer(ShuffleTimer timer, long timerId) {
+		var subsetActive = activeView.subsetRandomElements(kActive);
+		var subsetPassive = passiveView.subsetRandomElements(kPassive);
+		var shuffleSet = new HashSet<>(subsetPassive);
+
+		shuffleSet.add(self);
+		shuffleSet.addAll(subsetPassive);
+		var toSend = new Shuffle(shuffleTtl, shuffleSet, self);
+		var shuffleNode = activeView.selectRandomNode();
+		sendMessage(toSend, shuffleNode);
 	}
 
 	/*--------------------------------- Procedures ---------------------------- */
