@@ -1,4 +1,4 @@
-package asd.protocols.apps;:evil
+package asd.protocols.apps;
 
 import asd.protocols.apps.timers.DisseminationTimer;
 import asd.protocols.apps.timers.ExitTimer;
