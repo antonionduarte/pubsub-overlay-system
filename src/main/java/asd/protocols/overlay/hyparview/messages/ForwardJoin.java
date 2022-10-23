@@ -12,8 +12,8 @@ public class ForwardJoin extends ProtoMessage {
 
 	public static final short MESSAGE_ID = Hyparview.PROTOCOL_ID + 2;
 
-	private Host newNode;
-	private int timeToLive;
+	private final Host newNode;
+	private final int timeToLive;
 
 	public ForwardJoin(Host newNode, int timeToLive) {
 		super(MESSAGE_ID);
@@ -29,15 +29,18 @@ public class ForwardJoin extends ProtoMessage {
 		return newNode;
 	}
 
-	public static final ISerializer<ForwardJoin> serializer = new ISerializer<ForwardJoin>() {
+	public static final ISerializer<ForwardJoin> serializer = new ISerializer<>() {
 		@Override
 		public void serialize(ForwardJoin forwardJoin, ByteBuf byteBuf) throws IOException {
-
+			byteBuf.writeInt(forwardJoin.timeToLive);
+			Host.serializer.serialize(forwardJoin.newNode, byteBuf);
 		}
 
 		@Override
 		public ForwardJoin deserialize(ByteBuf byteBuf) throws IOException {
-			return null;
+			int timeToLive = byteBuf.readInt();
+			Host newNode = Host.serializer.deserialize(byteBuf);
+			return new ForwardJoin(newNode, timeToLive);
 		}
 	};
 }

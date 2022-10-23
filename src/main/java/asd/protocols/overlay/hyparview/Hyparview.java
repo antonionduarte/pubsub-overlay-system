@@ -25,18 +25,21 @@ public class Hyparview extends GenericProtocol {
 	public static final String PROTOCOL_NAME = "Hyparview";
 	public static final String CONTACT_PROPERTY = "contact";
 
-	public final int ACTIVE_RANDOM_WALK_LENGTH = 5;
-	public final int PASSIVE_RANDOM_WALK_LENGTH = 5;
+	public final int ARWL;
+	public final int PRWL;
 
 	private final View passiveView;
 	private final View activeView;
 
-	private final short kActive = 5; // TODO: Make config param.
-	private final short kPassive = 5; // TODO: Make config param.
-	private final short shufflePeriod = 5; // TODO: Make config param.
-	private final short shuffleTtl = 5; // TODO: Make config param.
+	private final short kActive;  // TODO: Make config param.
+	private final short kPassive; // TODO: Make config param.
+	private final short shufflePeriod; // TODO: Make config param.
+	private final short shuffleTtl; // TODO: Make config param.
 
-	private Host self;
+	private final short passiveViewCapacity;
+	private final short activeViewCapacity;
+
+	private final Host self;
 
 	private final Set<Host> pending; // The nodes that are pending to be added into the activeView.
 
@@ -44,11 +47,6 @@ public class Hyparview extends GenericProtocol {
 
 	public Hyparview(Properties properties, Host self) throws IOException, HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
-
-		this.self = self;
-		this.passiveView = new View(0, self); // TODO: Change size.
-		this.activeView = new View(0, self); // TODO: Change size.
-		this.pending = new HashSet<>();
 
 		var channelMetricsInterval = properties.getProperty("channel_metrics_interval", "10000"); // 10 seconds
 
@@ -62,8 +60,25 @@ public class Hyparview extends GenericProtocol {
 		channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "1000"); // TCP connect timeout
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
-		/*---------------------- Register Message Serializers ---------------------- */
+		/*---------------------- Protocol Configuration ---------------------- */
+		this.kActive = (short) Integer.parseInt(properties.getProperty("k_active", "6"));
+		this.kPassive = (short) Integer.parseInt(properties.getProperty("k_passive", "6"));
+		this.shufflePeriod = (short) Integer.parseInt(properties.getProperty("shuffle_period", "10000"));
+		this.shuffleTtl = (short) Integer.parseInt(properties.getProperty("shuffle_ttl", "3"));
+		this.ARWL = Integer.parseInt(properties.getProperty("arwl", "3"));
+		this.PRWL = Integer.parseInt(properties.getProperty("prwl", "3"));
+		this.passiveViewCapacity = (short) Integer.parseInt(properties.getProperty("passive_view_capacity", "100"));
+		this.activeViewCapacity = (short) Integer.parseInt(properties.getProperty("active_view_capacity", "100"));
 
+		/*---------------------- Register Message Serializers ---------------------- */
+		registerMessageSerializer(this.channelId, Disconnect.MESSAGE_ID, Disconnect.serializer);
+		registerMessageSerializer(this.channelId, ForwardJoin.MESSAGE_ID, ForwardJoin.serializer);
+		registerMessageSerializer(this.channelId, Join.MESSAGE_ID, Join.serializer);
+		registerMessageSerializer(this.channelId, JoinReply.MESSAGE_ID, JoinReply.serializer);
+		registerMessageSerializer(this.channelId, Shuffle.MESSAGE_ID, Shuffle.serializer);
+		registerMessageSerializer(this.channelId, ShuffleReply.MESSAGE_ID, ShuffleReply.serializer);
+		registerMessageSerializer(this.channelId, Neighbor.MESSAGE_ID, Neighbor.serializer);
+		registerMessageSerializer(this.channelId, NeighborReply.MESSAGE_ID, NeighborReply.serializer);
 
 		/*---------------------- Register Message Handlers -------------------------- */
 		this.registerMessageHandler(this.channelId, ForwardJoin.MESSAGE_ID, this::uponForwardJoin);
@@ -86,6 +101,11 @@ public class Hyparview extends GenericProtocol {
 
 		/*-------------------- Register Timer Handler ------------------------------- */
 		registerTimerHandler(ShuffleTimer.TIMER_ID, this::uponShuffleTimer);
+
+		this.self = self;
+		this.passiveView = new View(passiveViewCapacity, self);
+		this.activeView = new View(activeViewCapacity, self);
+		this.pending = new HashSet<>();
 	}
 
 	@Override
@@ -114,7 +134,7 @@ public class Hyparview extends GenericProtocol {
 
 		for (var node : activeView.getView()) {
 			if (!node.equals(from)) {
-				var toSend = new ForwardJoin(from, ACTIVE_RANDOM_WALK_LENGTH);
+				var toSend = new ForwardJoin(from, ARWL);
 				sendMessage(toSend, node);
 			}
 		}
@@ -129,11 +149,9 @@ public class Hyparview extends GenericProtocol {
 			handleActiveAddition(msg.getNewNode());
 			sendMessage(new JoinReply(), msg.getNewNode());
 		} else {
-			if (msg.getTimeToLive() == PASSIVE_RANDOM_WALK_LENGTH)
+			if (msg.getTimeToLive() == PRWL)
 				passiveView.addNode(msg.getNewNode());
-			var randomNode = activeView.selectRandomNode();
-			while (randomNode == from)
-				randomNode = activeView.selectRandomNode();
+			var randomNode = activeView.selectRandomDiffNode(from);
 			openConnection(msg.getNewNode());
 			var toSend = new ForwardJoin(msg.getNewNode(), msg.getTimeToLive() - 1);
 			sendMessage(toSend, randomNode);
@@ -176,15 +194,15 @@ public class Hyparview extends GenericProtocol {
 		var timeToLive = msg.getTimeToLive() - 1;
 		if (timeToLive > 0 && activeView.getSize() > 1) {
 			var node = activeView.selectRandomDiffNode(from);
-			var toSend = new Shuffle(msg.getTimeToLive() - 1, msg.getShuffleList(), msg.getOriginalNode());
+			var toSend = new Shuffle(msg.getTimeToLive() - 1, msg.getShuffleSet(), msg.getOriginalNode());
 			sendMessage(toSend, node);
 		} else {
-			var numberNodes = msg.getShuffleList().size();
+			var numberNodes = msg.getShuffleSet().size();
 			var replyList = passiveView.subsetRandomElements(numberNodes);
 			openConnection(msg.getOriginalNode());
 			sendMessage(new ShuffleReply(replyList), msg.getOriginalNode());
 			closeConnection(msg.getOriginalNode());
-			for (Host node : msg.getShuffleList()) {
+			for (Host node : msg.getShuffleSet()) {
 				if (!node.equals(self) && !activeView.getView().contains(node))
 					passiveView.addNode(node);
 			}

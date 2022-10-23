@@ -15,15 +15,14 @@ public class Disconnect extends ProtoMessage {
 		super(MESSAGE_ID);
 	}
 
-	public static final ISerializer<Disconnect> serializer = new ISerializer<Disconnect>() {
+	public static final ISerializer<Disconnect> serializer = new ISerializer<>() {
 		@Override
-		public void serialize(Disconnect disconnect, ByteBuf byteBuf) throws IOException {
-
+		public void serialize(Disconnect disconnect, ByteBuf byteBuf) {
 		}
 
 		@Override
-		public Disconnect deserialize(ByteBuf byteBuf) throws IOException {
-			return null;
+		public Disconnect deserialize(ByteBuf byteBuf) {
+			return new Disconnect();
 		}
 	};
 }

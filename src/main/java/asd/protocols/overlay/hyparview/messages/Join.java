@@ -15,15 +15,14 @@ public class Join extends ProtoMessage {
 		super(MESSAGE_ID);
 	}
 
-	public static final ISerializer<Join> serializer = new ISerializer<Join>() {
+	public static final ISerializer<Join> serializer = new ISerializer<>() {
 		@Override
-		public void serialize(Join join, ByteBuf byteBuf) throws IOException {
-
+		public void serialize(Join join, ByteBuf byteBuf) {
 		}
 
 		@Override
-		public Join deserialize(ByteBuf byteBuf) throws IOException {
-			return null;
+		public Join deserialize(ByteBuf byteBuf) {
+			return new Join();
 		}
 	};
 }
