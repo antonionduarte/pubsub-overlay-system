@@ -63,7 +63,7 @@ public class Hyparview extends GenericProtocol {
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
 		/*---------------------- Register Message Serializers ---------------------- */
-		
+
 
 		/*---------------------- Register Message Handlers -------------------------- */
 		this.registerMessageHandler(this.channelId, ForwardJoin.MESSAGE_ID, this::uponForwardJoin);
@@ -239,7 +239,7 @@ public class Hyparview extends GenericProtocol {
 		var shuffleSet = new HashSet<>(subsetPassive);
 
 		shuffleSet.add(self);
-		shuffleSet.addAll(subsetPassive);
+		shuffleSet.addAll(subsetActive);
 		var toSend = new Shuffle(shuffleTtl, shuffleSet, self);
 		var shuffleNode = activeView.selectRandomNode();
 		sendMessage(toSend, shuffleNode);
