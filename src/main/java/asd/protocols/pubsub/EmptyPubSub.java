@@ -1,10 +1,10 @@
-package protocols.pubsub;
+package asd.protocols.pubsub;
 
+import asd.protocols.pubsub.common.PublishRequest;
+import asd.protocols.pubsub.common.SubscriptionRequest;
+import asd.protocols.pubsub.common.UnsubscriptionRequest;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import protocols.pubsub.common.PublishRequest;
-import protocols.pubsub.common.SubscriptionRequest;
-import protocols.pubsub.common.UnsubscriptionRequest;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 
