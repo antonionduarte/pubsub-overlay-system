@@ -31,10 +31,10 @@ public class Hyparview extends GenericProtocol {
 	private final View passiveView;
 	private final View activeView;
 
-	private final short kActive;  // TODO: Make config param.
-	private final short kPassive; // TODO: Make config param.
-	private final short shufflePeriod; // TODO: Make config param.
-	private final short shuffleTtl; // TODO: Make config param.
+	private final short kActive;
+	private final short kPassive;
+	private final short shufflePeriod;
+	private final short shuffleTtl;
 
 	private final short passiveViewCapacity;
 	private final short activeViewCapacity;

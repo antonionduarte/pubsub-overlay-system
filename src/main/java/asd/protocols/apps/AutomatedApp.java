@@ -5,6 +5,7 @@ import asd.protocols.apps.timers.ExitTimer;
 import asd.protocols.apps.timers.StartTimer;
 import asd.protocols.apps.timers.StopTimer;
 import asd.protocols.pubsub.common.*;
+import asd.utils.HashProducer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
