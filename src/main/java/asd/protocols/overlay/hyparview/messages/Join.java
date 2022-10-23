@@ -11,8 +11,8 @@ public class Join extends ProtoMessage {
 
 	public static final short MESSAGE_ID = Hyparview.PROTOCOL_ID + 1;
 
-	public Join(short id) {
-		super(id);
+	public Join() {
+		super(MESSAGE_ID);
 	}
 
 	public static final ISerializer<Join> serializer = new ISerializer<Join>() {

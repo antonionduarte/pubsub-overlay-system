@@ -11,8 +11,8 @@ public class Disconnect extends ProtoMessage {
 
 	public static final short MESSAGE_ID = Hyparview.PROTOCOL_ID + 3;
 
-	public Disconnect(short id) {
-		super(id);
+	public Disconnect() {
+		super(MESSAGE_ID);
 	}
 
 	public static final ISerializer<Disconnect> serializer = new ISerializer<Disconnect>() {
