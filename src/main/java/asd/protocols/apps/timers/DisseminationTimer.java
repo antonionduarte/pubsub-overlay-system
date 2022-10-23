@@ -1,4 +1,4 @@
-package protocols.apps.timers;
+package asd.protocols.apps.timers;
 
 import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 

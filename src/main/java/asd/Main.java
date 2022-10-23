@@ -1,10 +1,10 @@
 package asd;
 
+import asd.protocols.apps.AutomatedApp;
+import asd.protocols.pubsub.EmptyPubSub;
 import asd.utils.InterfaceToIp;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import protocols.apps.AutomatedApp;
-import protocols.pubsub.EmptyPubSub;
 import pt.unl.fct.di.novasys.babel.core.Babel;
 import pt.unl.fct.di.novasys.network.data.Host;
 

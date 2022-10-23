@@ -1,19 +1,14 @@
-package protocols.apps;
+package asd.protocols.apps;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 import java.util.Random;
 import java.util.Scanner;
 
+import asd.protocols.pubsub.common.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import protocols.pubsub.common.DeliverNotification;
-import protocols.pubsub.common.PublishReply;
-import protocols.pubsub.common.PublishRequest;
-import protocols.pubsub.common.SubscriptionReply;
-import protocols.pubsub.common.SubscriptionRequest;
-import protocols.pubsub.common.UnsubscriptionRequest;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.network.data.Host;
