@@ -18,6 +18,8 @@ import javax.sql.rowset.FilteredRowSet;
 import java.io.IOException;
 import java.util.*;
 
+import static asd.utils.ASDUtils.peerSample;
+
 public class GossipSub extends GenericProtocol {
 
     private final Host self;
@@ -35,7 +37,7 @@ public class GossipSub extends GenericProtocol {
      /* Map of topics to set of peers.
      * These mesh peers are the ones to which self is publishing without a topic membership (topic => set of peers) */
     private Map<String, Set<Host>> fanout;
-    private Map<String, Set<Host>> fanoutLastPub; // map of last publish time for fanout topics (topic => last publish time)
+    private Map<String, Long> fanoutLastPub; // map of last publish time for fanout topics (topic => last publish time)
     private Map<Host, List<IHave>> gossip; // map of pending messages to gossip (host => list of IHave messages)
     private Map<UUID, PublishMessage> messageCache; // cache that contains the messages for last few heartbeat ticks
     private Set<UUID> seenMessages; // set of ids of seen messages (maybe turn to cache)
@@ -87,7 +89,7 @@ public class GossipSub extends GenericProtocol {
 
     @Override
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
-
+        //TODO
     }
 
     /*--------------------------------- Request Handlers ---------------------------------------- */
@@ -115,6 +117,18 @@ public class GossipSub extends GenericProtocol {
         }
 
         var toSend = selectPeersToPublish(topic);
+        if (toSend.isEmpty()) {
+            logger.error("No peers to publish :(");
+            return;
+        }
+
+        seenMessages.add(msgId);
+        var publishMessage = new PublishMessage(self, topic, msgId, publish.getMessage());
+        messageCache.put(msgId, publishMessage);
+
+        for (var peer : toSend) {
+            sendMessage(publishMessage, peer);
+        }
     }
 
     private void uponSubscriptionRequest(SubscriptionRequest sub, short sourceProto) {
@@ -228,21 +242,23 @@ public class GossipSub extends GenericProtocol {
     /*--------------------------------- Channel Event Handlers ---------------------------------------- */
 
     private void onInConnectionDown(InConnectionDown event, int channelId) {
-
+        //TODO
     }
 
     private void onInConnectionUp(InConnectionUp event, int channelId) {
-
+        //TODO
     }
 
     private void onOutConnectionUp(OutConnectionUp event, int channelId) {
+        //TODO
     }
 
     private void onOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
-
+        //TODO
     }
 
     private void onOutConnectionDown(OutConnectionDown event, int channelId) {
+        //TODO
     }
 
     /*--------------------------------- Helpers ---------------------------------------- */
@@ -282,7 +298,6 @@ public class GossipSub extends GenericProtocol {
                 toSend.add(directPeer);
             }
         }
-
         return toSend;
     }
 
@@ -296,11 +311,11 @@ public class GossipSub extends GenericProtocol {
 
         // check if we have mesh_n peers in fanout[topic] and add them to the mesh if we do,
         // removing the fanout entry.
-        var fanoutPeers = this.fanout.get(topic);
+        var fanoutPeers = fanout.get(topic);
         if (fanoutPeers != null && fanoutPeers.isEmpty()) {
             // Remove fanout entry and the last published time
-            this.fanout.remove(topic);
-            //this.fanoutLastpub.delete(topic)
+            fanout.remove(topic);
+            fanoutLastPub.remove(topic);
 
             for (var peer : fanoutPeers) {
                 if (!direct.contains(peer))
@@ -335,11 +350,11 @@ public class GossipSub extends GenericProtocol {
 
         Set<Host> peersToReturn = new HashSet<>();
         for (var peer : peersInTopic) {
-            if(!exclude.contains(peer) && !this.direct.contains(peer))
+            if(exclude == null || !exclude.contains(peer))
                 peersToReturn.add(peer);
         }
 
-        return peersToReturn; //TODO: Sample with count elements of this set
+        return peerSample(count, peersToReturn);
     }
 
     private void leave(String topic) {
@@ -383,13 +398,19 @@ public class GossipSub extends GenericProtocol {
                 var fanoutPeers = this.fanout.get(topic);
                 if (fanoutPeers != null && !fanoutPeers.isEmpty()) {
                     toSend.addAll(fanoutPeers);
+                // no fanout peers, select degree of them and add them to the fanout, picking
+                // peers in topic above the publishThreshold
                 } else {
-
+                    var newFanoutPeers = getRandomGossipPeers(topic, degree, null);
+                    if (!newFanoutPeers.isEmpty()) {
+                        fanout.put(topic, newFanoutPeers);
+                        toSend.addAll(newFanoutPeers);
+                    }
                 }
-
+                fanoutLastPub.put(topic, this.getMillisSinceBabelStart());
             }
-
-
         }
+
+        return toSend;
     }
 }
