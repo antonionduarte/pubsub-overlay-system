@@ -47,6 +47,10 @@ public class Hyparview extends GenericProtocol {
 	public Hyparview(Properties properties, Host self) throws IOException, HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
 
+		/*
+		 * TODO: NeighborUp and NeighborDown notifications for other protocols to use. (particularly PlumTree).
+		 */
+
 		var channelMetricsInterval = properties.getProperty("channel_metrics_interval", "10000"); // 10 seconds
 
 		/*---------------------- Channel Configuration ---------------------- */
@@ -113,7 +117,7 @@ public class Hyparview extends GenericProtocol {
 				var contact = properties.getProperty(CONTACT_PROPERTY);
 				var hostElements = contact.split(":");
 				var contactHost = new Host(InetAddress.getByName(hostElements[0]), Short.parseShort(hostElements[1]));
-				activeView.addNode(contactHost);
+				handleActiveAddition(contactHost);
 				openConnection(contactHost);
 				sendMessage(new Join(), contactHost);
 				setupPeriodicTimer(new ShuffleTimer(), shufflePeriod, shufflePeriod);
@@ -159,6 +163,7 @@ public class Hyparview extends GenericProtocol {
 	private void uponDisconnect(Disconnect msg, Host from, short sourceProtocol, int channelId) {
 		if (activeView.getView().contains(from)) {
 			activeView.removeNode(from);
+			// TODO: Notification neighbor down
 			passiveView.addNode(from);
 		}
 	}
@@ -223,6 +228,7 @@ public class Hyparview extends GenericProtocol {
 			var toPromote = passiveView.dropRandomElement();
 			pending.add(toPromote);
 			handleRequestNeighbour(toPromote);
+			// TODO: Notification neighbor down.
 		}
 	}
 
@@ -270,6 +276,7 @@ public class Hyparview extends GenericProtocol {
 
 	private void handleActiveAddition(Host toAdd) {
 		var dropped = activeView.addNode(toAdd);
+		// TODO: Notification neighbor up.
 		openConnection(toAdd);
 		passiveView.removeNode(toAdd);
 		if (dropped != null) {
