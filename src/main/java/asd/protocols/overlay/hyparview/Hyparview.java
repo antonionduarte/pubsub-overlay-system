@@ -34,7 +34,6 @@ public class Hyparview extends GenericProtocol {
 	private final short kActive;
 	private final short kPassive;
 	private final short shufflePeriod;
-	private final short shuffleTtl;
 
 	private final short passiveViewCapacity;
 	private final short activeViewCapacity;
@@ -64,7 +63,6 @@ public class Hyparview extends GenericProtocol {
 		this.kActive = (short) Integer.parseInt(properties.getProperty("k_active", "6"));
 		this.kPassive = (short) Integer.parseInt(properties.getProperty("k_passive", "6"));
 		this.shufflePeriod = (short) Integer.parseInt(properties.getProperty("shuffle_period", "10000"));
-		this.shuffleTtl = (short) Integer.parseInt(properties.getProperty("shuffle_ttl", "3"));
 		this.ARWL = Integer.parseInt(properties.getProperty("arwl", "3"));
 		this.PRWL = Integer.parseInt(properties.getProperty("prwl", "3"));
 		this.passiveViewCapacity = (short) Integer.parseInt(properties.getProperty("passive_view_capacity", "100"));
@@ -258,7 +256,7 @@ public class Hyparview extends GenericProtocol {
 
 		shuffleSet.add(self);
 		shuffleSet.addAll(subsetActive);
-		var toSend = new Shuffle(shuffleTtl, shuffleSet, self);
+		var toSend = new Shuffle(this.PRWL, shuffleSet, self);
 		var shuffleNode = activeView.selectRandomNode();
 		sendMessage(toSend, shuffleNode);
 	}
@@ -286,5 +284,4 @@ public class Hyparview extends GenericProtocol {
 		var priority = activeView.getSize() == 0 ? Neighbor.Priority.HIGH : Neighbor.Priority.LOW;
 		sendMessage(new Neighbor(priority), toRequest);
 	}
-
 }
