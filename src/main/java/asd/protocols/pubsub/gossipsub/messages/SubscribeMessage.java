@@ -7,13 +7,14 @@ public class SubscribeMessage extends ProtoMessage {
 
     public static final short ID = GossipSub.ID + 1;
 
-    private String topic;
+    private final String topic;
 
     public String getTopic() {
         return topic;
     }
 
-    public SubscribeMessage() {
+    public SubscribeMessage(String topic) {
         super(ID);
+        this.topic = topic;
     }
 }

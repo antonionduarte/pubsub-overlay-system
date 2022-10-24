@@ -7,13 +7,14 @@ public class UnsubscribeMessage extends ProtoMessage {
 
     public static final short ID = GossipSub.ID + 2;
 
-    private String topic;
+    private final String topic;
+
+    public UnsubscribeMessage(String topic) {
+        super(ID);
+        this.topic = topic;
+    }
 
     public String getTopic() {
         return topic;
-    }
-
-    public UnsubscribeMessage() {
-        super(ID);
     }
 }

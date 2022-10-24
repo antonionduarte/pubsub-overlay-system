@@ -9,10 +9,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
+import javax.sql.rowset.FilteredRowSet;
 import java.io.IOException;
 import java.util.*;
 
@@ -23,6 +25,7 @@ public class GossipSub extends GenericProtocol {
 
     private int heartbeatInterval;
     private int degree, degreeLow, degreeHigh;
+    private int peersInPrune;
     private int ttl;
     private Set<Host> peers;
     private Set<Host> direct; //direct peers
@@ -89,15 +92,42 @@ public class GossipSub extends GenericProtocol {
 
     /*--------------------------------- Request Handlers ---------------------------------------- */
 
-    private void uponUnsubscriptionRequest(V v, short sourceProto) {
+    private void uponUnsubscriptionRequest(UnsubscriptionRequest unsub, short sourceProto) {
+        var topic = unsub.getTopic();
 
+        var wasSubscribed = this.subscriptions.remove(topic);
+        logger.trace("unsubscribe from {} - am subscribed {}", topic, wasSubscribed);
+        if (wasSubscribed) {
+            for (var peer : this.peers) {
+                this.sendSubscriptions(peer, Set.of(topic), false);
+            }
+        }
+        leave(topic);
     }
 
     private void uponPublishRequest(PublishRequest publish, short sourceProto) {
+        var msgId = publish.getMsgID();
+        var topic = publish.getTopic();
 
+        if(seenMessages.contains(msgId)) {
+            logger.error("Duplicate message");
+            return;
+        }
+
+        var toSend = selectPeersToPublish(topic);
     }
 
-    private void uponSubscriptionRequest(V v, short sourceProto) {
+    private void uponSubscriptionRequest(SubscriptionRequest sub, short sourceProto) {
+        var topic = sub.getTopic();
+
+        if (!subscriptions.contains(topic)) {
+            subscriptions.add(topic);
+
+            for (var peer : peers) {
+                sendSubscriptions(peer, Set.of(topic), true);
+            }
+        }
+        join(topic);
     }
 
     /*--------------------------------- Message Handlers ---------------------------------------- */
@@ -125,40 +155,6 @@ public class GossipSub extends GenericProtocol {
             deliverMessage(publish);
             forwardMessage(publish);
         }
-    }
-
-    private void deliverMessage(PublishMessage publish) {
-        var topic = publish.getTopic();
-        var source = publish.getPropagationSource();
-        if (subscriptions.contains(topic) && !self.equals(source)) {
-            triggerNotification(new DeliverNotification(topic, publish.getMsgId(), source, publish.getMsg()));
-        }
-    }
-
-    private void forwardMessage(PublishMessage publish) {
-        var topic = publish.getTopic();
-        var source = publish.getPropagationSource();
-        var toSend = selectPeersToForward(topic, source);
-        for (Host peer : toSend) {
-            sendMessage(publish, peer);
-        }
-    }
-
-    private Set<Host> selectPeersToForward(String topic, Host source) {
-        Set<Host> toSend = new HashSet<>();
-
-        var peersInTopic = topics.get(topic);
-        for (Host directPeer : direct) {
-            if (peersInTopic.contains(directPeer) && !source.equals(directPeer)) {
-                toSend.add(directPeer);
-            }
-        }
-
-        return toSend;
-    }
-
-    private void uponPrune(Prune v, Host host, short sourceProto, int channelId) {
-
     }
 
     private void uponIWant(IWant iWant, Host from, short sourceProto, int channelId) {
@@ -195,22 +191,37 @@ public class GossipSub extends GenericProtocol {
     }
 
     private void uponGraft(Graft graft, Host from, short sourceProto, int channelId) {
-        boolean doPX;
-        Set<String> prune = new HashSet<>(); //topics to prune
+        //shouldn't happen
+        if (direct.contains(from))  {
+            logger.error("GRAFT from direct peer");
+            return;
+        }
 
         for (var topic : graft.getTopics()) {
             var peersInMesh = mesh.get(topic);
-            if (peersInMesh == null || peersInMesh.isEmpty()) {
-                doPX = false;
+            if (peersInMesh == null || peersInMesh.isEmpty())
                 continue;
-            }
 
             if (peersInMesh.contains(from))
                 continue;
 
-            if (direct.contains(from)) {
+            peersInMesh.add(from);
+        }
+    }
 
-            }
+    private void uponPrune(Prune prune, Host from, short sourceProto, int channelId) {
+        var topic  = prune.getTopic();
+
+        var peersInMesh = mesh.get(topic);
+        if (peersInMesh == null || peersInMesh.isEmpty())
+            return;
+
+        peersInMesh.remove(from);
+
+        // PX
+        for (var peer : prune.getPeers()) {
+            if (!this.peers.contains(peer))
+                openConnection(peer);
         }
     }
 
@@ -224,12 +235,161 @@ public class GossipSub extends GenericProtocol {
 
     }
 
-    private void onOutConnectionUp(V v, int i) {
+    private void onOutConnectionUp(OutConnectionUp event, int channelId) {
     }
 
-    private void onOutConnectionFailed(V v, int i) {
+    private void onOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
+
     }
 
-    private void onOutConnectionDown(V v, int i) {
+    private void onOutConnectionDown(OutConnectionDown event, int channelId) {
+    }
+
+    /*--------------------------------- Helpers ---------------------------------------- */
+
+    private void sendSubscriptions(Host peer, Set<String> topics, boolean subscribe) {
+        for (var topic : topics) {
+            if (subscribe)
+                sendMessage(new SubscribeMessage(topic), peer);
+            else
+                sendMessage(new UnsubscribeMessage(topic), peer);
+        }
+    }
+
+    private void deliverMessage(PublishMessage publish) {
+        var topic = publish.getTopic();
+        var source = publish.getPropagationSource();
+        if (subscriptions.contains(topic) && !self.equals(source)) {
+            triggerNotification(new DeliverNotification(topic, publish.getMsgId(), source, publish.getMsg()));
+        }
+    }
+
+    private void forwardMessage(PublishMessage publish) {
+        var topic = publish.getTopic();
+        var source = publish.getPropagationSource();
+        var toSend = selectPeersToForward(topic, source);
+        for (Host peer : toSend) {
+            sendMessage(publish, peer);
+        }
+    }
+
+    private Set<Host> selectPeersToForward(String topic, Host source) {
+        Set<Host> toSend = new HashSet<>();
+
+        var peersInTopic = topics.get(topic);
+        for (Host directPeer : direct) {
+            if (peersInTopic.contains(directPeer) && !source.equals(directPeer)) {
+                toSend.add(directPeer);
+            }
+        }
+
+        return toSend;
+    }
+
+    private void join(String topic) {
+        if (this.mesh.containsKey(topic))
+            return;
+
+        logger.trace("JOIN {}", topic);
+
+        Set<Host> toAdd = new HashSet<>();
+
+        // check if we have mesh_n peers in fanout[topic] and add them to the mesh if we do,
+        // removing the fanout entry.
+        var fanoutPeers = this.fanout.get(topic);
+        if (fanoutPeers != null && fanoutPeers.isEmpty()) {
+            // Remove fanout entry and the last published time
+            this.fanout.remove(topic);
+            //this.fanoutLastpub.delete(topic)
+
+            for (var peer : fanoutPeers) {
+                if (!direct.contains(peer))
+                    toAdd.add(peer);
+            }
+        }
+
+        // check if we need to get more peers, which we randomly select
+        if (toAdd.size() < degree) {
+            //exclude = toAdd U direct
+            Set<Host> exclude = new HashSet<>(toAdd);
+            exclude.addAll(direct);
+
+            var newPeers = getRandomGossipPeers(topic, degree - toAdd.size(), exclude);
+            toAdd.addAll(newPeers);
+        }
+
+        this.mesh.put(topic, toAdd);
+
+        for (var peer : toAdd) {
+            logger.trace("JOIN: Add mesh link to {} in {}", peer, topic);
+            sendMessage(new Graft(Set.of(topic)), peer);
+        }
+    }
+
+    private Set<Host> getRandomGossipPeers(String topic, int count, Set<Host> exclude) {
+        var peersInTopic = this.topics.get(topic);
+
+        if (peersInTopic == null || peersInTopic.isEmpty()) {
+            return new HashSet<>();
+        }
+
+        Set<Host> peersToReturn = new HashSet<>();
+        for (var peer : peersInTopic) {
+            if(!exclude.contains(peer) && !this.direct.contains(peer))
+                peersToReturn.add(peer);
+        }
+
+        return peersToReturn; //TODO: Sample with count elements of this set
+    }
+
+    private void leave(String topic) {
+        logger.trace("LEAVE {}", topic);
+
+        // Send PRUNE to mesh peers
+        var meshPeers = this.mesh.get(topic);
+        if (meshPeers != null && !meshPeers.isEmpty()) {
+            for (var peer : meshPeers) {
+                logger.trace("LEAVE: Remove mesh link to {} in {}", peer, topic);
+                sendMessage(makePrune(peer, topic), peer);
+            }
+            this.mesh.remove(topic);
+        }
+    }
+    private Prune makePrune(Host sendTo, String topic) {
+        var peersWithPrune = getRandomGossipPeers(topic, peersInPrune, Set.of(sendTo));
+
+        return new Prune(topic, peersWithPrune);
+    }
+
+    private Set<Host> selectPeersToPublish(String topic) {
+        Set<Host> toSend = new HashSet<>();
+
+        var peersInTopic = topics.get(topic);
+        if (peersInTopic != null && !peersInTopic.isEmpty()) {
+            // send to direct peers and some mesh peers above publishThreshold
+
+            // direct peers (if subscribed)
+            for (var peer : direct) {
+                if (peersInTopic.contains(peer)) {
+                    toSend.add(peer);
+                }
+            }
+
+            // GossipSub peers handling
+            var meshPeers = this.mesh.get(topic);
+            if (meshPeers != null && !meshPeers.isEmpty()) {
+                toSend.addAll(meshPeers);
+            } else { // not in the mesh for topic, use fanout peers
+                var fanoutPeers = this.fanout.get(topic);
+                if (fanoutPeers != null && !fanoutPeers.isEmpty()) {
+                    toSend.addAll(fanoutPeers);
+                } else {
+
+                }
+
+            }
+
+
+        }
     }
 }

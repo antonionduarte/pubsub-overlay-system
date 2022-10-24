@@ -9,10 +9,11 @@ public class Graft extends ProtoMessage {
 
     public static final short ID = GossipSub.ID + 4;
 
-    private Set<String> topics;
+    private final Set<String> topics;
 
-    public Graft() {
+    public Graft(Set<String> topics) {
         super(ID);
+        this.topics = topics;
     }
 
     public Set<String> getTopics() {
