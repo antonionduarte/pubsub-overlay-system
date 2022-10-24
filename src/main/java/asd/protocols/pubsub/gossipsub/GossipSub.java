@@ -14,7 +14,6 @@ import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import javax.sql.rowset.FilteredRowSet;
 import java.io.IOException;
 import java.util.*;
 
