@@ -119,6 +119,7 @@ public class Hyparview extends GenericProtocol {
 				var contact = properties.getProperty(CONTACT_PROPERTY);
 				var hostElements = contact.split(":");
 				var contactHost = new Host(InetAddress.getByName(hostElements[0]), Short.parseShort(hostElements[1]));
+
 				handleActiveAddition(contactHost);
 				openConnection(contactHost);
 				sendMessage(new Join(), contactHost);
@@ -154,8 +155,8 @@ public class Hyparview extends GenericProtocol {
 			sendMessage(new JoinReply(), msg.getNewNode());
 		} else {
 			if (msg.getTimeToLive() == PRWL)
-				passiveView.addNode(msg.getNewNode());
-			var randomNode = activeView.selectRandomDiffNode(from);
+				this.passiveView.addPeer(msg.getNewNode());
+			var randomNode = activeView.selectRandomDiffPeer(from);
 			openConnection(msg.getNewNode());
 			var toSend = new ForwardJoin(msg.getNewNode(), msg.getTimeToLive() - 1);
 			sendMessage(toSend, randomNode);
@@ -164,10 +165,9 @@ public class Hyparview extends GenericProtocol {
 
 		private void uponDisconnect(Disconnect msg, Host from, short sourceProtocol, int channelId) {
 		if (activeView.getView().contains(from)) {
-			activeView.removeNode(from);
-			// TODO: Notification neighbor down
+			this.activeView.removePeer(from);
 			triggerNotification(new NeighbourDown(from));
-			passiveView.addNode(from);
+			this.passiveView.addPeer(from);
 		}
 	}
 
@@ -179,9 +179,7 @@ public class Hyparview extends GenericProtocol {
 			handleActiveAddition(from);
 			sendMessage(new NeighborReply(true), from);
 		} else {
-			openConnection(from);
-			sendMessage(new NeighborReply(false), from);
-			closeConnection(from);
+			singleShotMessage(new NeighborReply(false), from);
 		}
 	}
 
@@ -190,7 +188,7 @@ public class Hyparview extends GenericProtocol {
 			handleActiveAddition(from);
 		else {
 			closeConnection(from);
-			pending.remove(from);
+			this.pending.remove(from);
 			var toPromote = passiveView.dropRandomElement();
 			handleRequestNeighbour(toPromote);
 		}
@@ -198,28 +196,28 @@ public class Hyparview extends GenericProtocol {
 
 	private void uponShuffle(Shuffle msg, Host from, short sourceProtocol, int channelId) {
 		var timeToLive = msg.getTimeToLive() - 1;
+
 		if (timeToLive > 0 && activeView.getSize() > 1) {
-			var node = activeView.selectRandomDiffNode(from);
+			var node = activeView.selectRandomDiffPeer(from);
 			var toSend = new Shuffle(msg.getTimeToLive() - 1, msg.getShuffleSet(), msg.getOriginalNode());
 			sendMessage(toSend, node);
 		} else {
 			var numberNodes = msg.getShuffleSet().size();
 			var replyList = passiveView.subsetRandomElements(numberNodes);
-			openConnection(msg.getOriginalNode());
-			sendMessage(new ShuffleReply(replyList), msg.getOriginalNode());
-			closeConnection(msg.getOriginalNode());
+			singleShotMessage(new ShuffleReply(replyList), msg.getOriginalNode());
 			for (Host node : msg.getShuffleSet()) {
 				if (!node.equals(self) && !activeView.getView().contains(node))
-					passiveView.addNode(node);
+					this.passiveView.addPeer(node);
 			}
 		}
 	}
 
 	private void uponShuffleReply(ShuffleReply msg, Host from, short sourceProtocol, int channelId) {
 		var shuffleSet = msg.getShuffleSet();
+
 		for (Host node : shuffleSet) {
 			if (!node.equals(self) && !activeView.getView().contains(node))
-				passiveView.addNode(node);
+				this.passiveView.addPeer(node);
 		}
 	}
 
@@ -227,11 +225,10 @@ public class Hyparview extends GenericProtocol {
 
 	// An out connection is down.
 	private void uponOutConnectionDown(OutConnectionDown event, int channelId) {
-		if (activeView.removeNode(event.getNode())) {
+		if (activeView.removePeer(event.getNode())) {
 			var toPromote = passiveView.dropRandomElement();
-			pending.add(toPromote);
+			this.pending.add(toPromote);
 			handleRequestNeighbour(toPromote);
-			// TODO: Notification neighbor down.
 			triggerNotification(new NeighbourDown(event.getNode()));
 		}
 	}
@@ -239,7 +236,7 @@ public class Hyparview extends GenericProtocol {
 	// An out connection fails to be established.
 	private void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
 		if (pending.contains(event.getNode())) {
-			pending.remove(event.getNode());
+			this.pending.remove(event.getNode());
 			var toPromote = passiveView.dropRandomElement();
 			handleRequestNeighbour(toPromote);
 		}
@@ -266,8 +263,10 @@ public class Hyparview extends GenericProtocol {
 
 		shuffleSet.add(self);
 		shuffleSet.addAll(subsetActive);
+
 		var toSend = new Shuffle(this.PRWL, shuffleSet, self);
-		var shuffleNode = activeView.selectRandomNode();
+		var shuffleNode = activeView.selectRandomPeer();
+
 		sendMessage(toSend, shuffleNode);
 	}
 
@@ -278,22 +277,30 @@ public class Hyparview extends GenericProtocol {
 		closeConnection(toDrop);
 	}
 
+	private void singleShotMessage(ProtoMessage msg, Host host) {
+		openConnection(host);
+		sendMessage(msg, host);
+		if (!activeView.getView().contains(host))
+			closeConnection(host);
+	}
+
 	private void handleActiveAddition(Host toAdd) {
-		var dropped = activeView.addNode(toAdd);
-		// TODO: Notification neighbor up.
+		var dropped = activeView.addPeer(toAdd);
+
 		triggerNotification(new NeighbourUp(toAdd));
 		openConnection(toAdd);
-		passiveView.removeNode(toAdd);
+		this.passiveView.removePeer(toAdd);
 		if (dropped != null) {
-			passiveView.addNode(dropped);
+			this.passiveView.addPeer(dropped);
 			handleDropConnection(dropped);
 		}
 	}
 
 	private void handleRequestNeighbour(Host toRequest) {
-		pending.add(toRequest);
-		openConnection(toRequest);
 		var priority = activeView.getSize() == 0 ? Neighbor.Priority.HIGH : Neighbor.Priority.LOW;
+
+		this.pending.add(toRequest);
+		openConnection(toRequest);
 		sendMessage(new Neighbor(priority), toRequest);
 	}
 }

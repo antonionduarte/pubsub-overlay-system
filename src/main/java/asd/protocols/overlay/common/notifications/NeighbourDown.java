@@ -10,20 +10,15 @@ public class NeighbourDown extends ProtoNotification {
 
 	public static final short NOTIFICATION_ID = 100;
 
-	private final Set<Host> neighbours;
+	private final Host neighbour;
 
 	public NeighbourDown(Host neighbour) {
 		super(NOTIFICATION_ID);
-		this.neighbours = new HashSet<>();
-		this.neighbours.add(neighbour);
+		this.neighbour = neighbour;
 	}
 
-	public Set<Host> getNeighbours() {
-		return neighbours;
-	}
-
-	public int getLength() {
-		return neighbours.size();
+	public Host getNeighbour() {
+		return neighbour;
 	}
 
 	@Override

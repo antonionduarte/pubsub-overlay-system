@@ -2,7 +2,6 @@ package asd.protocols.overlay.hyparview;
 
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.sql.Array;
 import java.util.*;
 
 public class View {
@@ -26,39 +25,39 @@ public class View {
 
 	/**
 	 *
-	 * @param node The node to add to the view.
+	 * @param peer The node to add to the view.
 	 * @return In case the View's capacity was full, return the node that was dropped.
 	 */
-	public Host addNode(Host node) {
+	public Host addPeer(Host peer) {
 		Host dropped = null;
-		if (!node.equals(self)) {
+		if (!peer.equals(self)) {
 			if (this.isFull())
 				dropped = this.dropRandomElement();
-			this.membership.add(node);
+			this.membership.add(peer);
 		}
 		return dropped;
 	}
 
-	public boolean removeNode(Host node) {
-		return this.membership.remove(node);
+	public boolean removePeer(Host peer) {
+		return this.membership.remove(peer);
 	}
 
 	public Host dropRandomElement() {
-		var toDrop = this.selectRandomNode();
+		var toDrop = this.selectRandomPeer();
 		this.membership.remove(toDrop);
 		return toDrop;
 	}
 
-	public Host selectRandomNode() {
+	public Host selectRandomPeer() {
 		var nodeIndex = random.nextInt(membership.size());
 		var list = membership.toArray();
 		return (Host) list[nodeIndex];
 	}
 
-	public Host selectRandomDiffNode(Host node) {
-		var randomSelect = this.selectRandomNode();
+	public Host selectRandomDiffPeer(Host node) {
+		var randomSelect = this.selectRandomPeer();
 		while (!node.equals(randomSelect))
-			randomSelect = this.selectRandomNode();
+			randomSelect = this.selectRandomPeer();
 		return randomSelect;
 	}
 
