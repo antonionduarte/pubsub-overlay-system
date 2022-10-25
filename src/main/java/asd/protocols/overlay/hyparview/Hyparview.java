@@ -1,5 +1,7 @@
 package asd.protocols.overlay.hyparview;
 
+import asd.protocols.overlay.common.notifications.NeighbourDown;
+import asd.protocols.overlay.common.notifications.NeighbourUp;
 import asd.protocols.overlay.hyparview.messages.*;
 import asd.protocols.overlay.hyparview.timers.ShuffleTimer;
 import org.apache.logging.log4j.LogManager;
@@ -160,10 +162,11 @@ public class Hyparview extends GenericProtocol {
 		}
 	}
 
-	private void uponDisconnect(Disconnect msg, Host from, short sourceProtocol, int channelId) {
+		private void uponDisconnect(Disconnect msg, Host from, short sourceProtocol, int channelId) {
 		if (activeView.getView().contains(from)) {
 			activeView.removeNode(from);
 			// TODO: Notification neighbor down
+			triggerNotification(new NeighbourDown(from));
 			passiveView.addNode(from);
 		}
 	}
@@ -229,6 +232,7 @@ public class Hyparview extends GenericProtocol {
 			pending.add(toPromote);
 			handleRequestNeighbour(toPromote);
 			// TODO: Notification neighbor down.
+			triggerNotification(new NeighbourDown(event.getNode()));
 		}
 	}
 
@@ -277,6 +281,7 @@ public class Hyparview extends GenericProtocol {
 	private void handleActiveAddition(Host toAdd) {
 		var dropped = activeView.addNode(toAdd);
 		// TODO: Notification neighbor up.
+		triggerNotification(new NeighbourUp(toAdd));
 		openConnection(toAdd);
 		passiveView.removeNode(toAdd);
 		if (dropped != null) {

@@ -1,4 +1,4 @@
-package asd.protocols.overlay.common;
+package asd.protocols.overlay.common.notifications;
 
 import pt.unl.fct.di.novasys.babel.generic.ProtoNotification;
 

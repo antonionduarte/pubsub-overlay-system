@@ -10,7 +10,7 @@ import java.util.Properties;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import asd.protocols.overlay.common.ChannelCreatedNotification;
+import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.kad.ipc.FindClosest;
 import asd.protocols.overlay.kad.ipc.FindClosestReply;
 import asd.protocols.overlay.kad.ipc.FindValue;
