@@ -21,7 +21,7 @@ public class IHave extends ProtoMessage {
 		return messageId;
 	}
 
-	ISerializer<IHave> serializer = new ISerializer<>() {
+	public static ISerializer<IHave> serializer = new ISerializer<>() {
 		@Override
 		public void serialize(IHave iHave, ByteBuf byteBuf) {
 			byteBuf.writeInt(iHave.messageId);

@@ -13,6 +13,7 @@ import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -28,22 +29,23 @@ public class PlumTree extends GenericProtocol {
 
 	// TODO; missing timer
 
-	private int channelId;
+	private final int channelId;
 
-	private Host self;
+	private final Host self;
 
-	private HashProducer hashProducer;
+	private final HashProducer hashProducer;
 
-	private Set<Host> eagerPushPeers;
-	private Set<Host> lazyPushPeers;
-	private Set<Integer> missing; // TODO: might be useless
+	private final Set<Host> eagerPushPeers;
+	private final Set<Host> lazyPushPeers;
 
 	/**
 	 * Integer represents the ID of a message. Gossip represents a gossip message.
 	 */
-	private Map<Integer, Gossip> receivedMessages;
-	private Map<Integer, Long> missingTimers;
+	private final Map<Integer, Gossip> receivedMessages; // messageId -> gossipMessage
+	private Map<Integer, Long> missingTimers; // messageId -> timerId
+	private Map<Integer, List<Host>> haveMessage; // messageId -> host
 
+	// TODO: This isn't very good yet, I should do LazyPush with some kind of policy instead of just pushing all messages everytime
 	public PlumTree(Properties properties, Host self) throws IOException, HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
 
@@ -60,6 +62,10 @@ public class PlumTree extends GenericProtocol {
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
 		/*---------------------- Register Message Serializers ---------------------- */
+		registerMessageSerializer(channelId, Gossip.MSG_ID, Gossip.serializer);
+		registerMessageSerializer(channelId, IHave.MSG_ID, IHave.serializer);
+		registerMessageSerializer(channelId, Graft.MSG_ID, Graft.serializer);
+		registerMessageSerializer(channelId, Prune.MSG_ID, Prune.serializer);
 
 		/*---------------------- Register Message Handlers -------------------------- */
 		registerMessageHandler(channelId, Gossip.MSG_ID, this::uponGossip);
@@ -91,8 +97,14 @@ public class PlumTree extends GenericProtocol {
 	/*--------------------------------- Request Handlers ---------------------------- */
 
 	private void handleBroadcast(Broadcast request, short sourceProto) {
-		var mid = hashProducer.hash(request.getMsg()) + hashProducer.hash();
-		var gossip = new Gossip(mid, request.getMsg());
+		var messageId = hashProducer.hash(request.getMsg()) + hashProducer.hash();
+		var gossip = new Gossip(messageId, request.getMsg());
+
+		receivedMessages.put(messageId, gossip);
+
+		sendPush(gossip, eagerPushPeers, self);
+		sendPush(new IHave(messageId), lazyPushPeers, self);
+		// TODO: Deliver Reply
 	}
 
 	/*--------------------------------- Notification Handlers ---------------------------- */
@@ -104,42 +116,58 @@ public class PlumTree extends GenericProtocol {
 	private void handleNeighbourDown(NeighbourDown notification, short sourceProto) {
 		this.eagerPushPeers.remove(notification.getNeighbour());
 		this.lazyPushPeers.remove(notification.getNeighbour());
-		// TODO; Clear IHave messages from List
+
+		for (var entry : haveMessage.entrySet()) {
+			entry.getValue().remove(notification.getNeighbour());
+		}
 	}
 
 	/*--------------------------------- Message Handlers ---------------------------- */
 
 	private void uponGossip(Gossip msg, Host from, short sourceProto, int channelId) {
-		// TODO;
 		if (receivedMessages.containsKey(msg.getMessageId())) {
-			eagerPushPeers.remove(from);
-			lazyPushPeers.add(from);
+			this.eagerPushPeers.remove(from);
+			this.lazyPushPeers.add(from);
+			sendMessage(new Prune(), from);
 		} else {
-			// TODO: Cancel missing timer if the node already received IHave message from that messageId
-			// TODO: Trigger Deliver(msg)
-			missing.remove(msg.getMessageId());
-			var tid = missingTimers.remove(msg.getMessageId());
-			if (tid != null) cancelTimer(tid);
+			var timerId = missingTimers.remove(msg.getMessageId());
+			if (timerId != null) {
+				cancelTimer(timerId);
+			}
+
+			sendPush(new IHave(msg.getMessageId()), lazyPushPeers, from);
+			sendPush(new Gossip(msg.getMessageId(), msg.getMsg()), eagerPushPeers, from);
+
+			this.receivedMessages.put(msg.getMessageId(), msg);
+			this.haveMessage.remove(msg.getMessageId());
+			this.lazyPushPeers.remove(from);
+			this.eagerPushPeers.add(from);
 		}
-
-
 	}
 
 	private void uponIHave(IHave msg, Host from, short sourceProto, int channelId) {
 		if (!receivedMessages.containsKey(msg.getMessageId())) {
 			if (!missingTimers.containsKey(msg.getMessageId())) {
-				var tid = setupTimer(new IHaveTimer(msg.getMessageId()), 1000);
-				missingTimers.put(msg.getMessageId(), tid);
+				this.missingTimers.put(msg.getMessageId(), setupTimer(new IHaveTimer(msg.getMessageId()), 1000)); // TODO: Change timeout 1
 			}
+			this.haveMessage.computeIfAbsent(msg.getMessageId(), k -> {
+				return new LinkedList<>();
+			}).add(from);
 		}
 	}
 
 	private void uponPrune(Prune msg, Host from, short sourceProto, int channelId) {
-		// TODO;
+		this.eagerPushPeers.remove(from);
+		this.lazyPushPeers.add(from);
 	}
 
 	private void uponGraft(Graft msg, Host from, short sourceProto, int channelId) {
-		// TODO;
+		this.lazyPushPeers.remove(from);
+		this.eagerPushPeers.add(from);
+
+		if (receivedMessages.containsKey(msg.getMessageId())) {
+			sendMessage(receivedMessages.get(msg.getMessageId()), from);
+		}
 	}
 
 	/*--------------------------------- Timer Handlers ---------------------------- */
@@ -148,23 +176,22 @@ public class PlumTree extends GenericProtocol {
 		var messageId = timer.getMessageId();
 
 		if (!receivedMessages.containsKey(messageId)) {
-			if (missing.contains(messageId)) {
-				// TODO: Ask peer that sent the IHave message for the message payload
+			if (missingTimers.containsKey(messageId)) {
+				var peer = haveMessage.get(timer.getMessageId()).remove(0);
+				var message = new Graft(messageId);
+				this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), 1000)); // TODO: Change timeout - timeout 2
+				sendMessage(message, peer);
 			}
 		}
 	}
 
 	/*--------------------------------- Helpers ---------------------------- */
 
-	private void sendEagerPush(Gossip msg) {
-		for (var peer : eagerPushPeers) {
-			sendMessage(msg, peer);
-		}
-	}
-
-	private void sendLazyPush(Gossip msg) {
-		for (var peer : lazyPushPeers) {
-			sendMessage(msg, peer);
+	private void sendPush(ProtoMessage msg, Set<Host> peers, Host from) {
+		for (var peer : peers) {
+			if (!peer.equals(from)) {
+				sendMessage(msg, peer);
+			}
 		}
 	}
 
