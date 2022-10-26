@@ -37,9 +37,6 @@ public class Hyparview extends GenericProtocol {
 	private final short kPassive;
 	private final short shufflePeriod;
 
-	private final short passiveViewCapacity;
-	private final short activeViewCapacity;
-
 	private final Host self;
 
 	private final Set<Host> pending; // The nodes that are pending to be added into the activeView.
@@ -71,8 +68,8 @@ public class Hyparview extends GenericProtocol {
 		this.shufflePeriod = (short) Integer.parseInt(properties.getProperty("shuffle_period", "10000"));
 		this.ARWL = Integer.parseInt(properties.getProperty("arwl", "3"));
 		this.PRWL = Integer.parseInt(properties.getProperty("prwl", "3"));
-		this.passiveViewCapacity = (short) Integer.parseInt(properties.getProperty("passive_view_capacity", "100"));
-		this.activeViewCapacity = (short) Integer.parseInt(properties.getProperty("active_view_capacity", "100"));
+		short passiveViewCapacity = (short) Integer.parseInt(properties.getProperty("passive_view_capacity", "100"));
+		short activeViewCapacity = (short) Integer.parseInt(properties.getProperty("active_view_capacity", "100"));
 
 		/*---------------------- Register Message Serializers ---------------------- */
 		registerMessageSerializer(this.channelId, Disconnect.MESSAGE_ID, Disconnect.serializer);
@@ -154,19 +151,22 @@ public class Hyparview extends GenericProtocol {
 			handleActiveAddition(msg.getNewNode());
 			sendMessage(new JoinReply(), msg.getNewNode());
 		} else {
-			if (msg.getTimeToLive() == PRWL)
-				this.passiveView.addPeer(msg.getNewNode());
 			var randomNode = activeView.selectRandomDiffPeer(from);
-			openConnection(msg.getNewNode());
 			var toSend = new ForwardJoin(msg.getNewNode(), msg.getTimeToLive() - 1);
+
+			if (msg.getTimeToLive() == PRWL) {
+				this.passiveView.addPeer(msg.getNewNode());
+			}
+
+			openConnection(msg.getNewNode());
 			sendMessage(toSend, randomNode);
 		}
 	}
 
-		private void uponDisconnect(Disconnect msg, Host from, short sourceProtocol, int channelId) {
+	private void uponDisconnect(Disconnect msg, Host from, short sourceProtocol, int channelId) {
 		if (activeView.getView().contains(from)) {
-			this.activeView.removePeer(from);
 			triggerNotification(new NeighbourDown(from));
+			this.activeView.removePeer(from);
 			this.passiveView.addPeer(from);
 		}
 	}
@@ -184,13 +184,14 @@ public class Hyparview extends GenericProtocol {
 	}
 
 	private void uponNeighborReply(NeighborReply msg, Host from, short sourceProtocol, int channelId) {
-		if (msg.isNeighbourAccepted())
+		if (msg.isNeighbourAccepted()) {
 			handleActiveAddition(from);
-		else {
-			closeConnection(from);
-			this.pending.remove(from);
+		} else {
 			var toPromote = passiveView.dropRandomElement();
+
+			this.pending.remove(from);
 			handleRequestNeighbour(toPromote);
+			closeConnection(from);
 		}
 	}
 
@@ -200,14 +201,18 @@ public class Hyparview extends GenericProtocol {
 		if (timeToLive > 0 && activeView.getSize() > 1) {
 			var node = activeView.selectRandomDiffPeer(from);
 			var toSend = new Shuffle(msg.getTimeToLive() - 1, msg.getShuffleSet(), msg.getOriginalNode());
+
 			sendMessage(toSend, node);
 		} else {
 			var numberNodes = msg.getShuffleSet().size();
 			var replyList = passiveView.subsetRandomElements(numberNodes);
+
 			singleShotMessage(new ShuffleReply(replyList), msg.getOriginalNode());
+
 			for (Host node : msg.getShuffleSet()) {
-				if (!node.equals(self) && !activeView.getView().contains(node))
+				if (!node.equals(self) && !activeView.getView().contains(node)) {
 					this.passiveView.addPeer(node);
+				}
 			}
 		}
 	}
@@ -216,8 +221,9 @@ public class Hyparview extends GenericProtocol {
 		var shuffleSet = msg.getShuffleSet();
 
 		for (Host node : shuffleSet) {
-			if (!node.equals(self) && !activeView.getView().contains(node))
+			if (!node.equals(self) && !activeView.getView().contains(node)) {
 				this.passiveView.addPeer(node);
+			}
 		}
 	}
 
@@ -237,8 +243,7 @@ public class Hyparview extends GenericProtocol {
 	private void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
 		if (pending.contains(event.getNode())) {
 			this.pending.remove(event.getNode());
-			var toPromote = passiveView.dropRandomElement();
-			handleRequestNeighbour(toPromote);
+			handleRequestNeighbour(passiveView.dropRandomElement());
 		}
 	}
 
@@ -280,16 +285,17 @@ public class Hyparview extends GenericProtocol {
 	private void singleShotMessage(ProtoMessage msg, Host host) {
 		openConnection(host);
 		sendMessage(msg, host);
-		if (!activeView.getView().contains(host))
+		if (!activeView.getView().contains(host)) {
 			closeConnection(host);
+		}
 	}
 
 	private void handleActiveAddition(Host toAdd) {
 		var dropped = activeView.addPeer(toAdd);
 
+		this.passiveView.removePeer(toAdd);
 		triggerNotification(new NeighbourUp(toAdd));
 		openConnection(toAdd);
-		this.passiveView.removePeer(toAdd);
 		if (dropped != null) {
 			this.passiveView.addPeer(dropped);
 			handleDropConnection(dropped);
