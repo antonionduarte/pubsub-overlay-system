@@ -18,17 +18,19 @@ import pt.unl.fct.di.novasys.network.data.Host;
 import java.io.IOException;
 import java.util.*;
 
-import static asd.utils.ASDUtils.peerSample;
+import static asd.utils.ASDUtils.sample;
 
 public class GossipSub extends GenericProtocol {
 
     private final Host self;
     private int channelId;
-    private int heartbeatTicks;
 
-    private int heartbeatInterval;
+    private int heartbeatTicks, heartbeatInterval, heartbeatInitialDelay;
     private int degree, degreeLow, degreeHigh;
-    private int peersInPrune;
+    private int degreeLazy;
+    private int maxIHaveLength;
+    private float gossipFactor;
+    private int prunePeers;
     private int fanoutTTL;
     private Set<Host> peers;
     private Set<Host> direct; //direct peers
@@ -39,7 +41,7 @@ public class GossipSub extends GenericProtocol {
      * These mesh peers are the ones to which self is publishing without a topic membership (topic => set of peers) */
     private Map<String, Set<Host>> fanout;
     private Map<String, Long> fanoutLastPub; // map of last publish time for fanout topics (topic => last publish time)
-    private Map<Host, List<IHave>> gossip; // map of pending messages to gossip (host => list of IHave messages)
+    private Map<Host, IHave> gossip; // map of pending messages to gossip (host => list of IHave messages)
     private MessageCache messageCache; // cache that contains the messages for last few heartbeat ticks
     private Set<UUID> seenMessages; // set of ids of seen messages (maybe turn to cache)
 
@@ -94,13 +96,11 @@ public class GossipSub extends GenericProtocol {
 
     @Override
     public void init(Properties properties) throws HandlerRegistrationException, IOException {
-        //TODO
         logger.info("GossipSub starting");
 
-        //init direct peers
+        //TODO init direct peers ?
 
-        setupPeriodicTimer(new HeartbeatTimer(), heartbeatInterval, heartbeatInterval);
-
+        setupPeriodicTimer(new HeartbeatTimer(), heartbeatInitialDelay, heartbeatInterval);
     }
 
     /*--------------------------------- Request Handlers ---------------------------------------- */
@@ -135,7 +135,7 @@ public class GossipSub extends GenericProtocol {
 
         seenMessages.add(msgId);
         var publishMessage = new PublishMessage(self, topic, msgId, publish.getMessage());
-        messageCache.put(msgId, publishMessage);
+        messageCache.put(publishMessage);
 
         for (var peer : toSend) {
             sendMessage(publishMessage, peer);
@@ -189,7 +189,7 @@ public class GossipSub extends GenericProtocol {
             // not enough peers
             if (meshPeers.size() < degreeLow) {
                 var iNeed = degree - meshPeers.size();
-                var newMeshPeers = peerSample(iNeed, candidateMeshPeers);
+                var newMeshPeers = sample(iNeed, candidateMeshPeers);
                 for (var peer : newMeshPeers) {
                     graftPeer(peer, topic, meshPeers, peersToGossip, toGraft);
                 }
@@ -197,7 +197,7 @@ public class GossipSub extends GenericProtocol {
             // too much peers
             if (meshPeers.size() > degreeHigh) {
                 var excess = meshPeers.size() - degree;
-                var someMeshPeers = peerSample(excess, meshPeers);
+                var someMeshPeers = sample(excess, meshPeers);
                 for (var peer : someMeshPeers) {
                     prunePeer(peer, topic, meshPeers, toPrune);
                 }
@@ -241,7 +241,7 @@ public class GossipSub extends GenericProtocol {
             // do we need more peers?
             if (fanoutPeers.size() < degree) {
                 var iNeed = degree - fanoutPeers.size();
-                var newFanoutPeers = peerSample(iNeed, candidateFanoutPeers);
+                var newFanoutPeers = sample(iNeed, candidateFanoutPeers);
                 for (var peer : newFanoutPeers) {
                     fanoutPeers.add(peer);
                     peersToGossip.remove(peer);
@@ -251,7 +251,14 @@ public class GossipSub extends GenericProtocol {
 
         emitGossip(peersToGossipByTopic);
 
-        //TODO
+        // send coalesced GRAFT/PRUNE messages (no piggyback)
+        sendGraftPrune(toGraft, toPrune);
+
+        // flush all gossip (not piggybacking here)
+        flush();
+
+        // advance the message history window
+        messageCache.shift();
     }
 
     /*--------------------------------- Message Handlers ---------------------------------------- */
@@ -275,7 +282,7 @@ public class GossipSub extends GenericProtocol {
 
         if (!seenMessages.contains(msgId)) {
             seenMessages.add(msgId);
-            messageCache.put(msgId, publish);
+            messageCache.put(publish);
             deliverMessage(publish);
             forwardMessage(publish);
         }
@@ -310,7 +317,7 @@ public class GossipSub extends GenericProtocol {
         if (iWant.isEmpty())
             return;
 
-        // maybe later limit iWants to send here
+        // TODO maybe later limit iWants to send here
         sendMessage(new IWant(iWant), from);
     }
 
@@ -334,18 +341,21 @@ public class GossipSub extends GenericProtocol {
     }
 
     private void uponPrune(Prune prune, Host from, short sourceProto, int channelId) {
-        var topic  = prune.getTopic();
+        for (var entry : prune.getPeersPerTopic().entrySet()) {
+            var topic = entry.getKey();
+            var peersPX = entry.getValue();
 
-        var peersInMesh = mesh.get(topic);
-        if (peersInMesh == null || peersInMesh.isEmpty())
-            return;
+            var peersInMesh = mesh.get(topic);
+            if (peersInMesh == null || peersInMesh.isEmpty())
+                return;
 
-        peersInMesh.remove(from);
+            peersInMesh.remove(from);
 
-        // PX
-        for (var peer : prune.getPeers()) {
-            if (!this.peers.contains(peer))
-                openConnection(peer);
+            // PX
+            for (var peer :peersPX) {
+                if (!this.peers.contains(peer))
+                    openConnection(peer);
+            }
         }
     }
 
@@ -472,7 +482,7 @@ public class GossipSub extends GenericProtocol {
                 peersToReturn.add(peer);
         }
 
-        return peerSample(count, peersToReturn);
+        return sample(count, peersToReturn);
     }
 
     private void leave(String topic) {
@@ -489,9 +499,9 @@ public class GossipSub extends GenericProtocol {
         }
     }
     private Prune makePrune(Host sendTo, String topic) {
-        var peersWithPrune = getRandomGossipPeers(topic, peersInPrune, Set.of(sendTo));
+        var peersWithPrune = getRandomGossipPeers(topic, prunePeers, Set.of(sendTo));
 
-        return new Prune(topic, peersWithPrune);
+        return new Prune(Map.of(topic,peersWithPrune));
     }
 
     private Set<Host> selectPeersToPublish(String topic) {
@@ -595,6 +605,70 @@ public class GossipSub extends GenericProtocol {
 
     private void emitGossip(Map<String, Set<Host>> peersToGossipByTopic) {
         var msgIdsByTopic = messageCache.getMessageIDsByTopic(peersToGossipByTopic.keySet());
+        for (var entry : peersToGossipByTopic.entrySet()) {
+            var topic = entry.getKey();
+            var peersToGossip = entry.getValue();
+            doEmitGossip(topic, peersToGossip, msgIdsByTopic.get(topic));
+        }
+    }
+
+    /**
+     * Send gossip messages to GossipFactor peers above threshold with a minimum of D_lazy
+     * Peers are randomly selected from the heartbeat which exclude mesh + fanout peers
+     * We also exclude direct peers, as there is no reason to emit gossip to them
+     * @param topic - topic to gossip
+     * @param candidatesToGossip - peers to gossip
+     * @param msgIds - message ids to gossip
+     */
+    private void doEmitGossip(String topic, Set<Host> candidatesToGossip, Set<UUID> msgIds) {
+        // Emit the IHAVE gossip to the selected peers
+        if (candidatesToGossip.isEmpty()) return;
+        var target = degreeLazy;
+        var factor = gossipFactor * candidatesToGossip.size();
+        Set<Host> peersToGossip = new HashSet<>(candidatesToGossip);
+        if (factor > target) target = Math.round(factor);
+        if (target <= candidatesToGossip.size())
+            peersToGossip = sample(target, peersToGossip);
+
+        for (var peer : peersToGossip) {
+            Set<UUID> peerMsgIds = new HashSet<>(msgIds);
+            if (msgIds.size() > maxIHaveLength)
+                peerMsgIds = sample(maxIHaveLength, peerMsgIds);
+            pushGossip(peer, topic, peerMsgIds);
+        }
+    }
+
+    /**
+     * Adds new IHAVE messages to pending gossip
+     */
+    private void pushGossip(Host peer, String topic, Set<UUID> msgIds) {
+        logger.trace("Add gossip to {}", peer);
+        gossip.computeIfAbsent(peer, k -> new IHave());
+        var iHave = this.gossip.get(peer);
+        iHave.put(topic, msgIds);
+    }
+
+    private void sendGraftPrune(Map<Host, Set<String>> toGraft, Map<Host, Set<String>> toPrune) {
+        for (var entry : toGraft.entrySet()) {
+            var peer = entry.getKey();
+            var topics = entry.getValue();
+            // If a peer also has prunes, process them now
+            var graft = new Graft(topics);
+            sendMessage(graft, peer);
+        }
+        for (var entry : toPrune.entrySet()) {
+            var peer = entry.getKey();
+            var topics = entry.getValue();
+            // If a peer also has prunes, process them now
+            var prune = new Prune(new HashMap<>());
+            for (var topic : topics) {
+                prune.append(makePrune(peer, topic));
+            }
+            sendMessage(prune, peer);
+        }
+    }
+
+    private void flush() {
         //TODO
     }
 
