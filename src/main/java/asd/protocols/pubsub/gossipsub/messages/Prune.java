@@ -11,17 +11,19 @@ public class Prune extends ProtoMessage {
 
     public static final short ID = GossipSub.ID + 7;
 
-    private String topic;
-    private Set<Host> peers;
-    public Prune(String topic, Set<Host> peers) {
+    private final Map<String, Set<Host>> peersPerTopic;
+    public Prune(Map<String, Set<Host>> peersPerTopic) {
         super(ID);
+        this.peersPerTopic = peersPerTopic;
     }
 
-    public String getTopic() {
-        return topic;
+    public void append(Prune prune) {
+        for (var entry : prune.getPeersPerTopic().entrySet()) {
+            peersPerTopic.putIfAbsent(entry.getKey(), entry.getValue());
+        }
     }
 
-    public Set<Host> getPeers() {
-        return peers;
+    public Map<String, Set<Host>> getPeersPerTopic() {
+        return peersPerTopic;
     }
 }
