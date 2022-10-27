@@ -37,28 +37,22 @@ public class InteractiveKad extends GenericProtocol {
                         var components = line.split(" ");
 
                         switch (components[0]) {
-                            case "exit":
-                                System.exit(0);
-                                break;
-                            case "store":
+                            case "exit" -> System.exit(0);
+                            case "store" -> {
                                 var key_str = components[1];
                                 var key = KadID.ofData(key_str.getBytes());
                                 var value_str = components[2];
                                 var value = value_str.getBytes();
                                 sendRequest(new StoreValue(key, value), Kademlia.ID);
-                                break;
-                            case "closest":
+                            }
+                            case "closest" -> {
                                 var cpl = Integer.parseInt(components[1]);
                                 var target = KadID.randomWithCpl(kad.getID(), cpl);
                                 System.out.println("Finding closest with cpl = " + cpl);
                                 sendRequest(new FindClosest(target), Kademlia.ID);
-                                break;
-                            case "rt":
-                                kad.printRoutingTable();
-                                break;
-                            default:
-                                System.out.println("Unknown command " + components[0]);
-                                break;
+                            }
+                            case "rt" -> kad.printRoutingTable();
+                            default -> System.out.println("Unknown command " + components[0]);
                         }
                     }
                 }
