@@ -82,14 +82,14 @@ public class Hyparview extends GenericProtocol {
 		registerMessageSerializer(this.channelId, NeighborReply.MESSAGE_ID, NeighborReply.serializer);
 
 		/*---------------------- Register Message Handlers -------------------------- */
-		this.registerMessageHandler(this.channelId, ForwardJoin.MESSAGE_ID, this::uponForwardJoin);
-		this.registerMessageHandler(this.channelId, Join.MESSAGE_ID, this::uponJoin);
-		this.registerMessageHandler(this.channelId, Disconnect.MESSAGE_ID, this::uponDisconnect);
-		this.registerMessageHandler(this.channelId, Neighbor.MESSAGE_ID, this::uponNeighbor);
-		this.registerMessageHandler(this.channelId, NeighborReply.MESSAGE_ID, this::uponNeighborReply);
-		this.registerMessageHandler(this.channelId, JoinReply.MESSAGE_ID, this::uponJoinReply);
-		this.registerMessageHandler(this.channelId, Shuffle.MESSAGE_ID, this::uponShuffle);
-		this.registerMessageHandler(this.channelId, ShuffleReply.MESSAGE_ID, this::uponShuffleReply);
+		registerMessageHandler(this.channelId, ForwardJoin.MESSAGE_ID, this::uponForwardJoin);
+		registerMessageHandler(this.channelId, Join.MESSAGE_ID, this::uponJoin);
+		registerMessageHandler(this.channelId, Disconnect.MESSAGE_ID, this::uponDisconnect);
+		registerMessageHandler(this.channelId, Neighbor.MESSAGE_ID, this::uponNeighbor);
+		registerMessageHandler(this.channelId, NeighborReply.MESSAGE_ID, this::uponNeighborReply);
+		registerMessageHandler(this.channelId, JoinReply.MESSAGE_ID, this::uponJoinReply);
+		registerMessageHandler(this.channelId, Shuffle.MESSAGE_ID, this::uponShuffle);
+		registerMessageHandler(this.channelId, ShuffleReply.MESSAGE_ID, this::uponShuffleReply);
 
 		/*--------------------- Register Request Handlers ----------------------------- */
 
