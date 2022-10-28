@@ -16,5 +16,4 @@ public class UnsubscriptionReply extends ProtoReply {
 	public String getTopic() {
 		return this.topic;
 	}
-
 }

@@ -43,6 +43,4 @@ public class PublishRequest extends ProtoRequest {
 	public byte[] getMessage() {
 		return this.msg;
 	}
-
-
 }

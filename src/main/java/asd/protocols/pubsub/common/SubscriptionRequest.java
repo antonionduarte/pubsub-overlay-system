@@ -16,5 +16,4 @@ public class SubscriptionRequest extends ProtoRequest {
 	public String getTopic() {
 		return this.topic;
 	}
-
 }

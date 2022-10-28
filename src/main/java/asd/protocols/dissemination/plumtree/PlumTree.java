@@ -1,6 +1,7 @@
 package asd.protocols.dissemination.plumtree;
 
 import asd.protocols.dissemination.plumtree.ipc.Broadcast;
+import asd.protocols.dissemination.plumtree.ipc.Deliver;
 import asd.protocols.dissemination.plumtree.messages.Gossip;
 import asd.protocols.dissemination.plumtree.messages.Graft;
 import asd.protocols.dissemination.plumtree.messages.IHave;
@@ -26,8 +27,6 @@ public class PlumTree extends GenericProtocol {
 
 	public static final short PROTOCOL_ID = 400;
 	public static final String PROTOCOL_NAME = "PlumTree";
-
-	// TODO; missing timer
 
 	private final int channelId;
 
@@ -104,7 +103,7 @@ public class PlumTree extends GenericProtocol {
 
 		sendPush(gossip, eagerPushPeers, self);
 		sendPush(new IHave(messageId), lazyPushPeers, self);
-		// TODO: Deliver Reply
+		sendReply(new Deliver(request.getMsg()), sourceProto); // TODO: PubSub layer will need to filter the replies
 	}
 
 	/*--------------------------------- Notification Handlers ---------------------------- */
@@ -142,6 +141,8 @@ public class PlumTree extends GenericProtocol {
 			this.haveMessage.remove(msg.getMessageId());
 			this.lazyPushPeers.remove(from);
 			this.eagerPushPeers.add(from);
+
+			sendReply(new Deliver(msg.getMsg()), sourceProto); // TODO: PubSub layer will need to filter the replies
 		}
 	}
 

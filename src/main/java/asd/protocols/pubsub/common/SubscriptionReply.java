@@ -16,5 +16,4 @@ public class SubscriptionReply extends ProtoReply {
 	public String getTopic() {
 		return this.topic;
 	}
-
 }

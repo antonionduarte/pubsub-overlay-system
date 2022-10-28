@@ -24,5 +24,4 @@ public class PublishReply extends ProtoReply {
 	public UUID getMsgID() {
 		return this.msgId;
 	}
-
 }

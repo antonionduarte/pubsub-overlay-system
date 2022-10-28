@@ -16,5 +16,4 @@ public class UnsubscriptionRequest extends ProtoRequest {
 	public String getTopic() {
 		return this.topic;
 	}
-
 }

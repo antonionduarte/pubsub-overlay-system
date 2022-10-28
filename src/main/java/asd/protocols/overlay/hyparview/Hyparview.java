@@ -46,10 +46,6 @@ public class Hyparview extends GenericProtocol {
 	public Hyparview(Properties properties, Host self) throws IOException, HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
 
-		/*
-		 * TODO: NeighborUp and NeighborDown notifications for other protocols to use. (particularly PlumTree).
-		 */
-
 		var channelMetricsInterval = properties.getProperty("channel_metrics_interval", "10000"); // 10 seconds
 
 		/*---------------------- Channel Configuration ---------------------- */
