@@ -2,6 +2,11 @@
 .vscode/
 *.code-workspace
 
+# Java
+.classpath
+.factorypath
+.project
+
 # Compiled class file
 /target/
 *.class
