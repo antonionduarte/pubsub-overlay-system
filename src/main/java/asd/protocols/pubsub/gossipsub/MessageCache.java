@@ -10,13 +10,13 @@ public class MessageCache {
 	// msgId -> message
 	private final Map<UUID, PublishMessage> messages;
 	private final List<Set<Pair<UUID, String>>> history;
-	private final int gossip, historyLength;
+	private final int historyGossip, historyLength;
 
-	public MessageCache(int gossip, int historyLength) {
+	public MessageCache(int historyGossip, int historyLength) {
 		messages = new HashMap<>();
 		history = new LinkedList<>();
 		history.add(0, new HashSet<>());
-		this.gossip = gossip;
+		this.historyGossip = historyGossip;
 		this.historyLength = historyLength;
 	}
 
@@ -50,7 +50,7 @@ public class MessageCache {
 	public Map<String, Set<UUID>> getMessageIDsByTopic(Set<String> topics) {
 		Map<String, Set<UUID>> msgIdsByTopic = new HashMap<>();
 		//only return 'gossip' most recent message sets in history
-		for (int i = 0; i < Math.min(gossip, history.size()); i++) {
+		for (int i = 0; i < Math.min(historyGossip, history.size()); i++) {
 			for (var entry : history.get(i)) {
 				var msgId = entry.getLeft();
 				var msg = messages.get(msgId);
