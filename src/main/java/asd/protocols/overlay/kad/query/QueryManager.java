@@ -55,6 +55,18 @@ public class QueryManager {
         this.checkQueryFinished(context);
     }
 
+    public void startQuery(FindSwarmQueryDescriptor descriptor) {
+        var context = this.allocateContext();
+        var seeds = this.routing_table.closest(descriptor.swarm);
+        var qio = new QMQueryIO(this.qmio, context);
+        var query = new FindSwarmQuery(qio, this.self, this.kadparams, descriptor.swarm, seeds, descriptor);
+        this.queries.put(context, query);
+
+        logger.info("Starting query {} with swarm {} and {} seeds", context, descriptor.swarm, seeds.size());
+        query.start();
+        this.checkQueryFinished(context);
+    }
+
     public void onFindNodeResponse(long context, KadID from, List<KadPeer> closest) {
         var query = this.queries.get(context);
         if (query == null) {
@@ -75,6 +87,16 @@ public class QueryManager {
         this.checkQueryFinished(context);
     }
 
+    public void onFindSwarmResponse(long context, KadID from, List<KadPeer> closest, List<KadPeer> members) {
+        var query = this.queries.get(context);
+        if (query == null) {
+            logger.warn("Received FindSwarmResponse with unknown context " + context);
+            return;
+        }
+        query.onFindSwarmResponse(from, closest, members);
+        this.checkQueryFinished(context);
+    }
+
     public void onPeerError(long context, KadID peer) {
         var query = this.queries.get(context);
         if (query == null) {
@@ -86,11 +108,14 @@ public class QueryManager {
     }
 
     public void checkTimeouts() {
-        for (var entry : this.queries.entrySet()) {
-            var context = entry.getKey();
+        var iter = this.queries.entrySet().iterator();
+        while (iter.hasNext()) {
+            var entry = iter.next();
             var query = entry.getValue();
             query.checkTimeouts();
-            this.checkQueryFinished(context);
+            if (query.isFinished()) {
+                iter.remove();
+            }
         }
     }
 

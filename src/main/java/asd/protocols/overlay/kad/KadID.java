@@ -107,6 +107,10 @@ public class KadID {
 		}
 	}
 
+	public static KadID ofData(String data) {
+		return ofData(data.getBytes());
+	}
+
 	public static KadID ofData(InputStream stream) throws IOException {
 		var buffer = new byte[4096];
 		@SuppressWarnings("deprecation")

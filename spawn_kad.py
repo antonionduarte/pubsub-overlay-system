@@ -22,7 +22,7 @@ def spawn_kad_java_podman(port: int):
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
         "java",
-        # "-Xmx96M",
+        "-Xmx96M",
         "-ea",
         "-cp",
         "/usr/local/app.jar",
@@ -72,7 +72,7 @@ def spawn_kad_rust_podman(port: int):
         "RUST_BACKTRACE=1",
         "-e",
         "RUST_LOG=error",
-        #"RUST_LOG=babel=trace,asd=trace",
+        # "RUST_LOG=babel=trace,asd=trace",
         "fedora:latest",
         "/usr/local/asd",
         f"--port={port}",
@@ -101,15 +101,16 @@ def spawn_kad_rust_native(port: int):
 
 
 def main():
-    spawn_kad_rust_podman(BOOTSTRAP_PORT)
-    # spawn_kad_java_podman(BOOTSTRAP_PORT)
+    # spawn_kad_rust_podman(BOOTSTRAP_PORT)
+    spawn_kad_java_podman(BOOTSTRAP_PORT)
     time.sleep(2)
-    for i in range(1, 1000):
+    for i in range(1, 20):
         print("Spawning kad ", 5050 + i)
-        if i < 10:
-            spawn_kad_rust_podman(5050 + i)
-        else:
-            spawn_kad_rust_native(5050 + i)
+        spawn_kad_java_podman(5050 + i)
+        # if i < 10:
+        #    spawn_kad_rust_podman(5050 + i)
+        # else:
+        #    spawn_kad_rust_native(5050 + i)
 
 
 if __name__ == "__main__":

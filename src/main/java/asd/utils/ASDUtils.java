@@ -21,12 +21,9 @@ public class ASDUtils {
 		List<T> list = new ArrayList<>(set);
 		Set<T> subset = new HashSet<>();
 		Collections.shuffle(list);
-		for (int i = 0; i < size; i++) {
+		for (int i = 0; i < Math.min(size, list.size()); i++) {
 			subset.add(list.get(i));
 		}
 		return subset;
 	}
-
-
-
 }

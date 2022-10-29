@@ -9,4 +9,6 @@ public interface QueryIO {
     void findNodeRequest(KadID id, KadID target);
 
     void findValueRequest(KadID id, KadID key);
+
+    void findSwarmRequest(KadID id, KadID swarm);
 }

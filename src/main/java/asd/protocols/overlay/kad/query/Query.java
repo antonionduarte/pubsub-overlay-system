@@ -65,6 +65,7 @@ abstract class Query {
         if (this.isFinished())
             return;
         this.peers.markFinished(from);
+        this.removeActiveRequest(from);
         this.addExtraPeers(closest);
         this.makeRequests();
     }
@@ -76,6 +77,19 @@ abstract class Query {
         if (this.isFinished())
             return;
         this.peers.markFinished(from);
+        this.removeActiveRequest(from);
+        this.addExtraPeers(closest);
+        this.makeRequests();
+    }
+
+    protected void onFindSwarmResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
+        if (!this.peers.isInState(from, QPeerSet.State.INPROGRESS))
+            throw new IllegalStateException("Received FindSwarmResponse from peer that was not requested: " + from
+                    + ". Peer state is " + this.peers.getState(from));
+        if (this.isFinished())
+            return;
+        this.peers.markFinished(from);
+        this.removeActiveRequest(from);
         this.addExtraPeers(closest);
         this.makeRequests();
     }
@@ -85,10 +99,9 @@ abstract class Query {
             return;
         if (!this.peers.contains(peer))
             return;
-        if (!this.peers.isInState(peer, QPeerSet.State.INPROGRESS))
-            throw new IllegalStateException("Received PeerError from peer that was not requested: " + peer
-                    + ". Peer state is " + this.peers.getState(peer));
-        logger.debug("Peer {} failed", peer);
+        if (this.peers.isInState(peer, QPeerSet.State.FINISHED))
+            return;
+        logger.info("Peer {} failed", peer);
         this.removeActiveRequest(peer);
         this.peers.markFailed(peer);
         this.makeRequests();
@@ -142,6 +155,7 @@ abstract class Query {
     }
 
     private void addActiveRequest(KadID peer) {
+        assert this.active_requests.size() <= this.kadparams.alpha;
         this.active_requests.add(new ActiveRequest(peer));
     }
 

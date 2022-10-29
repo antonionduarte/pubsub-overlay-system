@@ -9,7 +9,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
 public class StoreRequest extends ProtoMessage {
-	public static final short ID = Kademlia.ID + 6;
+	public static final short ID = Kademlia.ID + 9;
 
 	public final KadID key;
 	public final byte[] value;

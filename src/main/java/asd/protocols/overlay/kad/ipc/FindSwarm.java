@@ -4,14 +4,14 @@ import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.Kademlia;
 import pt.unl.fct.di.novasys.babel.generic.ProtoRequest;
 
-public class FindValue extends ProtoRequest {
-    public static final short ID = Kademlia.ID + 5;
+public class FindSwarm extends ProtoRequest {
+    public static final short ID = Kademlia.ID + 3;
 
-    public final KadID key;
+    public final KadID swarm;
 
-    public FindValue(KadID key) {
+    public FindSwarm(KadID swarm) {
         super(ID);
-        this.key = key;
+        this.swarm = swarm;
     }
 
 }

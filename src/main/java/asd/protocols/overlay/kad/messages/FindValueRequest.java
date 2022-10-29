@@ -9,7 +9,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
 public class FindValueRequest extends ProtoMessage {
-	public static final short ID = Kademlia.ID + 3;
+	public static final short ID = Kademlia.ID + 5;
 
 	public final long context;
 	public final KadID key;

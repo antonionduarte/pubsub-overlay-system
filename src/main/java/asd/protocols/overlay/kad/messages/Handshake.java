@@ -9,7 +9,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
 public class Handshake extends ProtoMessage {
-    public static final short ID = Kademlia.ID + 5;
+    public static final short ID = Kademlia.ID + 7;
 
     public final KadID id;
 

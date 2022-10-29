@@ -9,4 +9,6 @@ public interface QueryManagerIO {
     void findNodeRequest(long context, KadID id, KadID target);
 
     void findValueRequest(long context, KadID id, KadID key);
+
+    void findSwarmRequest(long context, KadID id, KadID swarm);
 }

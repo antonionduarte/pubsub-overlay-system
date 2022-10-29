@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 
 import asd.protocols.overlay.kad.messages.FindNodeRequest;
+import asd.protocols.overlay.kad.messages.FindSwarmRequest;
 import asd.protocols.overlay.kad.messages.FindValueRequest;
 import asd.protocols.overlay.kad.query.QueryManagerIO;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -43,6 +44,12 @@ class KadQueryManagerIO implements QueryManagerIO {
     @Override
     public void findValueRequest(long context, KadID id, KadID key) {
         var message = new FindValueRequest(context, key);
+        this.requests.add(new Request(context, id, message));
+    }
+
+    @Override
+    public void findSwarmRequest(long context, KadID id, KadID swarm) {
+        var message = new FindSwarmRequest(context, swarm);
         this.requests.add(new Request(context, id, message));
     }
 

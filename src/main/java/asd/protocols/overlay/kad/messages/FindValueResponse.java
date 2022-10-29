@@ -12,7 +12,7 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
 public class FindValueResponse extends ProtoMessage {
-    public static final short ID = Kademlia.ID + 4;
+    public static final short ID = Kademlia.ID + 6;
 
     public final long context;
     public final Optional<byte[]> value;
