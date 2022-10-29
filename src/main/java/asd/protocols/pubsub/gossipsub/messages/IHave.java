@@ -1,12 +1,12 @@
 package asd.protocols.pubsub.gossipsub.messages;
 
 import asd.protocols.pubsub.gossipsub.GossipSub;
+import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
+import pt.unl.fct.di.novasys.network.ISerializer;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.io.IOException;
+import java.util.*;
 
 public class IHave extends ProtoMessage {
 
@@ -30,4 +30,44 @@ public class IHave extends ProtoMessage {
     public Map<String, Set<UUID>> getMsgIdsPerTopic() {
         return msgIdsPerTopic;
     }
+
+    public static ISerializer<IHave> serializer = new ISerializer<>() {
+        @Override
+        public void serialize(IHave iHave, ByteBuf byteBuf) throws IOException {
+            byteBuf.writeInt(iHave.msgIdsPerTopic.entrySet().size());
+            for (var entry : iHave.msgIdsPerTopic.entrySet()) {
+                var topic = entry.getKey();
+                byteBuf.writeInt(topic.length());
+                byteBuf.writeBytes(topic.getBytes());
+
+                var msgIds = entry.getValue();
+                byteBuf.writeInt(msgIds.size());
+                for (var msgId : msgIds) {
+                    byteBuf.writeLong(msgId.getMostSignificantBits());
+                    byteBuf.writeLong(msgId.getLeastSignificantBits());
+                }
+            }
+        }
+
+        @Override
+        public IHave deserialize(ByteBuf byteBuf) throws IOException {
+            int numEntries = byteBuf.readInt();
+            Map<String, Set<UUID>> msgIdsPerTopic = new HashMap<>(numEntries);
+
+            for (int i = 0; i < numEntries; i++) {
+                var lenTopic = byteBuf.readInt();
+                var topic = new String(byteBuf.readBytes(lenTopic).array());
+
+                var numIds = byteBuf.readInt();
+                Set<UUID> msgIds = new HashSet<>(numIds);
+                for (int j = 0; j < numIds; j++) {
+                    var mostSigBits = byteBuf.readLong();
+                    var leastSigBits = byteBuf.readLong();
+                    msgIds.add(new UUID(mostSigBits, leastSigBits));
+                }
+                msgIdsPerTopic.put(topic, msgIds);
+            }
+            return new IHave(msgIdsPerTopic);
+        }
+    };
 }
