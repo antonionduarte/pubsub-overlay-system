@@ -1,5 +1,9 @@
 package asd.protocols.pubsub.gossipsub;
 
+import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.Kademlia;
+import asd.protocols.overlay.kad.ipc.JoinSwarm;
+import asd.protocols.overlay.kad.ipc.JoinSwarmReply;
 import asd.protocols.pubsub.common.DeliverNotification;
 import asd.protocols.pubsub.common.PublishRequest;
 import asd.protocols.pubsub.common.SubscriptionRequest;
@@ -106,21 +110,31 @@ public class GossipSub extends GenericProtocol {
 		this.registerMessageHandler(this.channelId, SubscribeMessage.ID, this::uponSubscribeMessage);
 		this.registerMessageHandler(this.channelId, UnsubscribeMessage.ID, this::uponUnsubscribeMessage);
 
-		/*-------------------- Register Channel Event ------------------------------- */
+		/*---------------------- Register Message Serializers -------------------------- */
+		this.registerMessageSerializer(this.channelId, Graft.ID, Graft.serializer);
+		this.registerMessageSerializer(this.channelId, IHave.ID, IHave.serializer);
+		this.registerMessageSerializer(this.channelId, IWant.ID, IWant.serializer);
+		this.registerMessageSerializer(this.channelId, Prune.ID, Prune.serializer);
+		this.registerMessageSerializer(this.channelId, PublishMessage.ID, PublishMessage.serializer);
+		this.registerMessageSerializer(this.channelId, SubscribeMessage.ID, SubscribeMessage.serializer);
+		this.registerMessageSerializer(this.channelId, UnsubscribeMessage.ID, UnsubscribeMessage.serializer);
+
+		/*-------------------- Register Channel Events ------------------------------- */
 		this.registerChannelEventHandler(this.channelId, OutConnectionDown.EVENT_ID, this::onOutConnectionDown);
 		this.registerChannelEventHandler(this.channelId, OutConnectionFailed.EVENT_ID, this::onOutConnectionFailed);
 		this.registerChannelEventHandler(this.channelId, OutConnectionUp.EVENT_ID, this::onOutConnectionUp);
 		this.registerChannelEventHandler(this.channelId, InConnectionUp.EVENT_ID, this::onInConnectionUp);
 		this.registerChannelEventHandler(this.channelId, InConnectionDown.EVENT_ID, this::onInConnectionDown);
 
-		/*-------------------- Register Request Event ------------------------------- */
+		/*-------------------- Register Request Events ------------------------------- */
 		this.registerRequestHandler(SubscriptionRequest.REQUEST_ID, this::uponSubscriptionRequest);
 		this.registerRequestHandler(PublishRequest.REQUEST_ID, this::uponPublishRequest);
 		this.registerRequestHandler(UnsubscriptionRequest.REQUEST_ID, this::uponUnsubscriptionRequest);
 
 		/*-------------------- Register Timer Events ------------------------------- */
-
 		this.registerTimerHandler(HeartbeatTimer.ID, this::onHeartbeat);
+
+		this.registerReplyHandler(JoinSwarmReply.ID, this::onJoinSwarmReply);
 	}
 
 	@Override
@@ -160,6 +174,7 @@ public class GossipSub extends GenericProtocol {
 			logger.error("No peers to publish :(");
 			return;
 		}
+		logger.trace("publish message {} to topic {}", msgId, topic);
 		seenMessages.add(msgId);
 		var publishMessage = new PublishMessage(self, topic, msgId, publish.getMessage());
 		messageCache.put(publishMessage);
@@ -171,6 +186,7 @@ public class GossipSub extends GenericProtocol {
 	private void uponSubscriptionRequest(SubscriptionRequest sub, short sourceProto) {
 		var topic = sub.getTopic();
 
+		logger.trace("subscribe to topic {}", sub.getTopic());
 		if (!subscriptions.contains(topic)) {
 			subscriptions.add(topic);
 			for (var peer : this.peers) {
@@ -178,6 +194,11 @@ public class GossipSub extends GenericProtocol {
 			}
 		}
 		join(topic);
+		sendRequest(new JoinSwarm(KadID.ofData(topic)), Kademlia.ID);
+	}
+
+	private void onJoinSwarmReply(JoinSwarmReply reply, short i) {
+		List<Host> swarmPeers = reply.peers.stream().map(kp -> kp.host).toList();
 	}
 
 	/*--------------------------------- Timer Handlers ---------------------------------------- */
@@ -295,8 +316,7 @@ public class GossipSub extends GenericProtocol {
 	private void uponPublishMessage(PublishMessage publish, Host from, short sourceProto, int channelId) {
 		var msgId = publish.getMsgId();
 
-		if (!seenMessages.contains(msgId)) {
-			seenMessages.add(msgId);
+		if (!seenMessages.add(msgId)) {
 			messageCache.put(publish);
 			deliverMessage(publish);
 			forwardMessage(publish);
@@ -338,7 +358,7 @@ public class GossipSub extends GenericProtocol {
 
 	private void uponGraft(Graft graft, Host from, short sourceProto, int channelId) {
 		//shouldn't happen
-		if (direct.contains(from)) {
+		if (this.direct.contains(from)) {
 			logger.error("GRAFT from direct peer");
 			return;
 		}
@@ -459,7 +479,7 @@ public class GossipSub extends GenericProtocol {
 			fanoutLastPub.remove(topic);
 
 			for (var peer : fanoutPeers) {
-				if (!direct.contains(peer))
+				if (!this.direct.contains(peer))
 					toAdd.add(peer);
 			}
 		}
