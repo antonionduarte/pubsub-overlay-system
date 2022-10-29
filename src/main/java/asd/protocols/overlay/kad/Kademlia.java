@@ -11,6 +11,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
+import asd.protocols.overlay.common.notifications.NeighbourDown;
+import asd.protocols.overlay.common.notifications.NeighbourUp;
 import asd.protocols.overlay.kad.ipc.FindClosest;
 import asd.protocols.overlay.kad.ipc.FindClosestReply;
 import asd.protocols.overlay.kad.ipc.FindValue;
@@ -144,12 +146,16 @@ public class Kademlia extends GenericProtocol {
 			for (var msg : pending_messages)
 				this.sendMessage(msg, peer.host);
 		}
+
+		this.triggerNotification(new NeighbourUp(peer.host));
 	}
 
 	private void onPeerDisconnect(KadPeer peer) {
 		this.open_connections.remove(peer.host);
 		logger.info("Connection to " + peer + " is down");
 		this.rt.remove(peer.id);
+
+		this.triggerNotification(new NeighbourDown(peer.host));
 	}
 
 	/*--------------------------------- Public Helpers ---------------------------------------- */
