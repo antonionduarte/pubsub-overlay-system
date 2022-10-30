@@ -678,12 +678,8 @@ public class GossipSub extends GenericProtocol {
 		// remove peer from mesh
 		meshPeers.remove(peer);
 		// add to toPrune
-		var topics = toPrune.get(peer);
-		if (topics == null || topics.isEmpty()) {
-			toPrune.put(peer, Set.of(topic));
-		} else {
-			topics.add(topic);
-		}
+		toPrune.computeIfAbsent(peer, k -> new HashSet<>());
+		toPrune.get(peer).add(topic);
 	}
 
 	private void graftPeer(Host peer, String topic, Set<Host> peerMesh, Set<Host> peersToGossip, Map<Host, Set<String>> toGraft) {
