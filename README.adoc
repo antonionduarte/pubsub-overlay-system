@@ -28,4 +28,8 @@ Publish Subscribe System with Structured and Unstructured Overlays - Algorithms 
 | `kad_bootstrap`
 | No
 | Kademlia bootstrap node address.
+
+| `kad_swarm_ttl`
+| No
+| Kademlia swarm TTL. Default = `PT10M`.
 |===

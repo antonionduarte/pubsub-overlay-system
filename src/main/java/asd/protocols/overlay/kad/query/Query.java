@@ -59,7 +59,8 @@ abstract class Query {
     abstract void onFinish(QPeerSet set);
 
     protected void onFindNodeResponse(KadID from, List<KadPeer> closest) {
-        if (!this.peers.isInState(from, QPeerSet.State.INPROGRESS))
+        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+                || this.peers.isInState(from, QPeerSet.State.FAILED)))
             throw new IllegalStateException("Received FindNodeResponse from peer that was not requested: " + from
                     + ". Peer state is " + this.peers.getState(from));
         if (this.isFinished())
@@ -71,7 +72,8 @@ abstract class Query {
     }
 
     protected void onFindValueResponse(KadID from, List<KadPeer> closest, Optional<byte[]> value) {
-        if (!this.peers.isInState(from, QPeerSet.State.INPROGRESS))
+        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+                || this.peers.isInState(from, QPeerSet.State.FAILED)))
             throw new IllegalStateException("Received FindValueResponse from peer that was not requested: " + from
                     + ". Peer state is " + this.peers.getState(from));
         if (this.isFinished())
@@ -83,8 +85,22 @@ abstract class Query {
     }
 
     protected void onFindSwarmResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
-        if (!this.peers.isInState(from, QPeerSet.State.INPROGRESS))
+        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+                || this.peers.isInState(from, QPeerSet.State.FAILED)))
             throw new IllegalStateException("Received FindSwarmResponse from peer that was not requested: " + from
+                    + ". Peer state is " + this.peers.getState(from));
+        if (this.isFinished())
+            return;
+        this.peers.markFinished(from);
+        this.removeActiveRequest(from);
+        this.addExtraPeers(closest);
+        this.makeRequests();
+    }
+
+    protected void onFindPoolResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
+        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+                || this.peers.isInState(from, QPeerSet.State.FAILED)))
+            throw new IllegalStateException("Received FindPoolResponse from peer that was not requested: " + from
                     + ". Peer state is " + this.peers.getState(from));
         if (this.isFinished())
             return;

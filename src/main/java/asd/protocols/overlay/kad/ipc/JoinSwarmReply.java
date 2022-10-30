@@ -2,7 +2,6 @@ package asd.protocols.overlay.kad.ipc;
 
 import java.util.List;
 
-import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.Kademlia;
 import pt.unl.fct.di.novasys.babel.generic.ProtoReply;

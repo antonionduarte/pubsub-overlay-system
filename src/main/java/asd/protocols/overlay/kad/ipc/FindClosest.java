@@ -13,5 +13,5 @@ public class FindClosest extends ProtoRequest {
         super(ID);
         this.target = target;
     }
-    
+
 }
