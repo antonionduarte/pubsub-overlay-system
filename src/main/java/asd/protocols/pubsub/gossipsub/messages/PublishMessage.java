@@ -62,7 +62,8 @@ public class PublishMessage extends ProtoMessage {
             var leastSigBits = byteBuf.readLong();
             var msgId = new UUID(mostSigBits, leastSigBits);
             var lenMsg = byteBuf.readInt();
-            var msg = byteBuf.readBytes(lenMsg).array();
+            var msg = new byte[lenMsg];
+            byteBuf.readBytes(msg);
 
             return new PublishMessage(propagationSource, topic, msgId, msg);
         }
