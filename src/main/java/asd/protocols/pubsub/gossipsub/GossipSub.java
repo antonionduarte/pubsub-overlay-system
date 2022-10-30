@@ -693,12 +693,8 @@ public class GossipSub extends GenericProtocol {
 		// when we add a new mesh peer, we don't want to gossip messages to it
 		peersToGossip.remove(peer);
 		// add to toGraft
-		var topics = toGraft.get(peer);
-		if (topics == null || topics.isEmpty()) {
-			toGraft.put(peer, Set.of(topic));
-		} else {
-			topics.add(topic);
-		}
+		toGraft.computeIfAbsent(peer, k -> new HashSet<>());
+		toGraft.get(peer).add(topic);
 	}
 
 	private void emitGossip(Map<String, Set<Host>> peersToGossipByTopic) {
