@@ -189,7 +189,7 @@ public class GossipSub extends GenericProtocol {
 		var publishMessage = new PublishMessage(self, topic, msgId, publish.getMessage());
 		var toSend = selectPeersToPublish(topic);
 		if (toSend.isEmpty()) {
-			logger.error("No peers to publish :(, trying to find with Kademlia");
+			logger.error("No peers to publish :(, trying to find with Kademlia...");
 			pendingPublishes.computeIfAbsent(topic, k -> new HashSet<>());
 			pendingPublishes.get(topic).add(publishMessage);
 			sendRequest(new FindSwarm(topic, degree), Kademlia.ID);
@@ -219,6 +219,8 @@ public class GossipSub extends GenericProtocol {
 		sendReply(new SubscriptionReply(topic), AutomatedApp.PROTO_ID);
 	}
 
+	/*--------------------------------- Kademlia Reply Handlers ---------------------------------------- */
+
 	private void onJoinSwarmReply(JoinSwarmReply reply, short protoID) {
 		Set<Host> swarmPeers = new HashSet<>(reply.peers.stream().map(kp -> kp.host).toList());
 		var topic = reply.swarm;
@@ -236,6 +238,7 @@ public class GossipSub extends GenericProtocol {
 		var topic = reply.swarm;
 		if (!swarmPeers.isEmpty()) {
 			var publishMessages = pendingPublishes.get(topic);
+			if (publishMessages == null) return;
 
 			for (var publishMessage : publishMessages) {
 				logger.trace("publish message {} to topic {}", publishMessage.getMsgId(), topic);
@@ -377,7 +380,7 @@ public class GossipSub extends GenericProtocol {
 		if (seenMessages.add(msgId)) {
 			messageCache.put(publish);
 			deliverMessage(publish);
-			forwardMessage(publish);
+			forwardMessage(publish, Set.of(from, publish.getPropagationSource()));
 		}
 	}
 
@@ -511,24 +514,35 @@ public class GossipSub extends GenericProtocol {
 		}
 	}
 
-	private void forwardMessage(PublishMessage publish) {
+	private void forwardMessage(PublishMessage publish, Set<Host> exclude) {
 		var topic = publish.getTopic();
-		var source = publish.getPropagationSource();
-		var toSend = selectPeersToForward(topic, source);
+		var toSend = selectPeersToForward(topic, exclude);
 		for (var peer : toSend) {
 			sendMessage(publish, peer);
 		}
 	}
 
-	private Set<Host> selectPeersToForward(String topic, Host source) {
+	private Set<Host> selectPeersToForward(String topic, Set<Host> exclude) {
 		Set<Host> toSend = new HashSet<>();
 
-		var peersInTopic = topics.get(topic);
-		for (var peer : this.direct) {
-			if (peersInTopic.contains(peer) && !source.equals(peer)) {
-				toSend.add(peer);
+		var peersInTopic = this.topics.get(topic);
+		if (peersInTopic != null && !peersInTopic.isEmpty()) {
+			for (var peer : this.direct) {
+				if (peersInTopic.contains(peer) && !exclude.contains(peer)) {
+					toSend.add(peer);
+				}
 			}
 		}
+
+		var meshPeers = this.mesh.get(topic);
+		if (meshPeers != null && !meshPeers.isEmpty()) {
+			for (var peer : meshPeers) {
+				if (!exclude.contains(peer)) {
+					toSend.add(peer);
+				}
+			}
+		}
+
 		return toSend;
 	}
 
