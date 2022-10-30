@@ -655,7 +655,7 @@ public class GossipSub extends GenericProtocol {
 	private void removePeer(Host peer) {
 		if (this.peers.contains(peer)) {
 			this.peers.remove(peer);
-			closeConnection(peer);
+			//closeConnection(peer);
 			// remove peer from topics map
 			for (var topicPeers : topics.values()) {
 				topicPeers.remove(peer);
