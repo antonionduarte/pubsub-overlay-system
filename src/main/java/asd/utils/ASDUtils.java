@@ -11,15 +11,19 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class ASDUtils {
-	public static Host hostFromProp(String value) {
-		String[] hostElems = value.split(":");
-		Host host;
-		try {
-			host = new Host(InetAddress.getByName(hostElems[0]), Short.parseShort(hostElems[1]));
-		} catch (Exception e) {
-			throw new IllegalArgumentException(e);
+	public static List<Host> hostsFromProp(String value) {
+		Set<Host> hosts = new HashSet<>();
+		for (var hostStr : value.split(",")) {
+			String[] hostElems = hostStr.split(":");
+			Host host;
+			try {
+				host = new Host(InetAddress.getByName(hostElems[0]), Short.parseShort(hostElems[1]));
+			} catch (Exception e) {
+				throw new IllegalArgumentException(e);
+			}
+			hosts.add(host);
 		}
-		return host;
+		return new LinkedList<>(hosts);
 	}
 
 	public static <T> Set<T> sample(int size, Set<T> set) {

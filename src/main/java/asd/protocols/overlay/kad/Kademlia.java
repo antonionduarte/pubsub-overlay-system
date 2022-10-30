@@ -167,7 +167,7 @@ public class Kademlia extends GenericProtocol {
 		this.triggerNotification(new ChannelCreatedNotification(this.channel_id));
 
 		if (props.containsKey("kad_bootstrap")) {
-			var bootstrap_host = ASDUtils.hostFromProp(props.getProperty("kad_bootstrap"));
+			var bootstrap_host = ASDUtils.hostsFromProp(props.getProperty("kad_bootstrap")).get(0);
 			logger.info("Connecting to boostrap node at " + bootstrap_host);
 			this.openConnection(bootstrap_host);
 		}

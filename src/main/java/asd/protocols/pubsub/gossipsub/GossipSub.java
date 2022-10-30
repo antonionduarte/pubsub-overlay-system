@@ -11,6 +11,7 @@ import asd.protocols.pubsub.common.*;
 import asd.protocols.pubsub.gossipsub.messages.*;
 import asd.protocols.pubsub.gossipsub.timers.HeartbeatTimer;
 import asd.protocols.pubsub.gossipsub.timers.InfoTimer;
+import asd.utils.ASDUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
@@ -146,7 +147,12 @@ public class GossipSub extends GenericProtocol {
 	public void init(Properties properties) throws HandlerRegistrationException, IOException {
 		logger.info("GossipSub starting");
 
-		//TODO init direct peers ?
+		if (properties.containsKey("direct")) {
+			this.direct.addAll(ASDUtils.hostsFromProp(properties.getProperty("direct")));
+			logger.info("Connecting to direct nodes {}", this.direct);
+			for (var peer : this.direct)
+				this.openConnection(peer);
+		}
 
 		setupPeriodicTimer(new HeartbeatTimer(), heartbeatInitialDelay, heartbeatInterval);
 		setupPeriodicTimer(new InfoTimer(), 5000, 5000);
@@ -651,6 +657,7 @@ public class GossipSub extends GenericProtocol {
 	}
 
 	private void removePeer(Host peer) {
+		this.direct.remove(peer);
 		if (this.peers.remove(peer)) {
 			//closeConnection(peer);
 			// remove peer from topics map
