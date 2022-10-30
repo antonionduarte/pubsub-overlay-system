@@ -10,11 +10,13 @@ import asd.protocols.overlay.kad.ipc.JoinSwarmReply;
 import asd.protocols.pubsub.common.*;
 import asd.protocols.pubsub.gossipsub.messages.*;
 import asd.protocols.pubsub.gossipsub.timers.HeartbeatTimer;
+import asd.protocols.pubsub.gossipsub.timers.InfoTimer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
+import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -102,6 +104,7 @@ public class GossipSub extends GenericProtocol {
 
 		/*-------------------- Register Timer Events ------------------------------- */
 		this.registerTimerHandler(HeartbeatTimer.ID, this::onHeartbeat);
+		this.registerTimerHandler(InfoTimer.ID, this::onInfoTimer);
 
 		this.subscribeNotification(ChannelCreatedNotification.ID, this::onChannelCreated);
 	}
@@ -146,6 +149,7 @@ public class GossipSub extends GenericProtocol {
 		//TODO init direct peers ?
 
 		setupPeriodicTimer(new HeartbeatTimer(), heartbeatInitialDelay, heartbeatInterval);
+		setupPeriodicTimer(new InfoTimer(), 5000, 5000);
 	}
 
 	/*--------------------------------- Request Handlers ---------------------------------------- */
@@ -243,7 +247,7 @@ public class GossipSub extends GenericProtocol {
 
 	/*--------------------------------- Timer Handlers ---------------------------------------- */
 
-	private void onHeartbeat(HeartbeatTimer timer, long l) {
+	private void onHeartbeat(HeartbeatTimer timer, long timerId) {
 		Map<Host, Set<String>> toGraft = new HashMap<>();
 		Map<Host, Set<String>> toPrune = new HashMap<>();
 
@@ -335,6 +339,15 @@ public class GossipSub extends GenericProtocol {
 		flush();
 		// advance the message history window
 		messageCache.shift();
+	}
+
+	private void onInfoTimer(InfoTimer timer, long timerId) {
+		logger.debug("subscriptions:\n{}", subscriptions);
+		logger.debug("peers with connection:\n{}", peers);
+		logger.debug("topics:\n{}", topics);
+		logger.debug("mesh:\n{}", mesh);
+		logger.debug("fanout:\n{}", fanout);
+		logger.debug("seen messages:\n{}", seenMessages);
 	}
 
 	/*--------------------------------- Message Handlers ---------------------------------------- */
