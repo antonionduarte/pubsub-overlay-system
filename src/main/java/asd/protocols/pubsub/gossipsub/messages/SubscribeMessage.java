@@ -1,6 +1,7 @@
 package asd.protocols.pubsub.gossipsub.messages;
 
 import asd.protocols.pubsub.gossipsub.GossipSub;
+import asd.utils.ASDUtils;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
@@ -25,14 +26,12 @@ public class SubscribeMessage extends ProtoMessage {
     public static ISerializer<SubscribeMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(SubscribeMessage subscribeMessage, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(subscribeMessage.topic.getBytes().length);
-            byteBuf.writeBytes(subscribeMessage.topic.getBytes());
+            ASDUtils.stringSerializer.serialize(subscribeMessage.topic, byteBuf);
         }
 
         @Override
         public SubscribeMessage deserialize(ByteBuf byteBuf) throws IOException {
-            var lenTopic = byteBuf.readInt();
-            var topic = new String(byteBuf.readBytes(lenTopic).array());
+            var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
 
             return new SubscribeMessage(topic);
         }

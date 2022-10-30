@@ -1,6 +1,7 @@
 package asd.protocols.pubsub.gossipsub.messages;
 
 import asd.protocols.pubsub.gossipsub.GossipSub;
+import asd.utils.ASDUtils;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
@@ -46,8 +47,7 @@ public class PublishMessage extends ProtoMessage {
         @Override
         public void serialize(PublishMessage publishMessage, ByteBuf byteBuf) throws IOException {
             Host.serializer.serialize(publishMessage.propagationSource, byteBuf);
-            byteBuf.writeInt(publishMessage.topic.getBytes().length);
-            byteBuf.writeBytes(publishMessage.topic.getBytes());
+            ASDUtils.stringSerializer.serialize(publishMessage.topic, byteBuf);
             byteBuf.writeLong(publishMessage.msgId.getMostSignificantBits());
             byteBuf.writeLong(publishMessage.msgId.getLeastSignificantBits());
             byteBuf.writeInt(publishMessage.msg.length);
@@ -57,8 +57,7 @@ public class PublishMessage extends ProtoMessage {
         @Override
         public PublishMessage deserialize(ByteBuf byteBuf) throws IOException {
             var propagationSource = Host.serializer.deserialize(byteBuf);
-            var lenTopic = byteBuf.readInt();
-            var topic = new String(byteBuf.readBytes(lenTopic).array());
+            var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
             var mostSigBits = byteBuf.readLong();
             var leastSigBits = byteBuf.readLong();
             var msgId = new UUID(mostSigBits, leastSigBits);

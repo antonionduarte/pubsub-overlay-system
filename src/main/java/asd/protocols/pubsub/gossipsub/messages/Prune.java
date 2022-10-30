@@ -1,6 +1,7 @@
 package asd.protocols.pubsub.gossipsub.messages;
 
 import asd.protocols.pubsub.gossipsub.GossipSub;
+import asd.utils.ASDUtils;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
@@ -35,8 +36,7 @@ public class Prune extends ProtoMessage {
             byteBuf.writeInt(prune.peersPerTopic.entrySet().size());
             for (var entry : prune.peersPerTopic.entrySet()) {
                 var topic = entry.getKey();
-                byteBuf.writeInt(topic.getBytes().length);
-                byteBuf.writeBytes(topic.getBytes());
+                ASDUtils.stringSerializer.serialize(topic, byteBuf);
 
                 var peers = entry.getValue();
                 byteBuf.writeInt(peers.size());
@@ -52,8 +52,7 @@ public class Prune extends ProtoMessage {
             Map<String, Set<Host>> peersPerTopic = new HashMap<>(numEntries);
 
             for (int i = 0; i < numEntries; i++) {
-                var lenTopic = byteBuf.readInt();
-                var topic = new String(byteBuf.readBytes(lenTopic).array());
+                var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
 
                 var numPeers = byteBuf.readInt();
                 Set<Host> peers = new HashSet<>(numPeers);

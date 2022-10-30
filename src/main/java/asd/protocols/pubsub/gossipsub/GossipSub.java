@@ -468,7 +468,7 @@ public class GossipSub extends GenericProtocol {
 	private void onInConnectionUp(InConnectionUp event, int channelId) {
 		var peer = event.getNode();
 		addPeer(peer);
-		//openConnection(peer);
+		openConnection(peer);
 	}
 
 	private void onOutConnectionUp(OutConnectionUp event, int channelId) {
