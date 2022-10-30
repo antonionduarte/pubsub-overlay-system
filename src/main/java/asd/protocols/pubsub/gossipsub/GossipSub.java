@@ -16,7 +16,6 @@ import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
-import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -370,7 +369,7 @@ public class GossipSub extends GenericProtocol {
 	private void uponPublishMessage(PublishMessage publish, Host from, short sourceProto, int channelId) {
 		var msgId = publish.getMsgId();
 
-		if (!seenMessages.add(msgId)) {
+		if (seenMessages.add(msgId)) {
 			messageCache.put(publish);
 			deliverMessage(publish);
 			forwardMessage(publish);
