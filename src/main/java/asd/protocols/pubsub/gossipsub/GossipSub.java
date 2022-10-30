@@ -111,6 +111,7 @@ public class GossipSub extends GenericProtocol {
 
 	private void onChannelCreated(ChannelCreatedNotification notification, short protoID) {
 		this.channelId = notification.channel_id;
+		registerSharedChannel(channelId);
 
 		try {
 			/*---------------------- Register Message Handlers -------------------------- */
