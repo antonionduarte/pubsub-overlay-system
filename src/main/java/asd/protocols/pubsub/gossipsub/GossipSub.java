@@ -204,8 +204,7 @@ public class GossipSub extends GenericProtocol {
 		var topic = sub.getTopic();
 
 		logger.trace("subscribe to topic {}", sub.getTopic());
-		if (!subscriptions.contains(topic)) {
-			subscriptions.add(topic);
+		if (subscriptions.add(topic)) {
 			for (var peer : this.peers) {
 				sendSubscriptions(peer, Set.of(topic), true);
 			}
@@ -379,9 +378,10 @@ public class GossipSub extends GenericProtocol {
 	private void uponIWant(IWant iWant, Host from, short sourceProto, int channelId) {
 		Set<PublishMessage> toSend = new HashSet<>();
 		for (UUID msgId : iWant.getMessageIds()) {
-			if (!messageCache.contains(msgId))
+			var msg = messageCache.get(msgId);
+			if (msg == null)
 				continue;
-			toSend.add(messageCache.get(msgId));
+			toSend.add(msg);
 		}
 
 		if (toSend.isEmpty()) {
@@ -449,7 +449,7 @@ public class GossipSub extends GenericProtocol {
 			logger.trace("PRUNE: Remove mesh link to {} in {}", from, topic);
 			peersInMesh.remove(from);
 
-			// PX
+			// PX TODO: not sure this is correct
 			for (var peer : peersPX) {
 				if (!this.peers.contains(peer))
 					openConnection(peer);
@@ -645,15 +645,13 @@ public class GossipSub extends GenericProtocol {
 	}
 
 	private void addPeer(Host peer) {
-		if (!this.peers.contains(peer)) {
+		if (this.peers.add(peer)) {
 			logger.trace("new peer {}", peer);
-			this.peers.add(peer);
 		}
 	}
 
 	private void removePeer(Host peer) {
-		if (this.peers.contains(peer)) {
-			this.peers.remove(peer);
+		if (this.peers.remove(peer)) {
 			//closeConnection(peer);
 			// remove peer from topics map
 			for (var topicPeers : topics.values()) {
