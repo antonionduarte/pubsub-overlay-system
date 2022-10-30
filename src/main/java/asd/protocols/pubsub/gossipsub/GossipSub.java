@@ -1,7 +1,8 @@
 package asd.protocols.pubsub.gossipsub;
 
 import asd.protocols.apps.AutomatedApp;
-import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
+import asd.protocols.overlay.common.notifications.NeighbourDown;
+import asd.protocols.overlay.common.notifications.NeighbourUp;
 import asd.protocols.overlay.kad.Kademlia;
 import asd.protocols.overlay.kad.ipc.FindSwarm;
 import asd.protocols.overlay.kad.ipc.FindSwarmReply;
@@ -16,7 +17,7 @@ import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
-import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
+import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.channel.tcp.events.*;
 import pt.unl.fct.di.novasys.network.data.Host;
 
@@ -28,7 +29,7 @@ import static asd.utils.ASDUtils.sample;
 public class GossipSub extends GenericProtocol {
 
 	private final Host self;
-	private int channelId = -1;
+	private final int channelId;
 
 	private final int heartbeatInterval;
 	private final int heartbeatInitialDelay;
@@ -92,6 +93,40 @@ public class GossipSub extends GenericProtocol {
 		this.messageCache = new MessageCache(historyGossip, historyLength);
 		this.seenMessages = new HashSet<>();
 
+		Properties channel_props = new Properties();
+		channel_props.setProperty(TCPChannel.ADDRESS_KEY, props.getProperty("babel_address")); // The address to bind to
+		channel_props.setProperty(TCPChannel.PORT_KEY, props.getProperty("babel_port")); // The port to bind to
+		channel_props.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, "1000"); // Heartbeats interval for established
+		// connections
+		channel_props.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); // Time passed without heartbeats until
+		// closing a connection
+		channel_props.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "1000"); // TCP connect timeout
+		this.channelId = createChannel(TCPChannel.NAME, channel_props);
+
+		/*---------------------- Register Message Handlers -------------------------- */
+		this.registerMessageHandler(this.channelId, Graft.ID, this::uponGraft);
+		this.registerMessageHandler(this.channelId, IHave.ID, this::uponIHave);
+		this.registerMessageHandler(this.channelId, IWant.ID, this::uponIWant);
+		this.registerMessageHandler(this.channelId, Prune.ID, this::uponPrune);
+		this.registerMessageHandler(this.channelId, PublishMessage.ID, this::uponPublishMessage);
+		this.registerMessageHandler(this.channelId, SubscribeMessage.ID, this::uponSubscribeMessage);
+		this.registerMessageHandler(this.channelId, UnsubscribeMessage.ID, this::uponUnsubscribeMessage);
+
+		/*---------------------- Register Message Serializers -------------------------- */
+		this.registerMessageSerializer(this.channelId, Graft.ID, Graft.serializer);
+		this.registerMessageSerializer(this.channelId, IHave.ID, IHave.serializer);
+		this.registerMessageSerializer(this.channelId, IWant.ID, IWant.serializer);
+		this.registerMessageSerializer(this.channelId, Prune.ID, Prune.serializer);
+		this.registerMessageSerializer(this.channelId, PublishMessage.ID, PublishMessage.serializer);
+		this.registerMessageSerializer(this.channelId, SubscribeMessage.ID, SubscribeMessage.serializer);
+		this.registerMessageSerializer(this.channelId, UnsubscribeMessage.ID, UnsubscribeMessage.serializer);
+
+		/*-------------------- Register Channel Events ------------------------------- */
+		this.registerChannelEventHandler(this.channelId, OutConnectionDown.EVENT_ID, this::onOutConnectionDown);
+		this.registerChannelEventHandler(this.channelId, OutConnectionFailed.EVENT_ID, this::onOutConnectionFailed);
+		this.registerChannelEventHandler(this.channelId, OutConnectionUp.EVENT_ID, this::onOutConnectionUp);
+		this.registerChannelEventHandler(this.channelId, InConnectionUp.EVENT_ID, this::onInConnectionUp);
+		this.registerChannelEventHandler(this.channelId, InConnectionDown.EVENT_ID, this::onInConnectionDown);
 
 		/*-------------------- Register Request Events ------------------------------- */
 		this.registerRequestHandler(SubscriptionRequest.REQUEST_ID, this::uponSubscriptionRequest);
@@ -106,41 +141,9 @@ public class GossipSub extends GenericProtocol {
 		this.registerTimerHandler(HeartbeatTimer.ID, this::onHeartbeat);
 		this.registerTimerHandler(InfoTimer.ID, this::onInfoTimer);
 
-		this.subscribeNotification(ChannelCreatedNotification.ID, this::onChannelCreated);
-	}
-
-	private void onChannelCreated(ChannelCreatedNotification notification, short protoID) {
-		this.channelId = notification.channel_id;
-		registerSharedChannel(channelId);
-
-		try {
-			/*---------------------- Register Message Handlers -------------------------- */
-			this.registerMessageHandler(this.channelId, Graft.ID, this::uponGraft);
-			this.registerMessageHandler(this.channelId, IHave.ID, this::uponIHave);
-			this.registerMessageHandler(this.channelId, IWant.ID, this::uponIWant);
-			this.registerMessageHandler(this.channelId, Prune.ID, this::uponPrune);
-			this.registerMessageHandler(this.channelId, PublishMessage.ID, this::uponPublishMessage);
-			this.registerMessageHandler(this.channelId, SubscribeMessage.ID, this::uponSubscribeMessage);
-			this.registerMessageHandler(this.channelId, UnsubscribeMessage.ID, this::uponUnsubscribeMessage);
-
-			/*---------------------- Register Message Serializers -------------------------- */
-			this.registerMessageSerializer(this.channelId, Graft.ID, Graft.serializer);
-			this.registerMessageSerializer(this.channelId, IHave.ID, IHave.serializer);
-			this.registerMessageSerializer(this.channelId, IWant.ID, IWant.serializer);
-			this.registerMessageSerializer(this.channelId, Prune.ID, Prune.serializer);
-			this.registerMessageSerializer(this.channelId, PublishMessage.ID, PublishMessage.serializer);
-			this.registerMessageSerializer(this.channelId, SubscribeMessage.ID, SubscribeMessage.serializer);
-			this.registerMessageSerializer(this.channelId, UnsubscribeMessage.ID, UnsubscribeMessage.serializer);
-
-			/*-------------------- Register Channel Events ------------------------------- */
-			this.registerChannelEventHandler(this.channelId, OutConnectionDown.EVENT_ID, this::onOutConnectionDown);
-			this.registerChannelEventHandler(this.channelId, OutConnectionFailed.EVENT_ID, this::onOutConnectionFailed);
-			this.registerChannelEventHandler(this.channelId, OutConnectionUp.EVENT_ID, this::onOutConnectionUp);
-			this.registerChannelEventHandler(this.channelId, InConnectionUp.EVENT_ID, this::onInConnectionUp);
-			this.registerChannelEventHandler(this.channelId, InConnectionDown.EVENT_ID, this::onInConnectionDown);
-		} catch (HandlerRegistrationException e) {
-			throw new RuntimeException(e);
-		}
+		/*-------------------- Register Notification Events ------------------------------- */
+		this.subscribeNotification(NeighbourUp.NOTIFICATION_ID, this::onNeighbourUp);
+		this.subscribeNotification(NeighbourUp.NOTIFICATION_ID, this::onNeighbourDown);
 	}
 
 	@Override
@@ -151,6 +154,16 @@ public class GossipSub extends GenericProtocol {
 
 		setupPeriodicTimer(new HeartbeatTimer(), heartbeatInitialDelay, heartbeatInterval);
 		setupPeriodicTimer(new InfoTimer(), 5000, 5000);
+	}
+
+	private void onNeighbourDown(NeighbourDown notification, short i) {
+		var h = notification.getNeighbour();
+		closeConnection(h);
+	}
+
+	private void onNeighbourUp(NeighbourUp notification, short i) {
+		var h = notification.getNeighbour();
+		openConnection(h);
 	}
 
 	/*--------------------------------- Request Handlers ---------------------------------------- */
@@ -468,7 +481,7 @@ public class GossipSub extends GenericProtocol {
 	private void onInConnectionUp(InConnectionUp event, int channelId) {
 		var peer = event.getNode();
 		addPeer(peer);
-		//openConnection(peer);
+		openConnection(peer);
 	}
 
 	private void onOutConnectionUp(OutConnectionUp event, int channelId) {
