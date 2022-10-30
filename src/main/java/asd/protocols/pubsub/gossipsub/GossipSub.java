@@ -55,7 +55,7 @@ public class GossipSub extends GenericProtocol {
 
 	private static final Logger logger = LogManager.getLogger(GossipSub.class);
 
-	public static final short ID = 300;
+	public static final short ID = 500;
 	public static final String NAME = "GossipSub";
 
 
