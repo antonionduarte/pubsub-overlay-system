@@ -35,7 +35,7 @@ public class Prune extends ProtoMessage {
             byteBuf.writeInt(prune.peersPerTopic.entrySet().size());
             for (var entry : prune.peersPerTopic.entrySet()) {
                 var topic = entry.getKey();
-                byteBuf.writeInt(topic.length());
+                byteBuf.writeInt(topic.getBytes().length);
                 byteBuf.writeBytes(topic.getBytes());
 
                 var peers = entry.getValue();

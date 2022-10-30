@@ -46,7 +46,7 @@ public class PublishMessage extends ProtoMessage {
         @Override
         public void serialize(PublishMessage publishMessage, ByteBuf byteBuf) throws IOException {
             Host.serializer.serialize(publishMessage.propagationSource, byteBuf);
-            byteBuf.writeInt(publishMessage.topic.length());
+            byteBuf.writeInt(publishMessage.topic.getBytes().length);
             byteBuf.writeBytes(publishMessage.topic.getBytes());
             byteBuf.writeLong(publishMessage.msgId.getMostSignificantBits());
             byteBuf.writeLong(publishMessage.msgId.getLeastSignificantBits());

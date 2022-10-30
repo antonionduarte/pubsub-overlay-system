@@ -29,7 +29,7 @@ public class Graft extends ProtoMessage {
         public void serialize(Graft graft, ByteBuf byteBuf) {
             byteBuf.writeInt(graft.topics.size());
             for (var topic : graft.topics) {
-                byteBuf.writeInt(topic.length());
+                byteBuf.writeInt(topic.getBytes().length);
                 byteBuf.writeBytes(topic.getBytes());
             }
         }

@@ -25,7 +25,7 @@ public class SubscribeMessage extends ProtoMessage {
     public static ISerializer<SubscribeMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(SubscribeMessage subscribeMessage, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(subscribeMessage.topic.length());
+            byteBuf.writeInt(subscribeMessage.topic.getBytes().length);
             byteBuf.writeBytes(subscribeMessage.topic.getBytes());
         }
 

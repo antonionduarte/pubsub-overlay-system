@@ -37,7 +37,7 @@ public class IHave extends ProtoMessage {
             byteBuf.writeInt(iHave.msgIdsPerTopic.entrySet().size());
             for (var entry : iHave.msgIdsPerTopic.entrySet()) {
                 var topic = entry.getKey();
-                byteBuf.writeInt(topic.length());
+                byteBuf.writeInt(topic.getBytes().length);
                 byteBuf.writeBytes(topic.getBytes());
 
                 var msgIds = entry.getValue();

@@ -25,7 +25,7 @@ public class UnsubscribeMessage extends ProtoMessage {
     public static ISerializer<UnsubscribeMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(UnsubscribeMessage unsubscribeMessage, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(unsubscribeMessage.topic.length());
+            byteBuf.writeInt(unsubscribeMessage.topic.getBytes().length);
             byteBuf.writeBytes(unsubscribeMessage.topic.getBytes());
         }
 
