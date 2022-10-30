@@ -773,8 +773,8 @@ public class GossipSub extends GenericProtocol {
 		for (var entry : pendingGossip.entrySet()) {
 			var peer = entry.getKey();
 			var iHave = entry.getValue();
-			pendingGossip.remove(peer);
 			sendMessage(iHave, peer);
 		}
+		pendingGossip.clear();
 	}
 }
