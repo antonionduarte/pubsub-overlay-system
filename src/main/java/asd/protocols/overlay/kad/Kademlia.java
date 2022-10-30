@@ -64,6 +64,7 @@ public class Kademlia extends GenericProtocol {
 	private final QueryManager query_manager;
 	private final KadQueryManagerIO query_manager_io;
 	private final SwarmTracker swarm_tracker;
+	private final KadParams params;
 
 	private final HashSet<Host> open_connections;
 	// Messages that are waiting for a connection to be established
@@ -97,6 +98,7 @@ public class Kademlia extends GenericProtocol {
 		this.query_manager = new QueryManager(params, this.rt, this.self.id, query_manager_io);
 		this.query_manager_io = query_manager_io;
 		this.swarm_tracker = new SwarmTracker(params);
+		this.params = params;
 
 		this.open_connections = new HashSet<>();
 		this.pending_messages = new HashMap<>();
@@ -370,7 +372,9 @@ public class Kademlia extends GenericProtocol {
 	}
 
 	private void onFindSwarm(FindSwarm msg, short source_proto) {
-		this.startQuery(new FindSwarmQueryDescriptor(msg.swarm, (__, members) -> {
+		var k = this.params.k;
+		var swarm_id = KadID.ofData(msg.swarm);
+		this.startQuery(new FindSwarmQueryDescriptor(swarm_id, msg.sample_size.orElse(k), (__, members) -> {
 			var reply = new FindSwarmReply(msg.swarm, this.addrbook.idsToPeers(members));
 			this.sendReply(reply, source_proto);
 		}));
@@ -389,12 +393,14 @@ public class Kademlia extends GenericProtocol {
 	}
 
 	private void onJoinSwarm(JoinSwarm msg, short source_proto) {
-		this.startQuery(new FindSwarmQueryDescriptor(msg.swarm, (closest, members) -> {
+		var k = this.params.k;
+		var swarm_id = KadID.ofData(msg.swarm);
+		this.startQuery(new FindSwarmQueryDescriptor(swarm_id, msg.sample_size.orElse(k), (closest, members) -> {
 			for (var peer : closest) {
 				var host = this.addrbook.getHostFromID(peer);
 				if (host == null)
 					continue;
-				var request = new JoinSwarmRequest(msg.swarm);
+				var request = new JoinSwarmRequest(swarm_id);
 				this.sendMessage(request, host);
 			}
 

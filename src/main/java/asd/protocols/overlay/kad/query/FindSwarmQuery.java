@@ -10,12 +10,14 @@ import asd.protocols.overlay.kad.KadPeer;
 class FindSwarmQuery extends Query {
     private final FindSwarmQueryCallbacks callbacks;
     private final HashSet<KadID> members;
+    private final int sample_size;
 
     public FindSwarmQuery(QueryIO qio, KadID self, KadParams kadparams, KadID swarm, List<KadPeer> seeds,
             FindSwarmQueryDescriptor descriptor) {
         super(qio, self, kadparams, swarm, seeds);
         this.callbacks = descriptor.callbacks;
         this.members = new HashSet<>();
+        this.sample_size = descriptor.sample_size.orElse(kadparams.k);
     }
 
     @Override
@@ -34,7 +36,9 @@ class FindSwarmQuery extends Query {
     protected final void onFindSwarmResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
         super.onFindSwarmResponse(from, closest, members);
         members.stream().map(m -> m.id).forEach(this.members::add);
-        if (this.members.size() >= 20) {
+        if (this.members.size() >= this.sample_size) {
+            while (this.members.size() > this.sample_size)
+                this.members.remove(this.members.iterator().next());
             this.finish();
         }
     }
