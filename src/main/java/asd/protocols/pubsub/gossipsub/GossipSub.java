@@ -450,10 +450,10 @@ public class GossipSub extends GenericProtocol {
 			peersInMesh.remove(from);
 
 			// PX
-//			for (var peer : peersPX) {
-//				if (!this.peers.contains(peer))
-//					openConnection(peer);
-//			}
+			for (var peer : peersPX) {
+				if (!this.peers.contains(peer))
+					openConnection(peer);
+			}
 		}
 	}
 
@@ -518,9 +518,9 @@ public class GossipSub extends GenericProtocol {
 		Set<Host> toSend = new HashSet<>();
 
 		var peersInTopic = topics.get(topic);
-		for (var directPeer : direct) {
-			if (peersInTopic.contains(directPeer) && !source.equals(directPeer)) {
-				toSend.add(directPeer);
+		for (var peer : this.direct) {
+			if (peersInTopic.contains(peer) && !source.equals(peer)) {
+				toSend.add(peer);
 			}
 		}
 		return toSend;
@@ -552,7 +552,7 @@ public class GossipSub extends GenericProtocol {
 		if (toAdd.size() < degree) {
 			//exclude = toAdd U direct
 			Set<Host> exclude = new HashSet<>(toAdd);
-			exclude.addAll(direct);
+			exclude.addAll(this.direct);
 
 			var newPeers = getRandomGossipPeers(topic, degree - toAdd.size(), exclude);
 			toAdd.addAll(newPeers);
@@ -614,7 +614,7 @@ public class GossipSub extends GenericProtocol {
 			// send to direct peers and some mesh peers above publishThreshold
 
 			// direct peers (if subscribed)
-			for (var peer : direct) {
+			for (var peer : this.direct) {
 				if (peersInTopic.contains(peer)) {
 					toSend.add(peer);
 				}
@@ -706,7 +706,9 @@ public class GossipSub extends GenericProtocol {
 		for (var entry : peersToGossipByTopic.entrySet()) {
 			var topic = entry.getKey();
 			var peersToGossip = entry.getValue();
-			doEmitGossip(topic, peersToGossip, msgIdsByTopic.get(topic));
+			var msgIds = msgIdsByTopic.get(topic);
+			if (msgIds != null)
+				doEmitGossip(topic, peersToGossip, msgIdsByTopic.get(topic));
 		}
 	}
 
