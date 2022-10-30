@@ -331,6 +331,12 @@ public class GossipSub extends GenericProtocol {
 			toSend.add(messageCache.get(msgId));
 		}
 
+		if (toSend.isEmpty()) {
+			logger.trace("IWANT: Could not provide any wanted messages to {}", from);
+			return;
+		} else
+			logger.trace("IWANT: Sending {} messages to {}", toSend.size(), from);
+
 		for (var message : toSend) {
 			sendMessage(message, from);
 		}
@@ -352,7 +358,11 @@ public class GossipSub extends GenericProtocol {
 		if (iWant.isEmpty())
 			return;
 
-		// TODO maybe later limit iWants to send here
+		var iAsk = Math.min(iWant.size(), maxIHaveLength);
+		if(iAsk > iWant.size()) {
+			iWant = sample(iAsk, iWant);
+		}
+		logger.trace("IHAVE: Asking for {} out of {} messages from {}", iAsk, iWant.size(), from);
 		sendMessage(new IWant(iWant), from);
 	}
 
@@ -369,7 +379,7 @@ public class GossipSub extends GenericProtocol {
 				continue;
 			if (peersInMesh.contains(from))
 				continue;
-
+			logger.trace("GRAFT: Add mesh link from {} in {}", from, topic);
 			peersInMesh.add(from);
 		}
 	}
@@ -383,6 +393,7 @@ public class GossipSub extends GenericProtocol {
 			if (peersInMesh == null || peersInMesh.isEmpty())
 				return;
 
+			logger.trace("PRUNE: Remove mesh link to {} in {}", from, topic);
 			peersInMesh.remove(from);
 
 			// PX
@@ -554,7 +565,7 @@ public class GossipSub extends GenericProtocol {
 
 			// GossipSub peers handling
 			var meshPeers = this.mesh.get(topic);
-			if (meshPeers != null && !meshPeers.isEmpty()) {
+			if (meshPeers != null) {
 				toSend.addAll(meshPeers);
 			} else { // not in the mesh for topic, use fanout peers
 				var fanoutPeers = this.fanout.get(topic);
