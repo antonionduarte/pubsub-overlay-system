@@ -65,10 +65,10 @@ public class InteractiveKad extends GenericProtocol {
                                 sendRequest(new FindClosest(key), Kademlia.ID);
                             }
                             case "sjoin" -> {
-                                sendRequest(new JoinSwarm(KadID.ofData(components[1])), Kademlia.ID);
+                                sendRequest(new JoinSwarm(components[1]), Kademlia.ID);
                             }
                             case "sfind" -> {
-                                sendRequest(new FindSwarm(KadID.ofData(components[1])), Kademlia.ID);
+                                sendRequest(new FindSwarm(components[1]), Kademlia.ID);
                             }
                             case "rt" -> kad.printRoutingTable();
                             default -> System.out.println("Unknown command " + components[0]);

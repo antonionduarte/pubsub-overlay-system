@@ -8,7 +8,7 @@ import java.util.Set;
 
 public class NeighbourDown extends ProtoNotification {
 
-	public static final short NOTIFICATION_ID = 100;
+	public static final short NOTIFICATION_ID = 1001;
 
 	private final Host neighbour;
 

@@ -31,4 +31,9 @@ class QMQueryIO implements QueryIO {
     public void findSwarmRequest(KadID id, KadID swarm) {
         this.qmio.findSwarmRequest(this.context, id, swarm);
     }
+
+    @Override
+    public void findPoolRequest(KadID id, KadID pool) {
+        this.qmio.findPoolRequest(this.context, id, pool);
+    }
 }

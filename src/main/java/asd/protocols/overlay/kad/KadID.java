@@ -21,7 +21,7 @@ public class KadID {
 	 * @param id 20 byte long identifier
 	 * @throws IllegalArgumentException If the id is not the correct lenght
 	 */
-	public KadID(byte[] id) {
+	KadID(byte[] id) {
 		if (id.length != ID_LENGTH)
 			throw new IllegalArgumentException("KadID must be " + ID_LENGTH + " bytes long");
 		this.id = Arrays.copyOf(id, ID_LENGTH);

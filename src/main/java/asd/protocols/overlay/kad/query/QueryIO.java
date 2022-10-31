@@ -11,4 +11,6 @@ public interface QueryIO {
     void findValueRequest(KadID id, KadID key);
 
     void findSwarmRequest(KadID id, KadID swarm);
+
+    void findPoolRequest(KadID id, KadID pool);
 }

@@ -67,6 +67,18 @@ public class QueryManager {
         this.checkQueryFinished(context);
     }
 
+    public void startQuery(FindPoolQueryDescriptor descriptor) {
+        var context = this.allocateContext();
+        var seeds = this.routing_table.closest(descriptor.pool);
+        var qio = new QMQueryIO(this.qmio, context);
+        var query = new FindPoolQuery(qio, this.self, this.kadparams, descriptor.pool, seeds, descriptor);
+        this.queries.put(context, query);
+
+        logger.info("Starting query {} with swarm {} and {} seeds", context, descriptor.pool, seeds.size());
+        query.start();
+        this.checkQueryFinished(context);
+    }
+
     public void onFindNodeResponse(long context, KadID from, List<KadPeer> closest) {
         var query = this.queries.get(context);
         if (query == null) {
@@ -94,6 +106,16 @@ public class QueryManager {
             return;
         }
         query.onFindSwarmResponse(from, closest, members);
+        this.checkQueryFinished(context);
+    }
+
+    public void onFindPoolResponse(long context, KadID from, List<KadPeer> closest, List<KadPeer> members) {
+        var query = this.queries.get(context);
+        if (query == null) {
+            logger.warn("Received FindPoolResponse with unknown context " + context);
+            return;
+        }
+        query.onFindPoolResponse(from, closest, members);
         this.checkQueryFinished(context);
     }
 

@@ -7,14 +7,14 @@ import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadParams;
 import asd.protocols.overlay.kad.KadPeer;
 
-class FindSwarmQuery extends Query {
-    private final FindSwarmQueryCallbacks callbacks;
+class FindPoolQuery extends Query {
+    private final FindPoolQueryCallbacks callbacks;
     private final HashSet<KadID> members;
     private final int sample_size;
 
-    public FindSwarmQuery(QueryIO qio, KadID self, KadParams kadparams, KadID swarm, List<KadPeer> seeds,
-            FindSwarmQueryDescriptor descriptor) {
-        super(qio, self, kadparams, swarm, seeds);
+    public FindPoolQuery(QueryIO qio, KadID self, KadParams kadparams, KadID pool, List<KadPeer> seeds,
+            FindPoolQueryDescriptor descriptor) {
+        super(qio, self, kadparams, pool, seeds);
         this.callbacks = descriptor.callbacks;
         this.members = new HashSet<>();
         this.sample_size = descriptor.sample_size.orElse(kadparams.k);
@@ -33,7 +33,7 @@ class FindSwarmQuery extends Query {
     }
 
     @Override
-    protected final void onFindSwarmResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
+    protected final void onFindPoolResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
         super.onFindSwarmResponse(from, closest, members);
         members.stream().map(m -> m.id).forEach(this.members::add);
         if (this.members.size() >= this.sample_size) {

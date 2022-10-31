@@ -1,6 +1,7 @@
 package asd.protocols.pubsub.gossipsub.messages;
 
 import asd.protocols.pubsub.gossipsub.GossipSub;
+import asd.utils.ASDUtils;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
@@ -37,8 +38,7 @@ public class IHave extends ProtoMessage {
             byteBuf.writeInt(iHave.msgIdsPerTopic.entrySet().size());
             for (var entry : iHave.msgIdsPerTopic.entrySet()) {
                 var topic = entry.getKey();
-                byteBuf.writeInt(topic.length());
-                byteBuf.writeBytes(topic.getBytes());
+                ASDUtils.stringSerializer.serialize(topic, byteBuf);
 
                 var msgIds = entry.getValue();
                 byteBuf.writeInt(msgIds.size());
@@ -55,8 +55,7 @@ public class IHave extends ProtoMessage {
             Map<String, Set<UUID>> msgIdsPerTopic = new HashMap<>(numEntries);
 
             for (int i = 0; i < numEntries; i++) {
-                var lenTopic = byteBuf.readInt();
-                var topic = new String(byteBuf.readBytes(lenTopic).array());
+                var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
 
                 var numIds = byteBuf.readInt();
                 Set<UUID> msgIds = new HashSet<>(numIds);

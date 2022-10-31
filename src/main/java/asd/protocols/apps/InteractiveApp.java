@@ -33,7 +33,7 @@ public class InteractiveApp extends GenericProtocol {
 		this.self = self;
 
 		//Read configurations
-		this.payloadSize = Integer.parseInt(properties.getProperty("payload_size"));
+		this.payloadSize = Integer.parseInt(properties.getProperty("payload_size", "1024"));
 
 		//Setup handlers
 		subscribeNotification(DeliverNotification.NOTIFICATION_ID, this::uponDeliver);
