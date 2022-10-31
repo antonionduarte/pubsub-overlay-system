@@ -9,7 +9,9 @@ import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Properties;
+import java.util.Set;
 
 public class StructuredOverlayPubSub extends GenericProtocol {
 
@@ -18,8 +20,12 @@ public class StructuredOverlayPubSub extends GenericProtocol {
 	public static final String PROTO_NAME = "EmptyPubSub";
 	public static final short PROTO_ID = 200;
 
+	private final Set<String> subscribedTopics;
+
 	public StructuredOverlayPubSub() throws HandlerRegistrationException {
 		super(PROTO_NAME, PROTO_ID);
+
+		this.subscribedTopics = new HashSet<>();
 
 		registerRequestHandler(SubscriptionRequest.REQUEST_ID, this::uponSubscriptionRequest);
 		registerRequestHandler(PublishRequest.REQUEST_ID, this::uponPublishRequest);
@@ -43,13 +49,16 @@ public class StructuredOverlayPubSub extends GenericProtocol {
 
 	private void uponSubscriptionRequest(SubscriptionRequest request, short sourceProto) {
 		logger.info("Completed subscription to topic: " + request.getTopic());
+		this.subscribedTopics.add(request.getTopic());
 	}
 
 	private void uponPublishRequest(PublishRequest request, short sourceProto) {
 		logger.info("Completed publication on topic " + request.getTopic() + " and id: " + request.getMsgID());
+		// make a request to the PlumTree to broadcast the message to the current neighbours.
 	}
 
 	private void uponUnsubscriptionRequest(UnsubscriptionRequest request, short sourceProto) {
 		logger.info("Completed unsubscription to topic: " + request.getTopic());
+		this.subscribedTopics.remove(request.getTopic());
 	}
 }

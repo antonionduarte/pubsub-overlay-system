@@ -1,5 +1,6 @@
 package asd.protocols.pubsub.gossipsub;
 
+import asd.metrics.Metrics;
 import asd.protocols.apps.AutomatedApp;
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.kad.Kademlia;
@@ -186,8 +187,13 @@ public class GossipSub extends GenericProtocol {
 			logger.error("Duplicate message");
 			return;
 		}
+
+		Metrics.messageReceived(msgId);
+
 		var publishMessage = new PublishMessage(self, topic, msgId, publish.getMessage());
+		deliverMessage(publishMessage);
 		var toSend = selectPeersToPublish(topic);
+
 		if (toSend.isEmpty()) {
 			logger.error("No peers to publish :(, trying to find with Kademlia...");
 			pendingPublishes.computeIfAbsent(topic, k -> new HashSet<>());
@@ -195,9 +201,11 @@ public class GossipSub extends GenericProtocol {
 			sendRequest(new FindSwarm(topic, degree), Kademlia.ID);
 			return;
 		}
+
 		logger.trace("publish message {} to topic {}", msgId, topic);
 		seenMessages.add(msgId);
 		messageCache.put(publishMessage);
+
 		for (var peer : toSend) {
 			sendMessage(publishMessage, peer);
 		}
@@ -380,8 +388,13 @@ public class GossipSub extends GenericProtocol {
 		if (seenMessages.add(msgId)) {
 			messageCache.put(publish);
 			deliverMessage(publish);
-			forwardMessage(publish, Set.of(from, publish.getPropagationSource()));
+			Set<Host> exclude = new HashSet<>();
+			exclude.add(from);
+			exclude.add(publish.getPropagationSource());
+			forwardMessage(publish, exclude);
 		}
+
+		Metrics.messageReceived(msgId);
 	}
 
 	private void uponIWant(IWant iWant, Host from, short sourceProto, int channelId) {
@@ -421,7 +434,7 @@ public class GossipSub extends GenericProtocol {
 			return;
 
 		var iAsk = Math.min(iWant.size(), maxIHaveLength);
-		if(iAsk > iWant.size()) {
+		if (iAsk > iWant.size()) {
 			iWant = sample(iAsk, iWant);
 		}
 		logger.trace("IHAVE: Asking for {} out of {} messages from {}", iAsk, iWant.size(), from);

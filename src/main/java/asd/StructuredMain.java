@@ -1,5 +1,6 @@
 package asd;
 
+import asd.metrics.Metrics;
 import asd.protocols.apps.AutomatedApp;
 import asd.protocols.apps.InteractiveApp;
 import asd.protocols.overlay.kad.Kademlia;
@@ -45,6 +46,8 @@ public class StructuredMain {
 		// this wil get the IP of that interface
 		// and create a property "address=ip" to be used later by the channels.
 		InterfaceToIp.addInterfaceIp(props);
+
+		Metrics.initMetrics(Integer.parseInt(props.getProperty("babel_port")));
 
 		// The Host object is an address/port pair that represents a network host. It is
 		// used extensively in babel
