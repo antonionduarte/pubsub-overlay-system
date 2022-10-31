@@ -65,7 +65,7 @@ public class View {
 		List<Host> list = new ArrayList<>(membership);
 		Set<Host> subset = new HashSet<>();
 		Collections.shuffle(list);
-		for (int i = 0; i < size; i++) {
+		for (int i = 0; i < Math.min(size, membership.size()); i++) {
 			subset.add(list.get(i));
 		}
 		return subset;
