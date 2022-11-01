@@ -42,8 +42,8 @@ public class PlumTree extends GenericProtocol {
 	 * Integer represents the ID of a message. Gossip represents a gossip message.
 	 */
 	private final Map<UUID, Gossip> receivedMessages; // messageId -> gossipMessage
-	private Map<UUID, Long> missingTimers; // messageId -> timerId
-	private Map<UUID, List<Host>> haveMessage; // messageId -> host
+	private final Map<UUID, Long> missingTimers; // messageId -> timerId
+	private final Map<UUID, List<Host>> haveMessage; // messageId -> host
 
 	// TODO: This isn't very good yet, I should do LazyPush with some kind of policy instead of just pushing all messages everytime
 	public PlumTree(Properties properties, Host self) throws HandlerRegistrationException {
@@ -68,6 +68,8 @@ public class PlumTree extends GenericProtocol {
 		this.lazyPushPeers = new HashSet<>();
 		this.receivedMessages = new HashMap<>();
 		this.self = self;
+		this.haveMessage = new HashMap<>();
+		this.missingTimers = new HashMap<>();
 	}
 
 	private void onChannelCreated(ChannelCreatedNotification notification, short protoID) {
