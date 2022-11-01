@@ -1,12 +1,13 @@
 package asd.protocols.dissemination.plumtree;
 
 import asd.protocols.dissemination.plumtree.ipc.Broadcast;
-import asd.protocols.dissemination.plumtree.ipc.Deliver;
 import asd.protocols.dissemination.plumtree.messages.Gossip;
 import asd.protocols.dissemination.plumtree.messages.Graft;
 import asd.protocols.dissemination.plumtree.messages.IHave;
 import asd.protocols.dissemination.plumtree.messages.Prune;
+import asd.protocols.dissemination.plumtree.notifications.DeliverNotification;
 import asd.protocols.dissemination.plumtree.timers.IHaveTimer;
+import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
 import asd.utils.HashProducer;
@@ -15,7 +16,6 @@ import org.apache.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
-import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
@@ -28,14 +28,12 @@ public class PlumTree extends GenericProtocol {
 	public static final short PROTOCOL_ID = 400;
 	public static final String PROTOCOL_NAME = "PlumTree";
 
-	private final int channelId;
+	private int channelId;
 
 	private final Host self;
 
 	private final long missingTimeout;
 	private final long missingTimeoutSecond;
-
-	private final HashProducer hashProducer;
 
 	private final Set<Host> eagerPushPeers;
 	private final Set<Host> lazyPushPeers;
@@ -43,41 +41,17 @@ public class PlumTree extends GenericProtocol {
 	/**
 	 * Integer represents the ID of a message. Gossip represents a gossip message.
 	 */
-	private final Map<Integer, Gossip> receivedMessages; // messageId -> gossipMessage
-	private Map<Integer, Long> missingTimers; // messageId -> timerId
-	private Map<Integer, List<Host>> haveMessage; // messageId -> host
+	private final Map<UUID, Gossip> receivedMessages; // messageId -> gossipMessage
+	private Map<UUID, Long> missingTimers; // messageId -> timerId
+	private Map<UUID, List<Host>> haveMessage; // messageId -> host
 
 	// TODO: This isn't very good yet, I should do LazyPush with some kind of policy instead of just pushing all messages everytime
-	public PlumTree(Properties properties, Host self) throws IOException, HandlerRegistrationException {
+	public PlumTree(Properties properties, Host self) throws HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
-
-		var channelMetricsInterval = properties.getProperty("channel_metrics_interval", "10000"); // 10 seconds
-
-		/*---------------------- Channel Configuration ---------------------- */
-		Properties channelProps = new Properties();
-		channelProps.setProperty(TCPChannel.ADDRESS_KEY, properties.getProperty("address")); // The address to bind to
-		channelProps.setProperty(TCPChannel.PORT_KEY, properties.getProperty("port")); // The port to bind to
-		channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, channelMetricsInterval); // The interval to receive channel metrics
-		channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, "1000"); // Heartbeats interval for established connections
-		channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); // Time passed without heartbeats until closing a connection
-		channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "1000"); // TCP connect timeout
-		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
 		/*---------------------- Protocol Configuration ---------------------- */
 		this.missingTimeout = Long.parseLong(properties.getProperty("missing_timeout", "1000"));
 		this.missingTimeoutSecond = Long.parseLong(properties.getProperty("missing_timeout_second", "500"));
-
-		/*---------------------- Register Message Serializers ---------------------- */
-		registerMessageSerializer(channelId, Gossip.MSG_ID, Gossip.serializer);
-		registerMessageSerializer(channelId, IHave.MSG_ID, IHave.serializer);
-		registerMessageSerializer(channelId, Graft.MSG_ID, Graft.serializer);
-		registerMessageSerializer(channelId, Prune.MSG_ID, Prune.serializer);
-
-		/*---------------------- Register Message Handlers -------------------------- */
-		registerMessageHandler(channelId, Gossip.MSG_ID, this::uponGossip);
-		registerMessageHandler(channelId, Prune.MSG_ID, this::uponPrune);
-		registerMessageHandler(channelId, Graft.MSG_ID, this::uponGraft);
-		registerMessageHandler(channelId, IHave.MSG_ID, this::uponIHave);
 
 		/*--------------------- Register Request Handlers ----------------------------- */
 		registerRequestHandler(Broadcast.ID, this::handleBroadcast);
@@ -88,12 +62,33 @@ public class PlumTree extends GenericProtocol {
 		/*-------------------- Subscribe Notification ------------------------------- */
 		subscribeNotification(NeighbourUp.NOTIFICATION_ID, this::handleNeighbourUp);
 		subscribeNotification(NeighbourDown.NOTIFICATION_ID, this::handleNeighbourDown);
+		subscribeNotification(ChannelCreatedNotification.ID, this::onChannelCreated);
 
 		this.eagerPushPeers = new HashSet<>();
 		this.lazyPushPeers = new HashSet<>();
 		this.receivedMessages = new HashMap<>();
-		this.hashProducer = new HashProducer(self);
 		this.self = self;
+	}
+
+	private void onChannelCreated(ChannelCreatedNotification notification, short protoID) {
+		this.channelId = notification.channel_id;
+
+		try {
+			/*---------------------- Register Message Serializers ---------------------- */
+			registerMessageSerializer(channelId, Gossip.MSG_ID, Gossip.serializer);
+			registerMessageSerializer(channelId, IHave.MSG_ID, IHave.serializer);
+			registerMessageSerializer(channelId, Graft.MSG_ID, Graft.serializer);
+			registerMessageSerializer(channelId, Prune.MSG_ID, Prune.serializer);
+
+			/*---------------------- Register Message Handlers -------------------------- */
+			registerMessageHandler(channelId, Gossip.MSG_ID, this::uponGossip);
+			registerMessageHandler(channelId, Prune.MSG_ID, this::uponPrune);
+			registerMessageHandler(channelId, Graft.MSG_ID, this::uponGraft);
+			registerMessageHandler(channelId, IHave.MSG_ID, this::uponIHave);
+		} catch (HandlerRegistrationException exception) {
+			throw new RuntimeException(exception);
+		}
+
 	}
 
 	@Override
@@ -103,14 +98,14 @@ public class PlumTree extends GenericProtocol {
 	/*--------------------------------- Request Handlers ---------------------------- */
 
 	private void handleBroadcast(Broadcast request, short sourceProto) {
-		var messageId = hashProducer.hash(request.getMsg()) + hashProducer.hash();
-		var gossip = new Gossip(messageId, request.getMsg());
+		var messageId = request.getMsgId();
+		var gossip = new Gossip(request.getMsg(), request.getTopic(), request.getMsgId(), request.getSender());
 
-		receivedMessages.put(messageId, gossip);
+		receivedMessages.put(request.getMsgId(), gossip);
 
 		sendPush(gossip, eagerPushPeers, self);
 		sendPush(new IHave(messageId), lazyPushPeers, self);
-		sendReply(new Deliver(request.getMsg()), sourceProto); // TODO: PubSub layer will need to filter the replies
+		// sendReply(); TODO: Do i need to reply?
 	}
 
 	/*--------------------------------- Notification Handlers ---------------------------- */
@@ -131,34 +126,36 @@ public class PlumTree extends GenericProtocol {
 	/*--------------------------------- Message Handlers ---------------------------- */
 
 	private void uponGossip(Gossip msg, Host from, short sourceProto, int channelId) {
-		if (receivedMessages.containsKey(msg.getMessageId())) {
+		if (receivedMessages.containsKey(msg.getMsgId())) {
 			this.eagerPushPeers.remove(from);
 			this.lazyPushPeers.add(from);
 			sendMessage(new Prune(), from);
 		} else {
-			var timerId = missingTimers.remove(msg.getMessageId());
+			var timerId = missingTimers.remove(msg.getMsgId());
 			if (timerId != null) {
 				cancelTimer(timerId);
 			}
 
-			sendPush(new IHave(msg.getMessageId()), lazyPushPeers, from);
-			sendPush(new Gossip(msg.getMessageId(), msg.getMsg()), eagerPushPeers, from);
+			var gossip = new Gossip(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender());
 
-			this.receivedMessages.put(msg.getMessageId(), msg);
-			this.haveMessage.remove(msg.getMessageId());
+			sendPush(new IHave(msg.getMsgId()), lazyPushPeers, from);
+			sendPush(gossip, eagerPushPeers, from);
+
+			this.receivedMessages.put(msg.getMsgId(), msg);
+			this.haveMessage.remove(msg.getMsgId());
 			this.lazyPushPeers.remove(from);
 			this.eagerPushPeers.add(from);
 
-			sendReply(new Deliver(msg.getMsg()), sourceProto); // TODO: PubSub layer will need to filter the replies
+			triggerNotification(new DeliverNotification(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender()));
 		}
 	}
 
 	private void uponIHave(IHave msg, Host from, short sourceProto, int channelId) {
-		if (!receivedMessages.containsKey(msg.getMessageId())) {
-			if (!missingTimers.containsKey(msg.getMessageId())) {
-				this.missingTimers.put(msg.getMessageId(), setupTimer(new IHaveTimer(msg.getMessageId()), missingTimeout));
+		if (!receivedMessages.containsKey(msg.getMsgId())) {
+			if (!missingTimers.containsKey(msg.getMsgId())) {
+				this.missingTimers.put(msg.getMsgId(), setupTimer(new IHaveTimer(msg.getMsgId()), missingTimeout));
 			}
-			this.haveMessage.computeIfAbsent(msg.getMessageId(), k -> {
+			this.haveMessage.computeIfAbsent(msg.getMsgId(), k -> {
 				return new LinkedList<>();
 			}).add(from);
 		}
@@ -173,19 +170,19 @@ public class PlumTree extends GenericProtocol {
 		this.lazyPushPeers.remove(from);
 		this.eagerPushPeers.add(from);
 
-		if (receivedMessages.containsKey(msg.getMessageId())) {
-			sendMessage(receivedMessages.get(msg.getMessageId()), from);
+		if (receivedMessages.containsKey(msg.getMsgId())) {
+			sendMessage(receivedMessages.get(msg.getMsgId()), from);
 		}
 	}
 
 	/*--------------------------------- Timer Handlers ---------------------------- */
 
 	private void handleIHaveTimer(IHaveTimer timer, long timerId) {
-		var messageId = timer.getMessageId();
+		var messageId = timer.getMsgId();
 
 		if (!receivedMessages.containsKey(messageId)) {
 			if (missingTimers.containsKey(messageId)) {
-				var peer = haveMessage.get(timer.getMessageId()).remove(0);
+				var peer = haveMessage.get(timer.getMsgId()).remove(0);
 				var message = new Graft(messageId);
 				this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), missingTimeoutSecond));
 				sendMessage(message, peer);

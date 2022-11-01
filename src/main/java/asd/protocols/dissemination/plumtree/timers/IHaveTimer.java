@@ -3,19 +3,21 @@ package asd.protocols.dissemination.plumtree.timers;
 import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 import pt.unl.fct.di.novasys.network.data.Host;
 
+import java.util.UUID;
+
 public class IHaveTimer extends ProtoTimer {
 
 	public static final short TIMER_ID = 100;
 
-	private final int messageId;
+	private final UUID msgId;
 
-	public IHaveTimer(int messageId) {
+	public IHaveTimer(UUID msgId) {
 		super(TIMER_ID);
-		this.messageId = messageId;
+		this.msgId = msgId;
 	}
 
-	public int getMessageId() {
-		return messageId;
+	public UUID getMsgId() {
+		return msgId;
 	}
 
 	@Override

@@ -128,7 +128,7 @@ public class AutomatedApp extends GenericProtocol {
 		logger.info("Starting publications");
 		//Start broadcasting periodically
 		broadCastTimer = setupPeriodicTimer(new DisseminationTimer(), 0, disseminationInterval);
-		//And setup the stop timer
+		//And set up the stop timer
 		setupTimer(new StopTimer(), runTime * 1000);
 	}
 

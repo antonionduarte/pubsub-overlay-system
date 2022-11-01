@@ -5,32 +5,35 @@ import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-import java.io.IOException;
+import java.util.UUID;
 
 public class IHave extends ProtoMessage {
 	public static final short MSG_ID = PlumTree.PROTOCOL_ID + 4;
 
-	private final int messageId;
+	private final UUID msgId;
 
-	public IHave(int messageId) {
+	public IHave(UUID msgId) {
 		super(MSG_ID);
-		this.messageId = messageId;
+		this.msgId = msgId;
 	}
 
-	public int getMessageId() {
-		return messageId;
+	public UUID getMsgId() {
+		return msgId;
 	}
 
 	public static ISerializer<IHave> serializer = new ISerializer<>() {
 		@Override
 		public void serialize(IHave iHave, ByteBuf byteBuf) {
-			byteBuf.writeInt(iHave.messageId);
+			byteBuf.writeLong(iHave.msgId.getMostSignificantBits());
+			byteBuf.writeLong(iHave.msgId.getLeastSignificantBits());
 		}
 
 		@Override
 		public IHave deserialize(ByteBuf byteBuf) {
-			int messageId = byteBuf.readInt();
-			return new IHave(messageId);
+			var mostSigBits = byteBuf.readLong();
+			var leastSigBits = byteBuf.readLong();
+			var msgId = new UUID(mostSigBits, leastSigBits);
+			return new IHave(msgId);
 		}
 	};
 }

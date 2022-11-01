@@ -29,7 +29,7 @@ def spawn_hypv_java_docker(port: int):
         f"-DlogFilename=log/node_{port}.log" "-ea",
         "-cp",
         "/usr/local/app.jar",
-        "asd.HyparviewMain",
+        "asd.UnstructuredMain",
         f"babel_port={port}",
         "babel_address=127.0.0.1",
     ]
