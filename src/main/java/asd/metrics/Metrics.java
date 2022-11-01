@@ -26,7 +26,7 @@ public class Metrics {
 		}
 	}
 
-	public static <T> void writeMetric(T message, String messageType) {
+	public static synchronized <T> void writeMetric(T message, String messageType) {
 		var metric = new Metric(System.currentTimeMillis(), messageType, message);
 		var json = gson.toJson(metric) + "\n";
 
