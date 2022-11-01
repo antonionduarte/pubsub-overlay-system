@@ -49,9 +49,8 @@ public class View {
 	}
 
 	public Host selectRandomPeer() {
-		var nodeIndex = random.nextInt(membership.size());
-		var list = membership.toArray();
-		return (Host) list[nodeIndex];
+		var nodeIndex = random.nextInt(membership.size());;
+		return (Host) membership.toArray()[nodeIndex];
 	}
 
 	public Host selectRandomDiffPeer(Host node) {

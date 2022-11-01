@@ -25,7 +25,7 @@ public class Hyparview extends GenericProtocol {
 
 	public static final short PROTOCOL_ID = 200;
 	public static final String PROTOCOL_NAME = "Hyparview";
-	public static final String CONTACT_PROPERTY = "contact";
+	public static final String CONTACT_PROPERTY = "hypar_bootstrap";
 
 	public final int ARWL;
 	public final int PRWL;
@@ -50,8 +50,8 @@ public class Hyparview extends GenericProtocol {
 
 		/*---------------------- Channel Configuration ---------------------- */
 		Properties channelProps = new Properties();
-		channelProps.setProperty(TCPChannel.ADDRESS_KEY, properties.getProperty("address")); // The address to bind to
-		channelProps.setProperty(TCPChannel.PORT_KEY, properties.getProperty("port")); // The port to bind to
+		channelProps.setProperty(TCPChannel.ADDRESS_KEY, properties.getProperty("babel_address")); // The address to bind to
+		channelProps.setProperty(TCPChannel.PORT_KEY, properties.getProperty("babel_port")); // The port to bind to
 		channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, channelMetricsInterval); // The interval to receive channel metrics
 		channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, "1000"); // Heartbeats interval for established connections
 		channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); // Time passed without heartbeats until closing a connection
@@ -59,13 +59,13 @@ public class Hyparview extends GenericProtocol {
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
 		/*---------------------- Protocol Configuration ---------------------- */
-		this.kActive = (short) Integer.parseInt(properties.getProperty("k_active", "6"));
-		this.kPassive = (short) Integer.parseInt(properties.getProperty("k_passive", "6"));
-		this.shufflePeriod = (short) Integer.parseInt(properties.getProperty("shuffle_period", "10000"));
-		this.ARWL = Integer.parseInt(properties.getProperty("arwl", "3"));
-		this.PRWL = Integer.parseInt(properties.getProperty("prwl", "3"));
-		short passiveViewCapacity = (short) Integer.parseInt(properties.getProperty("passive_view_capacity", "100"));
-		short activeViewCapacity = (short) Integer.parseInt(properties.getProperty("active_view_capacity", "100"));
+		this.kActive = (short) Integer.parseInt(properties.getProperty("k_active", "2"));
+		this.kPassive = (short) Integer.parseInt(properties.getProperty("k_passive", "3"));
+		this.shufflePeriod = (short) Integer.parseInt(properties.getProperty("shuffle_period", "2000"));
+		this.ARWL = Integer.parseInt(properties.getProperty("arwl", "4"));
+		this.PRWL = Integer.parseInt(properties.getProperty("prwl", "2"));
+		short passiveViewCapacity = (short) Integer.parseInt(properties.getProperty("passive_view_capacity", "7"));
+		short activeViewCapacity = (short) Integer.parseInt(properties.getProperty("active_view_capacity", "4"));
 
 		/*---------------------- Register Message Serializers ---------------------- */
 		registerMessageSerializer(this.channelId, Disconnect.MESSAGE_ID, Disconnect.serializer);
@@ -164,6 +164,8 @@ public class Hyparview extends GenericProtocol {
 			triggerNotification(new NeighbourDown(from));
 			this.activeView.removePeer(from);
 			this.passiveView.addPeer(from);
+
+			logger.info("Node " + from + " disconnected");
 		}
 	}
 
@@ -194,6 +196,8 @@ public class Hyparview extends GenericProtocol {
 	private void uponShuffle(Shuffle msg, Host from, short sourceProtocol, int channelId) {
 		var timeToLive = msg.getTimeToLive() - 1;
 
+		logger.info("Shuffle received from " + from + " with TTL " + timeToLive);
+
 		if (timeToLive > 0 && activeView.getSize() > 1) {
 			var node = activeView.selectRandomDiffPeer(from);
 			var toSend = new Shuffle(msg.getTimeToLive() - 1, msg.getShuffleSet(), msg.getOriginalNode());
@@ -216,9 +220,14 @@ public class Hyparview extends GenericProtocol {
 	private void uponShuffleReply(ShuffleReply msg, Host from, short sourceProtocol, int channelId) {
 		var shuffleSet = msg.getShuffleSet();
 
+		logger.info("Shuffle reply received from " + from + " with " + shuffleSet.size() + " nodes");
+
 		for (Host node : shuffleSet) {
 			if (!node.equals(self) && !activeView.getView().contains(node)) {
-				this.passiveView.addPeer(node);
+				var dropped = this.passiveView.addPeer(node);
+				if (dropped != null)
+					logger.info("Dropped " + dropped + " from passive view");
+				logger.info("Node " + node + " added to passive view");
 			}
 		}
 	}
@@ -268,6 +277,11 @@ public class Hyparview extends GenericProtocol {
 		var toSend = new Shuffle(this.PRWL, shuffleSet, self);
 		var shuffleNode = activeView.selectRandomPeer();
 
+		logger.info("Shuffle timer triggered. Sending shuffle message to {}", shuffleNode);
+		logger.info("ActiveView size: {}", activeView.getSize());
+		logger.info("PassiveView size: {}", passiveView.getSize());
+		logger.info("ShuffleSet size: {}", shuffleSet.size());
+
 		sendMessage(toSend, shuffleNode);
 	}
 
@@ -276,17 +290,25 @@ public class Hyparview extends GenericProtocol {
 	private void handleDropConnection(Host toDrop) {
 		sendMessage(new Disconnect(), toDrop);
 		closeConnection(toDrop);
+
+		if (activeView.removePeer(toDrop)) {
+			triggerNotification(new NeighbourDown(toDrop));
+
+			logger.info("Peer removed from active view: {}", toDrop);
+		}
+		passiveView.removePeer(toDrop);
 	}
 
 	private void singleShotMessage(ProtoMessage msg, Host host) {
 		openConnection(host);
 		sendMessage(msg, host);
+
 		if (!activeView.getView().contains(host)) {
 			closeConnection(host);
 		}
 	}
 
-	private void handleActiveAddition(Host toAdd) {
+	private void handleActiveAddition(Host toAdd) {;
 		var dropped = activeView.addPeer(toAdd);
 
 		this.passiveView.removePeer(toAdd);
@@ -295,7 +317,11 @@ public class Hyparview extends GenericProtocol {
 		if (dropped != null) {
 			this.passiveView.addPeer(dropped);
 			handleDropConnection(dropped);
+
+			logger.info("Peer added to passive view: {}", dropped);
 		}
+
+		logger.info("Peer added to active view: {}", toAdd.toString());
 	}
 
 	private void handleRequestNeighbour(Host toRequest) {

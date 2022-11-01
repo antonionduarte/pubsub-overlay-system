@@ -32,6 +32,9 @@ public class PlumTree extends GenericProtocol {
 
 	private final Host self;
 
+	private final long missingTimeout;
+	private final long missingTimeoutSecond;
+
 	private final HashProducer hashProducer;
 
 	private final Set<Host> eagerPushPeers;
@@ -59,6 +62,10 @@ public class PlumTree extends GenericProtocol {
 		channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); // Time passed without heartbeats until closing a connection
 		channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "1000"); // TCP connect timeout
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
+
+		/*---------------------- Protocol Configuration ---------------------- */
+		this.missingTimeout = Long.parseLong(properties.getProperty("missing_timeout", "1000"));
+		this.missingTimeoutSecond = Long.parseLong(properties.getProperty("missing_timeout_second", "500"));
 
 		/*---------------------- Register Message Serializers ---------------------- */
 		registerMessageSerializer(channelId, Gossip.MSG_ID, Gossip.serializer);
@@ -149,7 +156,7 @@ public class PlumTree extends GenericProtocol {
 	private void uponIHave(IHave msg, Host from, short sourceProto, int channelId) {
 		if (!receivedMessages.containsKey(msg.getMessageId())) {
 			if (!missingTimers.containsKey(msg.getMessageId())) {
-				this.missingTimers.put(msg.getMessageId(), setupTimer(new IHaveTimer(msg.getMessageId()), 1000)); // TODO: Change timeout 1
+				this.missingTimers.put(msg.getMessageId(), setupTimer(new IHaveTimer(msg.getMessageId()), missingTimeout));
 			}
 			this.haveMessage.computeIfAbsent(msg.getMessageId(), k -> {
 				return new LinkedList<>();
@@ -180,7 +187,7 @@ public class PlumTree extends GenericProtocol {
 			if (missingTimers.containsKey(messageId)) {
 				var peer = haveMessage.get(timer.getMessageId()).remove(0);
 				var message = new Graft(messageId);
-				this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), 1000)); // TODO: Change timeout - timeout 2
+				this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), missingTimeoutSecond));
 				sendMessage(message, peer);
 			}
 		}
