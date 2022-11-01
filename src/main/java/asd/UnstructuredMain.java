@@ -5,8 +5,6 @@ import asd.protocols.apps.AutomatedApp;
 import asd.protocols.apps.InteractiveApp;
 import asd.protocols.dissemination.plumtree.PlumTree;
 import asd.protocols.overlay.hyparview.Hyparview;
-import asd.protocols.overlay.kad.Kademlia;
-import asd.protocols.pubsub.gossipsub.GossipSub;
 import asd.protocols.pubsub.unstructured.UnstructuredPubsub;
 import asd.utils.InterfaceToIp;
 import org.apache.logging.log4j.LogManager;

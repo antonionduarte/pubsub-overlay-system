@@ -2,7 +2,7 @@ package asd.protocols.pubsub.unstructured;
 
 import asd.protocols.dissemination.plumtree.PlumTree;
 import asd.protocols.dissemination.plumtree.ipc.Broadcast;
-import asd.protocols.dissemination.plumtree.notifications.DeliverNotification;
+import asd.protocols.dissemination.plumtree.notifications.DeliverBroadcast;
 import asd.protocols.pubsub.common.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -18,8 +18,8 @@ public class UnstructuredPubsub extends GenericProtocol {
 
 	private static final Logger logger = LogManager.getLogger(UnstructuredPubsub.class);
 
-	public static final String PROTO_NAME = "UnstructuredPubSub";
-	public static final short PROTO_ID = 600;
+	public static final String PROTO_NAME = "Unstructured PubSub";
+	public static final short PROTO_ID = 800;
 
 	private final Set<String> subscribedTopics;
 
@@ -32,26 +32,33 @@ public class UnstructuredPubsub extends GenericProtocol {
 		registerRequestHandler(PublishRequest.REQUEST_ID, this::uponPublishRequest);
 		registerRequestHandler(UnsubscriptionRequest.REQUEST_ID, this::uponUnsubscriptionRequest);
 
-		subscribeNotification(DeliverNotification.NOTIFICATION_ID, this::uponDeliverNotification);
+		subscribeNotification(DeliverBroadcast.NOTIFICATION_ID, this::uponDeliverBroadcast);
 	}
 
 	/*
 		TODO:
+		- Register the topics that the Node is Subscribed to.
 		- Maybe make a Request so Hyparview can know the topics that the node is currently subscribed to?
 			- Use that list to prioritize the active view neighbours of the node (the ones that are subscribed to the same topics)
 			- Perhaps make it a Notification so Hyparview is always aware of the topics that the node is subscribed to.
+		- Whenever we need to Publish a Message to a Topic we need to ask PlumTree to Broadcast it to the current neighbours.
 		- Whenever a Message is Delivered we need to verify if the topic is in the current list of subscribed topics, and if so deliver it.
 	 */
 
 	@Override
 	public void init(Properties props) throws HandlerRegistrationException, IOException {
+
 	}
 
-	private void uponDeliverNotification(DeliverNotification notification, short sourceProto) {
-		if (subscribedTopics.contains(notification.getTopic())) {
-			var deliver = new DeliverNotification(notification.getMsg(), notification.getTopic(), notification.getMsgId(), notification.getSender());
+	private void uponDeliverBroadcast(DeliverBroadcast deliverBroadcast, short sourceProto) {
+		if (subscribedTopics.contains(deliverBroadcast.getTopic())) {
+			logger.info("Delivering Broadcast to topic: " + deliverBroadcast.getTopic());
+			var deliver = new DeliverNotification(
+					deliverBroadcast.getTopic(),
+					deliverBroadcast.getMsgId(),
+					deliverBroadcast.getSender(),
+					deliverBroadcast.getMsg());
 			triggerNotification(deliver);
-			logger.info("Delivering message to topic {}", notification.getTopic());
 		}
 	}
 
@@ -63,8 +70,7 @@ public class UnstructuredPubsub extends GenericProtocol {
 
 	private void uponPublishRequest(PublishRequest request, short sourceProto) {
 		logger.info("Completed publication on topic " + request.getTopic() + " and id: " + request.getMsgID());
-		var broadcast = new Broadcast(request.getMessage(), request.getTopic(), request.getMsgID(), request.getSender());
-		sendRequest(broadcast, PlumTree.PROTOCOL_ID);
+		sendRequest(new Broadcast(request.getMessage(), request.getTopic(), request.getMsgID(), request.getSender()), PlumTree.PROTOCOL_ID);
 	}
 
 	private void uponUnsubscriptionRequest(UnsubscriptionRequest request, short sourceProto) {

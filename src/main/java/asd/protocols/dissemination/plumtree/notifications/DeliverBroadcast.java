@@ -5,33 +5,32 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.util.UUID;
 
-public class DeliverNotification extends ProtoNotification {
-
-	public static final short NOTIFICATION_ID = 201;
+public class DeliverBroadcast extends ProtoNotification {
+	public static final short NOTIFICATION_ID = 505;
 
 	private final String topic;
-	private final UUID id;
+	private final UUID msgId;
 	private final Host sender;
 	private final byte[] msg;
 
-	public DeliverNotification(byte[] msg, String topic, UUID id, Host host) {
+	public DeliverBroadcast(byte[] msg, String topic, UUID msgId, Host host) {
 		super(NOTIFICATION_ID);
 		this.topic = topic;
-		this.id = id;
+		this.msgId = msgId;
 		this.sender = host;
 		this.msg = msg;
 	}
 
-	public String getTopic() {
-		return topic;
+	public UUID getMsgId() {
+		return msgId;
 	}
 
 	public Host getSender() {
 		return sender;
 	}
 
-	public UUID getMsgId() {
-		return id;
+	public String getTopic() {
+		return topic;
 	}
 
 	public byte[] getMsg() {
