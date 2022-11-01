@@ -1,5 +1,6 @@
 package asd.protocols.dissemination.plumtree;
 
+import asd.metrics.Metrics;
 import asd.protocols.dissemination.plumtree.ipc.Broadcast;
 import asd.protocols.dissemination.plumtree.messages.Gossip;
 import asd.protocols.dissemination.plumtree.messages.Graft;
@@ -10,7 +11,6 @@ import asd.protocols.dissemination.plumtree.timers.IHaveTimer;
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
-import asd.protocols.pubsub.common.DeliverNotification;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
@@ -156,6 +156,8 @@ public class PlumTree extends GenericProtocol {
 
 			logger.info("Received gossip message with topic: {}", msg.getTopic());
 
+			Metrics.messageReceived(msg.getMsgId());
+
 			var deliver = new DeliverBroadcast(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender());
 			triggerNotification(deliver);
 		}
@@ -211,7 +213,7 @@ public class PlumTree extends GenericProtocol {
 		for (var peer : peers) {
 			if (!peer.equals(from)) {
 				sendMessage(msg, peer);
-				
+
 				if (eagerPushPeers.contains(peer)) {
 					logger.info("Sent eager push message to {}", peer);
 				} else {
