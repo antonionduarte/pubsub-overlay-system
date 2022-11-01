@@ -195,7 +195,7 @@ public class GossipSub extends GenericProtocol {
 		var toSend = selectPeersToPublish(topic);
 
 		if (toSend.isEmpty()) {
-			logger.error("No peers to publish :(, trying to find with Kademlia...");
+			logger.warn("No peers to publish :(, trying to find with Kademlia...");
 			pendingPublishes.computeIfAbsent(topic, k -> new HashSet<>());
 			pendingPublishes.get(topic).add(publishMessage);
 			sendRequest(new FindSwarm(topic, degree), Kademlia.ID);
@@ -233,11 +233,14 @@ public class GossipSub extends GenericProtocol {
 		Set<Host> swarmPeers = new HashSet<>(reply.peers.stream().map(kp -> kp.host).toList());
 		var topic = reply.swarm;
 
-		this.mesh.put(topic, swarmPeers);
+		if (!swarmPeers.isEmpty()) {
+			this.mesh.computeIfAbsent(topic, k -> new HashSet<>());
+			this.mesh.get(topic).addAll(swarmPeers);
 
-		for (var peer : swarmPeers) {
-			logger.trace("JOIN: Add mesh link to {} in {}", peer, topic);
-			sendMessage(new Graft(Set.of(topic)), peer);
+			for (var peer : swarmPeers) {
+				logger.trace("JOIN: Add mesh link to {} in {}", peer, topic);
+				sendMessage(new Graft(Set.of(topic)), peer);
+			}
 		}
 	}
 
@@ -592,8 +595,7 @@ public class GossipSub extends GenericProtocol {
 		}
 
 		// if not enough peers in toAdd, get peers from Kademlia
-		if (toAdd.size() < degree)
-			sendRequest(new JoinSwarm(topic, degree - toAdd.size()), Kademlia.ID);
+		sendRequest(new JoinSwarm(topic, Math.max(0, degree - toAdd.size())), Kademlia.ID);
 
 		this.mesh.put(topic, toAdd);
 
