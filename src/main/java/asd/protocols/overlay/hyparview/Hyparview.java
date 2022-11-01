@@ -1,5 +1,6 @@
 package asd.protocols.overlay.hyparview;
 
+import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
 import asd.protocols.overlay.hyparview.messages.*;
@@ -108,6 +109,8 @@ public class Hyparview extends GenericProtocol {
 	@Override
 	public void init(Properties properties) throws HandlerRegistrationException, IOException {
 		try {
+			this.triggerNotification(new ChannelCreatedNotification(this.channelId));
+
 			if (properties.containsKey(CONTACT_PROPERTY)) {
 				var contact = properties.getProperty(CONTACT_PROPERTY);
 				var hostElements = contact.split(":");

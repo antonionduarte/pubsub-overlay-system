@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 public class Gossip extends ProtoMessage {
-	public static final short MSG_ID = PlumTree.PROTOCOL_ID + 2;
+	public static final short MSG_ID = PlumTree.PROTOCOL_ID + 1;
 
 	private final String topic;
 	private final UUID msgId;

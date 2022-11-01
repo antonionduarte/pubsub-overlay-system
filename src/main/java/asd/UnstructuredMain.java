@@ -67,22 +67,17 @@ public class UnstructuredMain {
 			app = new InteractiveApp(myself, props, PUBSUB_PROTO_ID);
 		}
 
-		var hyparview = new Hyparview(props, myself);
-
 		// Dissemination protocol
 		var plumtree = new PlumTree(props, myself);
 
 		// PubSub protocol
 		var pubsub = new UnstructuredPubsub();
+		var hyparview = new Hyparview(props, myself);
 
 		// Register applications in babel
 		babel.registerProtocol(app);
-
-		babel.registerProtocol(hyparview);
-
-		// Register protocols
 		babel.registerProtocol(plumtree);
-
+		babel.registerProtocol(hyparview);
 		babel.registerProtocol(pubsub);
 
 		// Init the protocols. This should be done after creating all protocols, since
@@ -95,7 +90,6 @@ public class UnstructuredMain {
 
 		// Start babel and protocol threads
 		babel.start();
-
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.info("Goodbye")));
 
 	}

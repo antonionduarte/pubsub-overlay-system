@@ -10,9 +10,8 @@ import asd.protocols.dissemination.plumtree.timers.IHaveTimer;
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
-import asd.utils.HashProducer;
-import org.apache.log4j.LogManager;
-import org.apache.log4j.Logger;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -23,7 +22,7 @@ import java.util.*;
 
 public class PlumTree extends GenericProtocol {
 
-	private static final Logger logger = LogManager.getLogger(PlumTree.class);
+	private static final Logger logger = LogManager.getLogger();
 
 	public static final short PROTOCOL_ID = 400;
 	public static final String PROTOCOL_NAME = "PlumTree";
@@ -48,6 +47,8 @@ public class PlumTree extends GenericProtocol {
 	// TODO: This isn't very good yet, I should do LazyPush with some kind of policy instead of just pushing all messages everytime
 	public PlumTree(Properties properties, Host self) throws HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
+
+		logger.info("PlumTree protocol created");
 
 		/*---------------------- Protocol Configuration ---------------------- */
 		this.missingTimeout = Long.parseLong(properties.getProperty("missing_timeout", "1000"));
@@ -74,6 +75,8 @@ public class PlumTree extends GenericProtocol {
 
 	private void onChannelCreated(ChannelCreatedNotification notification, short protoID) {
 		this.channelId = notification.channel_id;
+		registerSharedChannel(channelId);
+		logger.info("Channel created with id {}", channelId);
 
 		try {
 			/*---------------------- Register Message Serializers ---------------------- */
@@ -90,11 +93,11 @@ public class PlumTree extends GenericProtocol {
 		} catch (HandlerRegistrationException exception) {
 			throw new RuntimeException(exception);
 		}
-
 	}
 
 	@Override
 	public void init(Properties properties) throws HandlerRegistrationException, IOException {
+		logger.info("PlumTree protocol initialized");
 	}
 
 	/*--------------------------------- Request Handlers ---------------------------- */
@@ -104,6 +107,8 @@ public class PlumTree extends GenericProtocol {
 		var gossip = new Gossip(request.getMsg(), request.getTopic(), request.getMsgId(), request.getSender());
 
 		receivedMessages.put(request.getMsgId(), gossip);
+
+		logger.info("Received broadcast request from {} with message id {}", request.getSender(), request.getMsgId());
 
 		sendPush(gossip, eagerPushPeers, self);
 		sendPush(new IHave(messageId), lazyPushPeers, self);
@@ -148,11 +153,15 @@ public class PlumTree extends GenericProtocol {
 			this.lazyPushPeers.remove(from);
 			this.eagerPushPeers.add(from);
 
+			logger.info("Received gossip message with topic: {}", msg.getTopic());
+
 			triggerNotification(new DeliverNotification(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender()));
 		}
 	}
 
 	private void uponIHave(IHave msg, Host from, short sourceProto, int channelId) {
+		logger.info("Received IHave message with messageId: {}", msg.getMsgId());
+
 		if (!receivedMessages.containsKey(msg.getMsgId())) {
 			if (!missingTimers.containsKey(msg.getMsgId())) {
 				this.missingTimers.put(msg.getMsgId(), setupTimer(new IHaveTimer(msg.getMsgId()), missingTimeout));
@@ -171,6 +180,8 @@ public class PlumTree extends GenericProtocol {
 	private void uponGraft(Graft msg, Host from, short sourceProto, int channelId) {
 		this.lazyPushPeers.remove(from);
 		this.eagerPushPeers.add(from);
+
+		logger.info("Received graft message with ID: {}", msg.getMsgId());
 
 		if (receivedMessages.containsKey(msg.getMsgId())) {
 			sendMessage(receivedMessages.get(msg.getMsgId()), from);
@@ -197,6 +208,7 @@ public class PlumTree extends GenericProtocol {
 	private void sendPush(ProtoMessage msg, Set<Host> peers, Host from) {
 		for (var peer : peers) {
 			if (!peer.equals(from)) {
+				logger.info("Sending message to {}", peer);
 				sendMessage(msg, peer);
 			}
 		}
