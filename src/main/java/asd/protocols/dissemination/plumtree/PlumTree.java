@@ -105,7 +105,7 @@ public class PlumTree extends GenericProtocol {
 
 	private void handleBroadcast(Broadcast request, short sourceProto) {
 		var messageId = request.getMsgId();
-		var gossip = new Gossip(request.getMsg(), request.getTopic(), request.getMsgId(), request.getSender());
+		var gossip = new Gossip(request.getMsg(), request.getTopic(), request.getMsgId(), request.getSender(), 0);
 
 		receivedMessages.put(request.getMsgId(), gossip);
 
@@ -137,14 +137,15 @@ public class PlumTree extends GenericProtocol {
 		if (receivedMessages.containsKey(msg.getMsgId())) {
 			this.eagerPushPeers.remove(from);
 			this.lazyPushPeers.add(from);
+
 			sendMessage(new Prune(), from);
 		} else {
 			var timerId = missingTimers.remove(msg.getMsgId());
+			var gossip = new Gossip(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender(), msg.getHopCount() + 1);
+
 			if (timerId != null) {
 				cancelTimer(timerId);
 			}
-
-			var gossip = new Gossip(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender());
 
 			sendPush(new IHave(msg.getMsgId()), lazyPushPeers, from);
 			sendPush(gossip, eagerPushPeers, from);
@@ -154,13 +155,15 @@ public class PlumTree extends GenericProtocol {
 			this.lazyPushPeers.remove(from);
 			this.eagerPushPeers.add(from);
 
-			logger.info("Received gossip message with topic: {}", msg.getTopic());
-
-			Metrics.messageReceived(msg.getMsgId());
-
 			var deliver = new DeliverBroadcast(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender());
 			triggerNotification(deliver);
 		}
+
+		logger.info("Received gossip message with topic: {}", msg.getTopic());
+		logger.info("Lazy push peers size {}", lazyPushPeers.size());
+		logger.info("Eager push peers size {}", eagerPushPeers.size());
+
+		Metrics.messageReceivedHops(msg.getMsgId(), msg.getTopic(), msg.getHopCount());
 	}
 
 	private void uponIHave(IHave msg, Host from, short sourceProto, int channelId) {
@@ -177,6 +180,8 @@ public class PlumTree extends GenericProtocol {
 	}
 
 	private void uponPrune(Prune msg, Host from, short sourceProto, int channelId) {
+		logger.info("Received Prune message from {}", from);
+
 		this.eagerPushPeers.remove(from);
 		this.lazyPushPeers.add(from);
 	}
@@ -195,14 +200,17 @@ public class PlumTree extends GenericProtocol {
 	/*--------------------------------- Timer Handlers ---------------------------- */
 
 	private void handleIHaveTimer(IHaveTimer timer, long timerId) {
-		var messageId = timer.getMsgId();
+		if (missingTimers.containsKey(timer.getMsgId())) {
+			this.missingTimers.remove(timer.getMsgId());
+			var messageId = timer.getMsgId();
 
-		if (!receivedMessages.containsKey(messageId)) {
-			if (missingTimers.containsKey(messageId)) {
-				var peer = haveMessage.get(timer.getMsgId()).remove(0);
-				var message = new Graft(messageId);
-				this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), missingTimeoutSecond));
-				sendMessage(message, peer);
+			if (!receivedMessages.containsKey(messageId)) {
+				if (missingTimers.containsKey(messageId)) {
+					var peer = haveMessage.get(timer.getMsgId()).remove(0);
+					var message = new Graft(messageId);
+					this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), missingTimeoutSecond));
+					sendMessage(message, peer);
+				}
 			}
 		}
 	}

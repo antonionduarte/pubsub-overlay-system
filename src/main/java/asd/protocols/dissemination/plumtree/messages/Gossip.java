@@ -17,13 +17,19 @@ public class Gossip extends ProtoMessage {
 	private final UUID msgId;
 	private final Host sender;
 	private final byte[] msg;
+	private final int hopCount;
 
-	public Gossip(byte[] msg, String topic, UUID id, Host host) {
+	public Gossip(byte[] msg, String topic, UUID id, Host host, int hopCount) {
 		super(MSG_ID);
 		this.msg = msg;
 		this.topic = topic;
 		this.msgId = id;
 		this.sender = host;
+		this.hopCount = hopCount;
+	}
+
+	public int getHopCount() {
+		return hopCount;
 	}
 
 	public String getTopic() {
@@ -51,6 +57,7 @@ public class Gossip extends ProtoMessage {
 			byteBuf.writeLong(gossip.msgId.getLeastSignificantBits());
 			byteBuf.writeInt(gossip.msg.length);
 			byteBuf.writeBytes(gossip.msg);
+			byteBuf.writeInt(gossip.hopCount);
 		}
 
 		@Override
@@ -63,8 +70,9 @@ public class Gossip extends ProtoMessage {
 			var lenMsg = byteBuf.readInt();
 			var msg = new byte[lenMsg];
 			byteBuf.readBytes(msg);
+			var hopCount = byteBuf.readInt();
 
-			return new Gossip(msg, topic, msgId, sender);
+			return new Gossip(msg, topic, msgId, sender, hopCount);
 		}
 	};
 }

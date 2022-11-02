@@ -41,9 +41,27 @@ public class Metrics {
 		writeMetric(new MessageReceived(messageId.toString()), "messageReceived");
 	}
 
+	public static void messageReceivedHops(UUID messageId, String topic, int hopCount) {
+		writeMetric(new MessageReceivedHops(messageId.toString(), topic, hopCount), "messageReceived");
+	}
+
+	public static void subscribedTopic(String topic) {
+		writeMetric(new SubscribedTopic(topic), "subscribedTopic");
+	}
+
+	public static void unsubscribedTopic(String topic) {
+		writeMetric(new UnsubscribedTopic(topic), "unsubscribedTopic");
+	}
+
 	public record Metric(long timestamp, String type, Object message) {}
 
+	public record SubscribedTopic(String topic) {}
+
+	public record UnsubscribedTopic(String topic) {}
+
 	public record MessageReceived(String messageId) {}
+
+	public record MessageReceivedHops(String messageId, String topic, int hopCount) {}
 
 
 }

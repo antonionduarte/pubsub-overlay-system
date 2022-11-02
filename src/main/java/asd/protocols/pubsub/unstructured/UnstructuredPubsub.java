@@ -1,5 +1,6 @@
 package asd.protocols.pubsub.unstructured;
 
+import asd.metrics.Metrics;
 import asd.protocols.dissemination.plumtree.PlumTree;
 import asd.protocols.dissemination.plumtree.ipc.Broadcast;
 import asd.protocols.dissemination.plumtree.notifications.DeliverBroadcast;
@@ -66,6 +67,8 @@ public class UnstructuredPubsub extends GenericProtocol {
 		logger.info("Completed subscription to topic: " + request.getTopic());
 		this.subscribedTopics.add(request.getTopic());
 		sendReply(new SubscriptionReply(request.getTopic()), sourceProto);
+
+		Metrics.subscribedTopic(request.getTopic());
 	}
 
 	private void uponPublishRequest(PublishRequest request, short sourceProto) {
@@ -77,5 +80,7 @@ public class UnstructuredPubsub extends GenericProtocol {
 		logger.info("Completed unsubscription to topic: " + request.getTopic());
 		this.subscribedTopics.remove(request.getTopic());
 		sendReply(new UnsubscriptionReply(request.getTopic()), sourceProto);
+
+		Metrics.unsubscribedTopic(request.getTopic());
 	}
 }
