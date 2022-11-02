@@ -64,10 +64,6 @@ def latency_metrics(json_lst) -> int:
     return int(global_hops / global_messages)
 
 
-def reliability_metrics(json_lst):
-    return 0
-
-
 if __name__ == "__main__":
     parsed_metrics = parse_metrics(METRICS_PATH)
     
