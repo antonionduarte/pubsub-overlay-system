@@ -55,11 +55,11 @@ public class UnstructuredPubsub extends GenericProtocol {
 	}
 
 	private void uponDeliverBroadcast(DeliverBroadcast deliverBroadcast, short sourceProto) {
-		if (subscribedTopics.contains(deliverBroadcast.getTopic())) {
-			var msgId = deliverBroadcast.getMsgId();
-			var topic = deliverBroadcast.getTopic();
-			var hopCount = deliverBroadcast.getHopCount();
+		var msgId = deliverBroadcast.getMsgId();
+		var topic = deliverBroadcast.getTopic();
+		var hopCount = deliverBroadcast.getHopCount();
 
+		if (subscribedTopics.contains(deliverBroadcast.getTopic())) {
 			if (!seenMessages.contains(deliverBroadcast.getMsgId())) {
 				logger.info("Delivering Broadcast to topic: " + deliverBroadcast.getTopic());
 				var deliver = new DeliverNotification(
@@ -73,6 +73,8 @@ public class UnstructuredPubsub extends GenericProtocol {
 			} else {
 				Metrics.pubMessageReceived(msgId, topic, hopCount, false);
 			}
+		} else {
+			Metrics.pubMessageReceived(msgId, topic, hopCount, false);
 		}
 	}
 
