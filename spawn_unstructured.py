@@ -51,7 +51,7 @@ def spawn_hypv_java_docker(port: int):
 def main():
     spawn_hypv_java_docker(BOOTSTRAP_PORT)
     time.sleep(2)
-    for i in range(1, 50):
+    for i in range(1, 20):
         print("Spawning unstructured pubsub ", BOOTSTRAP_PORT + i)
         spawn_hypv_java_docker(BOOTSTRAP_PORT + i)
         # if i < 10:

@@ -1,6 +1,5 @@
 package asd.protocols.dissemination.plumtree;
 
-import asd.metrics.Metrics;
 import asd.protocols.dissemination.plumtree.ipc.Broadcast;
 import asd.protocols.dissemination.plumtree.messages.Gossip;
 import asd.protocols.dissemination.plumtree.messages.Graft;
@@ -113,7 +112,6 @@ public class PlumTree extends GenericProtocol {
 
 		sendPush(gossip, eagerPushPeers, self);
 		sendPush(new IHave(messageId), lazyPushPeers, self);
-		// sendReply(); TODO: Do i need to reply?
 	}
 
 	/*--------------------------------- Notification Handlers ---------------------------- */
@@ -134,6 +132,15 @@ public class PlumTree extends GenericProtocol {
 	/*--------------------------------- Message Handlers ---------------------------- */
 
 	private void uponGossip(Gossip msg, Host from, short sourceProto, int channelId) {
+		var deliver = new DeliverBroadcast(
+				msg.getMsg(),
+				msg.getTopic(),
+				msg.getMsgId(),
+				msg.getSender(),
+				msg.getHopCount());
+
+		triggerNotification(deliver);
+
 		if (receivedMessages.containsKey(msg.getMsgId())) {
 			this.eagerPushPeers.remove(from);
 			this.lazyPushPeers.add(from);
@@ -154,16 +161,11 @@ public class PlumTree extends GenericProtocol {
 			this.haveMessage.remove(msg.getMsgId());
 			this.lazyPushPeers.remove(from);
 			this.eagerPushPeers.add(from);
-
-			var deliver = new DeliverBroadcast(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender());
-			triggerNotification(deliver);
 		}
 
 		logger.info("Received gossip message with topic: {}", msg.getTopic());
 		logger.info("Lazy push peers size {}", lazyPushPeers.size());
 		logger.info("Eager push peers size {}", eagerPushPeers.size());
-
-		Metrics.messageReceivedHops(msg.getMsgId(), msg.getTopic(), msg.getHopCount());
 	}
 
 	private void uponIHave(IHave msg, Host from, short sourceProto, int channelId) {

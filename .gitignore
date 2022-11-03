@@ -8,6 +8,10 @@
 .factorypath
 .project
 
+# Intellij
+.idea
+asd.iml
+
 # Compiled class file
 /target/
 *.class

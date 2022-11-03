@@ -75,5 +75,3 @@ if __name__ == "__main__":
     # Latency in Hops:
     avg_hop_latency = latency_metrics(parsed_metrics)
     print('Avg Hops: ', avg_hop_latency)
-
-
