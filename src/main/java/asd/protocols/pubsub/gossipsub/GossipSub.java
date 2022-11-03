@@ -139,6 +139,9 @@ public class GossipSub extends GenericProtocol {
 			this.registerChannelEventHandler(this.channelId, OutConnectionUp.EVENT_ID, this::onOutConnectionUp);
 			this.registerChannelEventHandler(this.channelId, InConnectionUp.EVENT_ID, this::onInConnectionUp);
 			this.registerChannelEventHandler(this.channelId, InConnectionDown.EVENT_ID, this::onInConnectionDown);
+
+			for (var peer : this.direct)
+				this.openConnection(peer);
 		} catch (HandlerRegistrationException e) {
 			throw new RuntimeException(e);
 		}
@@ -150,9 +153,6 @@ public class GossipSub extends GenericProtocol {
 
 		if (properties.containsKey("direct")) {
 			this.direct.addAll(ASDUtils.hostsFromProp(properties.getProperty("direct")));
-			logger.info("Connecting to direct nodes {}", this.direct);
-			for (var peer : this.direct)
-				this.openConnection(peer);
 		}
 
 		setupPeriodicTimer(new HeartbeatTimer(), heartbeatInitialDelay, heartbeatInterval);
@@ -162,13 +162,14 @@ public class GossipSub extends GenericProtocol {
 	/*--------------------------------- Request Handlers ---------------------------------------- */
 
 	private void uponUnsubscriptionRequest(UnsubscriptionRequest unsub, short sourceProto) {
-		if (channelId == -1) return;
+		if (channelId == -1) {logger.error("channel not started"); return; }
 
 		var topic = unsub.getTopic();
 
 		var wasSubscribed = this.subscriptions.remove(topic);
 		logger.trace("unsubscribe from {} - am subscribed {}", topic, wasSubscribed);
 		if (wasSubscribed) {
+			Metrics.unsubscribedTopic(topic);
 			for (var peer : this.peers) {
 				this.sendSubscriptions(peer, Set.of(topic), false);
 			}
@@ -178,7 +179,7 @@ public class GossipSub extends GenericProtocol {
 
 
 	private void uponPublishRequest(PublishRequest publish, short sourceProto) {
-		if (channelId == -1) return;
+		if (channelId == -1) {logger.error("channel not started"); return; }
 
 		var msgId = publish.getMsgID();
 		var topic = publish.getTopic();
@@ -188,10 +189,9 @@ public class GossipSub extends GenericProtocol {
 			return;
 		}
 
-		Metrics.messageReceived(msgId);
-
 		var publishMessage = new PublishMessage(self, topic, msgId, publish.getMessage());
-		deliverMessage(publishMessage);
+		var delivered = deliverMessage(publishMessage);
+		Metrics.pubMessageSent(msgId, topic, delivered);
 		var toSend = selectPeersToPublish(topic);
 
 		if (toSend.isEmpty()) {
@@ -213,12 +213,13 @@ public class GossipSub extends GenericProtocol {
 	}
 
 	private void uponSubscriptionRequest(SubscriptionRequest sub, short sourceProto) {
-		if (channelId == -1) return;
+		if (channelId == -1) {logger.error("channel not started"); return; }
 
 		var topic = sub.getTopic();
 
 		logger.trace("subscribe to topic {}", sub.getTopic());
 		if (subscriptions.add(topic)) {
+			Metrics.subscribedTopic(topic);
 			for (var peer : this.peers) {
 				sendSubscriptions(peer, Set.of(topic), true);
 			}
@@ -258,6 +259,7 @@ public class GossipSub extends GenericProtocol {
 				for (var peer : swarmPeers) {
 					sendMessage(publishMessage, peer);
 				}
+				sendReply(new PublishReply(topic, publishMessage.getMsgId()), AutomatedApp.PROTO_ID);
 			}
 		}
 		pendingPublishes.remove(topic);
@@ -387,17 +389,21 @@ public class GossipSub extends GenericProtocol {
 
 	private void uponPublishMessage(PublishMessage publish, Host from, short sourceProto, int channelId) {
 		var msgId = publish.getMsgId();
+		var topic = publish.getTopic();
+		publish.incHop();
+		var hopCount = publish.getHopCount();
 
 		if (seenMessages.add(msgId)) {
 			messageCache.put(publish);
-			deliverMessage(publish);
+			var delivered = deliverMessage(publish);
+			Metrics.pubMessageReceived(msgId, topic, hopCount, delivered);
+
 			Set<Host> exclude = new HashSet<>();
 			exclude.add(from);
 			exclude.add(publish.getPropagationSource());
 			forwardMessage(publish, exclude);
-		}
-
-		Metrics.messageReceived(msgId);
+		} else
+			Metrics.pubMessageReceived(msgId, topic, hopCount, false);
 	}
 
 	private void uponIWant(IWant iWant, Host from, short sourceProto, int channelId) {
@@ -522,12 +528,13 @@ public class GossipSub extends GenericProtocol {
 		}
 	}
 
-	private void deliverMessage(PublishMessage publish) {
+	private boolean deliverMessage(PublishMessage publish) {
 		var topic = publish.getTopic();
-		var source = publish.getPropagationSource();
-		if (subscriptions.contains(topic) && !self.equals(source)) {
-			triggerNotification(new DeliverNotification(topic, publish.getMsgId(), source, publish.getMsg()));
+		var deliver = subscriptions.contains(topic);
+		if (deliver) {
+			triggerNotification(new DeliverNotification(topic, publish.getMsgId(), publish.getPropagationSource(), publish.getMsg()));
 		}
+		return deliver;
 	}
 
 	private void forwardMessage(PublishMessage publish, Set<Host> exclude) {
@@ -595,7 +602,7 @@ public class GossipSub extends GenericProtocol {
 		}
 
 		// if not enough peers in toAdd, get peers from Kademlia
-		sendRequest(new JoinSwarm(topic, Math.max(0, degree - toAdd.size())), Kademlia.ID);
+		sendRequest(new JoinSwarm(topic, Math.max(0, Math.max(0, degree - toAdd.size()))), Kademlia.ID);
 
 		this.mesh.put(topic, toAdd);
 

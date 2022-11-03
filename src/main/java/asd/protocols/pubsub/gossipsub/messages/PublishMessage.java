@@ -18,13 +18,19 @@ public class PublishMessage extends ProtoMessage {
     private final String topic;
     private final UUID msgId;
     private final byte[] msg;
+    private int hopCount;
 
     public PublishMessage(Host propagationSource, String topic, UUID msgId, byte[] msg) {
+        this(propagationSource, topic, msgId, msg, 0);
+    }
+
+    private PublishMessage(Host propagationSource, String topic, UUID msgId, byte[] msg, int hopCount) {
         super(ID);
         this.propagationSource = propagationSource;
         this.topic = topic;
         this.msgId = msgId;
         this.msg = msg;
+        this.hopCount = hopCount;
     }
 
     public Host getPropagationSource() {
@@ -43,6 +49,14 @@ public class PublishMessage extends ProtoMessage {
         return msg;
     }
 
+    public int getHopCount() {
+        return hopCount;
+    }
+
+    public void incHop() {
+        hopCount++;
+    }
+
     public static ISerializer<PublishMessage> serializer = new ISerializer<>() {
         @Override
         public void serialize(PublishMessage publishMessage, ByteBuf byteBuf) throws IOException {
@@ -52,6 +66,7 @@ public class PublishMessage extends ProtoMessage {
             byteBuf.writeLong(publishMessage.msgId.getLeastSignificantBits());
             byteBuf.writeInt(publishMessage.msg.length);
             byteBuf.writeBytes(publishMessage.msg);
+            byteBuf.writeInt(publishMessage.hopCount);
         }
 
         @Override
@@ -64,8 +79,9 @@ public class PublishMessage extends ProtoMessage {
             var lenMsg = byteBuf.readInt();
             var msg = new byte[lenMsg];
             byteBuf.readBytes(msg);
+            var hopCount = byteBuf.readInt();
 
-            return new PublishMessage(propagationSource, topic, msgId, msg);
+            return new PublishMessage(propagationSource, topic, msgId, msg, hopCount);
         }
     };
 }

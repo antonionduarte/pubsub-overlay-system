@@ -2,8 +2,10 @@ import shutil
 import subprocess
 import time
 import os
+import sys
 
 BOOTSTRAP_PORT = 5050
+
 
 def spawn_kad_java_docker(port: int):
     cwd = os.getcwd()
@@ -36,6 +38,7 @@ def spawn_kad_java_docker(port: int):
     if port != BOOTSTRAP_PORT:
         args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
     subprocess.run(args)
+
 
 def spawn_kad_java_podman(port: int):
     args = [
@@ -93,9 +96,10 @@ def spawn_kad_java_native(port: int):
 
 
 def main():
+    print("Spawning kad ", BOOTSTRAP_PORT)
     spawn_kad_java_docker(BOOTSTRAP_PORT)
     time.sleep(2)
-    for i in range(1, 25):
+    for i in range(1, int(sys.argv[1])):
         print("Spawning kad ", BOOTSTRAP_PORT + i)
         spawn_kad_java_docker(BOOTSTRAP_PORT + i)
         # if i < 10:

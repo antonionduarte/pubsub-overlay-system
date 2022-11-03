@@ -37,12 +37,16 @@ public class Metrics {
 		}
 	}
 
-	public static void messageReceived(UUID messageId) {
-		writeMetric(new MessageReceived(messageId.toString()), "messageReceived");
-	}
-
 	public static void messageReceivedHops(UUID messageId, String topic, int hopCount) {
 		writeMetric(new MessageReceivedHops(messageId.toString(), topic, hopCount), "messageReceived");
+	}
+
+	public static void pubMessageSent(UUID messageId, String topic, boolean delivered) {
+		writeMetric(new PubMessageSent(messageId.toString(), topic, delivered), "pubSent");
+	}
+
+	public static void pubMessageReceived(UUID messageId, String topic, int hopCount, boolean delivered) {
+		writeMetric(new PubMessageReceived(messageId.toString(), topic, hopCount, delivered), "pubReceived");
 	}
 
 	public static void subscribedTopic(String topic) {
@@ -59,9 +63,9 @@ public class Metrics {
 
 	public record UnsubscribedTopic(String topic) {}
 
-	public record MessageReceived(String messageId) {}
-
 	public record MessageReceivedHops(String messageId, String topic, int hopCount) {}
 
+	public record PubMessageSent(String messageId, String topic, boolean delivered) {}
 
+	public record PubMessageReceived(String messageId, String topic, int hopCount, boolean delivered) {}
 }
