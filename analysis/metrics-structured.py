@@ -60,7 +60,7 @@ def calc_reliability(list_node_metrics):
 
 def print_reliability_results(recv_pubs, expected_pubs):
     print("Avg reliability of delivered messages: %s, (received: %d, expected: %d)" % (
-        "{0:.2f}%".format((recv_pubs / expected_pubs) * 100), recv_pubs, expected_pubs))
+        "{0:.2f}%".format(0 if expected_pubs == 0 else (recv_pubs / expected_pubs) * 100), recv_pubs, expected_pubs))
 
 
 if __name__ == "__main__":
@@ -85,9 +85,9 @@ if __name__ == "__main__":
         print_hop_latency_results(avg_hops)
         print("-" * 80)
 
-    recv_pubs, expected_pubs = calc_reliability(list_node_metrics)
     print("=" * 100)
     print("Overall:")
     print_redundancy_results(sum_received, sum_not_delivered)
     print_hop_latency_results(np.mean(list_avg_hops))
+    recv_pubs, expected_pubs = calc_reliability(list_node_metrics)
     print_reliability_results(recv_pubs, expected_pubs)
