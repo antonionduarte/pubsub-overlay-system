@@ -14,8 +14,9 @@ def calc_redundancy(metrics):
 
 
 def print_redundancy_results(received, not_delivered):
-    print("Redundancy: %s, (received: %d, not delivered: %d)" % ("{0:.2f}%".format((not_delivered / received) * 100),
-                                                                 received, not_delivered))
+    print("Redundancy: %s, (received: %d, not delivered: %d)" % (
+    "{0:.2f}%".format(0 if received == 0 else (not_delivered / received) * 100),
+    received, not_delivered))
 
 
 def calc_hop_latency(metrics):
