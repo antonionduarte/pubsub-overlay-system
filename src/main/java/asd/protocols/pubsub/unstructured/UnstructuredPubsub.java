@@ -14,6 +14,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Properties;
 import java.util.Set;
+import java.util.UUID;
 
 public class UnstructuredPubsub extends GenericProtocol {
 
@@ -24,15 +25,17 @@ public class UnstructuredPubsub extends GenericProtocol {
 
 	private final Set<String> subscribedTopics;
 
+	private final Set<UUID> seenMessages;
+
 	public UnstructuredPubsub() throws HandlerRegistrationException {
 		super(PROTO_NAME, PROTO_ID);
 
 		this.subscribedTopics = new HashSet<>();
+		this.seenMessages = new HashSet<>();
 
 		registerRequestHandler(SubscriptionRequest.REQUEST_ID, this::uponSubscriptionRequest);
 		registerRequestHandler(PublishRequest.REQUEST_ID, this::uponPublishRequest);
 		registerRequestHandler(UnsubscriptionRequest.REQUEST_ID, this::uponUnsubscriptionRequest);
-
 		subscribeNotification(DeliverBroadcast.NOTIFICATION_ID, this::uponDeliverBroadcast);
 	}
 
@@ -53,13 +56,23 @@ public class UnstructuredPubsub extends GenericProtocol {
 
 	private void uponDeliverBroadcast(DeliverBroadcast deliverBroadcast, short sourceProto) {
 		if (subscribedTopics.contains(deliverBroadcast.getTopic())) {
-			logger.info("Delivering Broadcast to topic: " + deliverBroadcast.getTopic());
-			var deliver = new DeliverNotification(
-					deliverBroadcast.getTopic(),
-					deliverBroadcast.getMsgId(),
-					deliverBroadcast.getSender(),
-					deliverBroadcast.getMsg());
-			triggerNotification(deliver);
+			var msgId = deliverBroadcast.getMsgId();
+			var topic = deliverBroadcast.getTopic();
+			var hopCount = deliverBroadcast.getHopCount();
+
+			if (!seenMessages.contains(deliverBroadcast.getMsgId())) {
+				logger.info("Delivering Broadcast to topic: " + deliverBroadcast.getTopic());
+				var deliver = new DeliverNotification(
+						deliverBroadcast.getTopic(),
+						deliverBroadcast.getMsgId(),
+						deliverBroadcast.getSender(),
+						deliverBroadcast.getMsg());
+				triggerNotification(deliver);
+
+				Metrics.pubMessageReceived(msgId, topic, hopCount, true);
+			} else {
+				Metrics.pubMessageReceived(msgId, topic, hopCount, false);
+			}
 		}
 	}
 
