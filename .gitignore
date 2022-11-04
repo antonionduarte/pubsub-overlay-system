@@ -18,7 +18,7 @@ asd.iml
 
 # Log file
 *.log
-metrics/
+analysis/metrics/
 
 # BlueJ files
 *.ctxt
@@ -39,3 +39,5 @@ metrics/
 hs_err_pid*
 
 /analysis/metrics_all.json
+/analysis/plots/
+/analysis/text/
