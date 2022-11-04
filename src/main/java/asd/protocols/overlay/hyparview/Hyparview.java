@@ -165,7 +165,6 @@ public class Hyparview extends GenericProtocol {
 				this.passiveView.addPeer(msg.getNewNode());
 			}
 
-			openConnection(msg.getNewNode());
 			sendMessage(toSend, randomNode);
 			logger.info("Received ForwardJoin from " + from + " and sent ForwardJoin to " + randomNode);
 		}
@@ -268,10 +267,9 @@ public class Hyparview extends GenericProtocol {
 	private void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
 		if (pending.contains(event.getNode())) {
 			this.pending.remove(event.getNode());
-			var toPromote = passiveView.dropRandomElement();
+			var toPromote = passiveView.selectRandomPeer();
 			handleRequestNeighbour(toPromote);
 		}
-		this.passiveView.removePeer(event.getNode());
 	}
 
 	private void uponOutConnectionUp(OutConnectionUp event, int channelId) {
@@ -345,6 +343,7 @@ public class Hyparview extends GenericProtocol {
 
 		triggerNotification(new NeighbourUp(toAdd));
 		openConnection(toAdd);
+
 		if (dropped != null) {
 			this.passiveView.addPeer(dropped);
 			handleDropConnection(dropped);
