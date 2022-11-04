@@ -8,6 +8,9 @@ METRICS_PATH = 'metrics/'
 PLOTS_OUT_PATH = 'plots/'
 TEXT_OUT_PATH = 'text/'
 
+FIRST_PROTOCOL = 'GossipSub'
+SECOND_PROTOCOL = 'Kademlia'
+NAME = FIRST_PROTOCOL + "-" + SECOND_PROTOCOL
 
 def calc_redundancy(metrics):
     received = len(list(filter(lambda x: x["type"] == "pubReceived", metrics)))
@@ -83,19 +86,19 @@ def print_reliability_results(recv_pubs, expected_pubs, rel_per_second, rel_per_
 
     fig, ax = plt.subplots(num=1, clear=True)
     os.makedirs(PLOTS_OUT_PATH, exist_ok=True)
-    ax.plot(rel_per_second, label="GossipSub+Kademlia", color="blue")
+    ax.plot(rel_per_second, label=NAME, color="blue")
     ax.set(xlabel='Time (s)', ylabel='Avg Reliability (%)', xlim=(0, len(rel_per_second)-1), ylim=(0, 105))
     ax.legend()
     fig.tight_layout()
-    fig.savefig(PLOTS_OUT_PATH + "Rel_per_sec_GossipSub_Kademlia.pdf")
+    fig.savefig(PLOTS_OUT_PATH + "Rel_per_sec_"+NAME+".pdf")
 
     fig, ax = plt.subplots(num=1, clear=True)
     os.makedirs(PLOTS_OUT_PATH, exist_ok=True)
-    ax.plot(rel_per_msg, label="GossipSub+Kademlia", color="blue")
+    ax.plot(rel_per_msg, label="NAME", color="blue")
     ax.set(xlabel='Message', ylabel='Avg Reliability (%)', xlim=(0, len(rel_per_msg)-1), ylim=(0, 105))
     ax.legend()
     fig.tight_layout()
-    fig.savefig(PLOTS_OUT_PATH + "Rel_per_msg_GossipSub_Kademlia.pdf")
+    fig.savefig(PLOTS_OUT_PATH + "Rel_per_msg_"+ NAME +".pdf")
 
 
 if __name__ == "__main__":
