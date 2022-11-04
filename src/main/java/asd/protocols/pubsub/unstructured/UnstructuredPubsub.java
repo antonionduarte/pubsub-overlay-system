@@ -89,6 +89,19 @@ public class UnstructuredPubsub extends GenericProtocol {
 	private void uponPublishRequest(PublishRequest request, short sourceProto) {
 		logger.info("Completed publication on topic " + request.getTopic() + " and id: " + request.getMsgID());
 		sendRequest(new Broadcast(request.getMessage(), request.getTopic(), request.getMsgID(), request.getSender()), PlumTree.PROTOCOL_ID);
+
+		if (subscribedTopics.contains(request.getTopic())) {
+			var deliver = new DeliverNotification(
+					request.getTopic(),
+					request.getMsgID(),
+					request.getSender(),
+					request.getMessage());
+			triggerNotification(deliver);
+
+			Metrics.pubMessageSent(request.getMsgID(), request.getTopic(), true);
+		} else {
+			Metrics.pubMessageSent(request.getMsgID(), request.getTopic(), false);
+		}
 	}
 
 	private void uponUnsubscriptionRequest(UnsubscriptionRequest request, short sourceProto) {
