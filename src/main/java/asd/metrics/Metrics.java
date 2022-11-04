@@ -3,18 +3,26 @@ package asd.metrics;
 import com.google.gson.Gson;
 
 import java.io.*;
+import java.util.Properties;
 import java.util.UUID;
 
 public class Metrics {
 
-	public static final String FILE_PATH = "metrics/metrics_%d.json";
+	public static String FOLDER = "metrics/";
+	public static final String FILE_PATH_MASK = "%smetrics_%d_%sbi_%sps.json";
 	public static FileOutputStream fileOutputStream;
 	public static File metricsFile = null;
 
 	private static final Gson gson = new Gson();
 
-	public static void initMetrics(int nodeId)  {
-		metricsFile = new File(String.format(FILE_PATH, nodeId));
+	public static void initMetrics(Properties props)  {
+		var nodeId = Integer.parseInt(props.getProperty("babel_port"));
+		if (props.containsKey("metrics_folder"))
+			FOLDER = props.getProperty("metrics_folder");
+		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId,
+				props.getProperty("broadcast_interval"), props.getProperty("payload_size"));
+
+		metricsFile = new File(filepath);
 
 		try {
 			metricsFile.createNewFile();
@@ -35,10 +43,6 @@ public class Metrics {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	public static void messageReceivedHops(UUID messageId, String topic, int hopCount) {
-		writeMetric(new MessageReceivedHops(messageId.toString(), topic, hopCount), "messageReceived");
 	}
 
 	public static void pubMessageSent(UUID messageId, String topic, boolean delivered) {

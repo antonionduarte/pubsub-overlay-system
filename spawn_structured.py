@@ -73,14 +73,16 @@ def spawn_kad_java_podman(port: int):
 
 
 def spawn_kad_java_native(port: int):
+    cwd = os.getcwd()
     args = [
         shutil.which("java"),
         "-ea",
         "-XX:NativeMemoryTracking=summary",
         "-Xmx96M",
+        f"-DlogFilename=log/node_{port}.log",
         "-cp",
-        "./target/asdProj.jar",
-        "StructuredMain",
+        f"{cwd}/target/asdProj.jar",
+        "asd.StructuredMain",
         f"babel_port={port}",
         "babel_address=127.0.0.1",
     ]
@@ -89,23 +91,22 @@ def spawn_kad_java_native(port: int):
     subprocess.Popen(
         args,
         start_new_session=True,
-        close_fds=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
     )
 
 
 def main():
     print("Spawning kad ", BOOTSTRAP_PORT)
-    spawn_kad_java_docker(BOOTSTRAP_PORT)
+    spawn_kad_java_native(BOOTSTRAP_PORT)
     time.sleep(2)
     for i in range(1, int(sys.argv[1])):
         print("Spawning kad ", BOOTSTRAP_PORT + i)
-        spawn_kad_java_docker(BOOTSTRAP_PORT + i)
+        #spawn_kad_java_docker(BOOTSTRAP_PORT + i)
+        spawn_kad_java_native(BOOTSTRAP_PORT + i)
         # if i < 10:
         #    spawn_kad_rust_podman(5050 + i)
         # else:
         #    spawn_kad_rust_native(5050 + i)
+
 
 
 if __name__ == "__main__":

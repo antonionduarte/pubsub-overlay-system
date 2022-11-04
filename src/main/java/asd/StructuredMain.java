@@ -47,7 +47,7 @@ public class StructuredMain {
 		// and create a property "address=ip" to be used later by the channels.
 		InterfaceToIp.addInterfaceIp(props);
 
-		Metrics.initMetrics(Integer.parseInt(props.getProperty("babel_port")));
+		Metrics.initMetrics(props);
 
 		// The Host object is an address/port pair that represents a network host. It is
 		// used extensively in babel
