@@ -13,7 +13,7 @@ def spawn_kad_java_docker(port: int):
         "docker",
         "run",
         f"--name=kad_{port}",
-        # "--rm",
+        "--rm",
         "-itd",
         "--network=host",
         "-v",
@@ -23,7 +23,7 @@ def spawn_kad_java_docker(port: int):
         "-v",
         f"{cwd}/log4j2.xml:/usr/local/log4j2.xml",
         "-v",
-        f"{cwd}/metrics:/usr/local/metrics/",
+        f"{cwd}/analysis/metrics:/usr/local/metrics/",
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
         "java",
@@ -36,7 +36,7 @@ def spawn_kad_java_docker(port: int):
         "babel_address=127.0.0.1",
     ]
     if port != BOOTSTRAP_PORT:
-        args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
+        args.append(f"kad_bootstrap=127.0.0.1:{port - 1}")
     subprocess.run(args)
 
 
