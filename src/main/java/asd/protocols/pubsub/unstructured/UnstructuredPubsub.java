@@ -39,16 +39,6 @@ public class UnstructuredPubsub extends GenericProtocol {
 		subscribeNotification(DeliverBroadcast.NOTIFICATION_ID, this::uponDeliverBroadcast);
 	}
 
-	/*
-		TODO:
-		- Register the topics that the Node is Subscribed to.
-		- Maybe make a Request so Hyparview can know the topics that the node is currently subscribed to?
-			- Use that list to prioritize the active view neighbours of the node (the ones that are subscribed to the same topics)
-			- Perhaps make it a Notification so Hyparview is always aware of the topics that the node is subscribed to.
-		- Whenever we need to Publish a Message to a Topic we need to ask PlumTree to Broadcast it to the current neighbours.
-		- Whenever a Message is Delivered we need to verify if the topic is in the current list of subscribed topics, and if so deliver it.
-	 */
-
 	@Override
 	public void init(Properties props) throws HandlerRegistrationException, IOException {
 
