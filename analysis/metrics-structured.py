@@ -50,8 +50,8 @@ def calc_reliability(list_node_metrics):
                 lambda x: x["type"] == "pubReceived" and x["message"]["delivered"] and x["message"]["messageId"] ==
                           e["message"]["messageId"], all_sorted_by_time))) + (1 if e["message"]["delivered"] else 0)
             expected_pubs = subs[e["message"]["topic"]]
-            if recv_pubs < expected_pubs:
-                print(e["message"]["messageId"], recv_pubs, expected_pubs)
+            #if recv_pubs < expected_pubs:
+            #    print(e["message"]["messageId"], recv_pubs, expected_pubs)
             total_recv_pubs += recv_pubs
             total_expected_pubs += expected_pubs
 
