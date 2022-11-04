@@ -2,8 +2,11 @@ import json
 import os
 import numpy as np
 from collections import defaultdict as dd
+import matplotlib.pyplot as plt
 
 METRICS_PATH = '../metrics/'
+PLOTS_OUT_PATH = '../plots/'
+TEXT_OUT_PATH = '../text/'
 
 
 def calc_redundancy(metrics):
@@ -15,8 +18,8 @@ def calc_redundancy(metrics):
 
 def print_redundancy_results(received, not_delivered):
     print("Redundancy: %s, (received: %d, not delivered: %d)" % (
-    "{0:.2f}%".format(0 if received == 0 else (not_delivered / received) * 100),
-    received, not_delivered))
+        "{0:.2f}%".format(0 if received == 0 else (not_delivered / received) * 100),
+        received, not_delivered))
 
 
 def calc_hop_latency(metrics):
@@ -37,9 +40,11 @@ def create_conjoined_metrics_file(lines):
 def calc_reliability(list_node_metrics):
     all_sorted_by_time = sorted([e for m in list_node_metrics for e in m], key=lambda x: x["timestamp"])
     create_conjoined_metrics_file(all_sorted_by_time)  # for debug
+    rel_per_msg = []
 
     total_recv_pubs, total_expected_pubs = 0, 0
     subs = dd(lambda: 0)
+    i = 0
     for e in all_sorted_by_time:
         if e["type"] == "subscribedTopic":
             subs[e["message"]["topic"]] += 1
@@ -50,17 +55,25 @@ def calc_reliability(list_node_metrics):
                 lambda x: x["type"] == "pubReceived" and x["message"]["delivered"] and x["message"]["messageId"] ==
                           e["message"]["messageId"], all_sorted_by_time))) + (1 if e["message"]["delivered"] else 0)
             expected_pubs = subs[e["message"]["topic"]]
-            #if recv_pubs < expected_pubs:
-            #    print(e["message"]["messageId"], recv_pubs, expected_pubs)
+            rel_per_msg.append((recv_pubs / expected_pubs) * 100 if expected_pubs > 0 else 100)
             total_recv_pubs += recv_pubs
             total_expected_pubs += expected_pubs
+        i += 1
 
-    return total_recv_pubs, total_expected_pubs
+    return total_recv_pubs, total_expected_pubs, rel_per_msg
 
 
-def print_reliability_results(recv_pubs, expected_pubs):
+def print_reliability_results(recv_pubs, expected_pubs, rel_per_msg):
     print("Avg reliability of delivered messages: %s, (received: %d, expected: %d)" % (
-        "{0:.2f}%".format(0 if expected_pubs == 0 else (recv_pubs / expected_pubs) * 100), recv_pubs, expected_pubs))
+        "{0:.2f}%".format(100 if expected_pubs == 0 else (recv_pubs / expected_pubs) * 100), recv_pubs, expected_pubs))
+
+    fig, ax = plt.subplots(num=1, clear=True)
+    os.makedirs(PLOTS_OUT_PATH, exist_ok=True)
+    ax.plot(rel_per_msg, label="GossipSub+Kademlia", color="blue")
+    ax.set(xlabel='Messages', ylabel='Avg Reliability (%)', xlim=(1, len(rel_per_msg)), ylim=(0, 105))
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(PLOTS_OUT_PATH + "GossipSub_Kademlia.pdf")
 
 
 if __name__ == "__main__":
@@ -89,5 +102,5 @@ if __name__ == "__main__":
     print("Overall:")
     print_redundancy_results(sum_received, sum_not_delivered)
     print_hop_latency_results(np.mean(list_avg_hops))
-    recv_pubs, expected_pubs = calc_reliability(list_node_metrics)
-    print_reliability_results(recv_pubs, expected_pubs)
+    recv_pubs, expected_pubs, rel_per_msg = calc_reliability(list_node_metrics)
+    print_reliability_results(recv_pubs, expected_pubs, rel_per_msg)
