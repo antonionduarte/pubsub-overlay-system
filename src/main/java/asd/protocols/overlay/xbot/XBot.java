@@ -31,21 +31,17 @@ public class XBot extends Hyparview {
 		registerSharedChannel(channelId);
 		logger.info("Channel created with id {}", channelId);
 
-		try {
-			/*---------------------- Register Message Serializers ---------------------- */
-			registerMessageSerializer(channelId, Gossip.MSG_ID, Gossip.serializer);
-			registerMessageSerializer(channelId, IHave.MSG_ID, IHave.serializer);
-			registerMessageSerializer(channelId, Graft.MSG_ID, Graft.serializer);
-			registerMessageSerializer(channelId, Prune.MSG_ID, Prune.serializer);
+		/*---------------------- Register Message Serializers ---------------------- */
+		registerMessageSerializer(channelId, Gossip.MSG_ID, Gossip.serializer);
+		registerMessageSerializer(channelId, IHave.MSG_ID, IHave.serializer);
+		registerMessageSerializer(channelId, Graft.MSG_ID, Graft.serializer);
+		registerMessageSerializer(channelId, Prune.MSG_ID, Prune.serializer);
 
-			/*---------------------- Register Message Handlers -------------------------- */
-			//registerMessageHandler(channelId, Gossip.MSG_ID, this::uponGossip);
-			//registerMessageHandler(channelId, Prune.MSG_ID, this::uponPrune);
-			//registerMessageHandler(channelId, Graft.MSG_ID, this::uponGraft);
-			//registerMessageHandler(channelId, IHave.MSG_ID, this::uponIHave);
-		} catch (HandlerRegistrationException exception) {
-			throw new RuntimeException(exception);
-		}
+		/*---------------------- Register Message Handlers -------------------------- */
+		//registerMessageHandler(channelId, Gossip.MSG_ID, this::uponGossip);
+		//registerMessageHandler(channelId, Prune.MSG_ID, this::uponPrune);
+		//registerMessageHandler(channelId, Graft.MSG_ID, this::uponGraft);
+		//registerMessageHandler(channelId, IHave.MSG_ID, this::uponIHave);
 	}
 
 
