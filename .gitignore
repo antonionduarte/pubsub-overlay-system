@@ -19,6 +19,8 @@ asd.iml
 # Log file
 *.log
 analysis/metrics/
+metrics
+text
 
 # BlueJ files
 *.ctxt
