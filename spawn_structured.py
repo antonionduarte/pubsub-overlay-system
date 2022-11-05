@@ -48,14 +48,14 @@ def create_container(port: int):
         "-v",
         f"{cwd}/log4j2.xml:/usr/local/log4j2.xml",
         "-v",
-        f"{cwd}/analysis/metrics:/usr/local/metrics/",
+        f"{cwd}/analysis/metrics_structured:/usr/local/metrics/",
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
     ]
     subprocess.run(args)
 
 
-def run_container(port: int, main_class):
+def run_container(port: int):
     print(f"Spawning process in port {port}")
     args = [
         "docker",
@@ -67,7 +67,7 @@ def run_container(port: int, main_class):
         "-ea",
         "-cp",
         "/usr/local/app.jar",
-        f"asd.{main_class}",
+        "asd.StructuredMain",
         f"babel_port={port}",
         "babel_address=127.0.0.1",
     ]
@@ -81,14 +81,13 @@ def run_container(port: int, main_class):
 
 def main():
     num = int(sys.argv[1])
-    main_class = sys.argv[2]
     for i in range(0, num):
         create_container(BOOTSTRAP_PORT + i)
-    run_container(BOOTSTRAP_PORT, main_class)
+    run_container(BOOTSTRAP_PORT)
     time.sleep(2)
     for i in range(1, num):
         # time.sleep(0.2)
-        run_container(BOOTSTRAP_PORT + i, main_class)
+        run_container(BOOTSTRAP_PORT + i)
 
 
 if __name__ == "__main__":

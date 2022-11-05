@@ -4,12 +4,12 @@ import numpy as np
 from collections import defaultdict as dd
 import matplotlib.pyplot as plt
 
-METRICS_PATH = 'metrics/'
+METRICS_PATH = 'metrics_structured/'
 PLOTS_OUT_PATH = 'plots/'
 TEXT_OUT_PATH = 'text/'
 
-FIRST_PROTOCOL = 'GossipSub'
-SECOND_PROTOCOL = 'Kademlia'
+FIRST_PROTOCOL = 'PlumTree'
+SECOND_PROTOCOL = 'HyParView'
 NAME = FIRST_PROTOCOL + "-" + SECOND_PROTOCOL
 
 

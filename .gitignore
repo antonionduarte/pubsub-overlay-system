@@ -43,3 +43,5 @@ hs_err_pid*
 /analysis/metrics_all.json
 /analysis/plots/
 /analysis/text/
+/analysis/metrics_structured/
+/analysis/metrics_unstructured/
