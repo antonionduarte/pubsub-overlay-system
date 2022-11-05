@@ -148,6 +148,7 @@ def main():
     run_container(BOOTSTRAP_PORT)
     time.sleep(2)
     for i in range(1, num):
+        #time.sleep(0.2)
         run_container(BOOTSTRAP_PORT + i)
 
     # for i in range(1, int(sys.argv[1])):
