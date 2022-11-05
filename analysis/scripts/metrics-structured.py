@@ -66,7 +66,13 @@ def create_conjoined_metrics_file(lines):
 
 def calc_reliability(list_node_metrics):
     all_sorted_by_time = sorted([e for m in list_node_metrics for e in m], key=lambda x: x["timestamp"])
-    create_conjoined_metrics_file(all_sorted_by_time)  # for debug
+    only_delivered_pubs = list(
+        filter(lambda x: x["type"] == "pubReceived" and x["message"]["delivered"], all_sorted_by_time))
+    subs_and_sends = list(
+        filter(lambda x: x["type"] == "pubSent" or x["type"] == "subscribedTopic" or x["type"] == "unsubscribedTopic",
+               all_sorted_by_time))
+    # create_conjoined_metrics_file(all_sorted_by_time)  # for debug
+
     rel_per_second = []
     rel_per_msg = []
     second_start = None
@@ -76,7 +82,7 @@ def calc_reliability(list_node_metrics):
     second_recv_pubs, second_expected_pubs = 0, 0
     subs = dd(lambda: 0)
     i = 0
-    for e in all_sorted_by_time:
+    for e in subs_and_sends:
         if e["type"] == "subscribedTopic":
             subs[e["message"]["topic"]] += 1
         elif e["type"] == "unsubscribedTopic":
@@ -89,9 +95,8 @@ def calc_reliability(list_node_metrics):
                 second_start = e["timestamp"]
                 second_recv_pubs, second_expected_pubs = 0, 0
                 s += 1
-            recv_pubs = len(list(filter(
-                lambda x: x["type"] == "pubReceived" and x["message"]["delivered"] and x["message"]["messageId"] ==
-                          e["message"]["messageId"], all_sorted_by_time[max(0, i - 100)::]))) + (
+            recv_pubs = len(
+                list(filter(lambda x: x["message"]["messageId"] == e["message"]["messageId"], only_delivered_pubs))) + (
                             1 if e["message"]["delivered"] else 0)
             expected_pubs = subs[e["message"]["topic"]]
             second_recv_pubs += recv_pubs
@@ -100,7 +105,7 @@ def calc_reliability(list_node_metrics):
             total_expected_pubs += expected_pubs
             rel_per_msg.append((recv_pubs / expected_pubs) * 100 if expected_pubs > 0 else 100)
         i += 1
-        printProgressBar(i + 1, len(all_sorted_by_time), prefix='Progress:', suffix='Complete', length=50)
+        printProgressBar(i + 1, len(subs_and_sends), prefix='Progress:', suffix='Complete', length=50)
 
     return total_recv_pubs, total_expected_pubs, rel_per_second, rel_per_msg
 
