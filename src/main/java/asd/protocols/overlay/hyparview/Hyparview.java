@@ -124,7 +124,6 @@ public class Hyparview extends GenericProtocol {
 
 				handleActiveAddition(contactHost);
 				openConnection(contactHost);
-				// TODO: NeighbourUp notification.
 				sendMessage(new Join(), contactHost);
 			}
 

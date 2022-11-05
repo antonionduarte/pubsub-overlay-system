@@ -54,7 +54,7 @@ def main():
     for i in range(1, 50):
         print("Spawning hyparview ", BOOTSTRAP_PORT + i)
         spawn_hypv_java_docker(BOOTSTRAP_PORT + i)
-        time.sleep(1)
+        time.sleep(0.2)
         # if i < 10:
         #    spawn_kad_rust_podman(5050 + i)
         # else:
