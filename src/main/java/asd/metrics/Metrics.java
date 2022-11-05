@@ -3,6 +3,8 @@ package asd.metrics;
 import com.google.gson.Gson;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -25,6 +27,7 @@ public class Metrics {
 		metricsFile = new File(filepath);
 
 		try {
+			Files.createDirectories(Paths.get(FOLDER));
 			metricsFile.createNewFile();
 			fileOutputStream = new FileOutputStream(metricsFile);
 		} catch (FileNotFoundException e) {

@@ -95,7 +95,7 @@ def print_reliability_results(recv_pubs, expected_pubs, rel_per_second, rel_per_
 
     fig, ax = plt.subplots(num=1, clear=True)
     os.makedirs(PLOTS_OUT_PATH, exist_ok=True)
-    ax.plot(rel_per_msg, label="NAME", color="blue")
+    ax.plot(rel_per_msg, label=NAME, color="blue")
     ax.set(xlabel='Message', ylabel='Avg Reliability (%)', xlim=(0, len(rel_per_msg) - 1), ylim=(0, 105))
     ax.legend()
     fig.tight_layout()
