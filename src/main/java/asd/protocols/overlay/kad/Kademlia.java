@@ -2,15 +2,14 @@ package asd.protocols.overlay.kad;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import asd.metrics.Metrics;
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
@@ -43,6 +42,7 @@ import asd.protocols.overlay.kad.query.FindPoolQueryDescriptor;
 import asd.protocols.overlay.kad.query.FindSwarmQueryDescriptor;
 import asd.protocols.overlay.kad.query.FindValueQueryDescriptor;
 import asd.protocols.overlay.kad.query.QueryManager;
+import asd.protocols.overlay.kad.query.QueryManagerIO;
 import asd.protocols.overlay.kad.timers.CheckQueryTimeoutsTimer;
 import asd.protocols.overlay.kad.timers.RefreshRTTimer;
 import asd.utils.ASDUtils;
@@ -57,7 +57,7 @@ import pt.unl.fct.di.novasys.channel.tcp.events.OutConnectionFailed;
 import pt.unl.fct.di.novasys.channel.tcp.events.OutConnectionUp;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-public class Kademlia extends GenericProtocol {
+public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	private static final Logger logger = LogManager.getLogger(Kademlia.class);
 
 	public static final short ID = 100;
@@ -69,15 +69,11 @@ public class Kademlia extends GenericProtocol {
 	private final KadStorage storage;
 	private final KadAddrBook addrbook;
 	private final QueryManager query_manager;
-	private final KadQueryManagerIO query_manager_io;
 	private final SwarmTracker swarm_tracker;
 	private final KadParams params;
 	private final PoolsRT pools_rt;
 	private final SwarmTracker pool_tracker;
-
-	private final HashSet<Host> open_connections;
-	// Messages that are waiting for a connection to be established
-	private final HashMap<Host, List<ProtoMessage>> pending_messages;
+	private final ConnectionFlags conn_flags;
 
 	public Kademlia(Properties props, Host self) throws IOException, HandlerRegistrationException {
 		super(NAME, ID);
@@ -103,16 +99,12 @@ public class Kademlia extends GenericProtocol {
 		this.rt = new KadRT(params.k, this.self.id);
 		this.storage = new KadStorage();
 		this.addrbook = new KadAddrBook();
-		var query_manager_io = new KadQueryManagerIO(this.addrbook);
-		this.query_manager = new QueryManager(params, this.rt, this.self.id, query_manager_io);
-		this.query_manager_io = query_manager_io;
+		this.query_manager = new QueryManager(params, this.rt, this.self.id, this);
 		this.swarm_tracker = new SwarmTracker(params);
 		this.params = params;
 		this.pools_rt = new PoolsRT(params, this.self.id);
 		this.pool_tracker = new SwarmTracker(params);
-
-		this.open_connections = new HashSet<>();
-		this.pending_messages = new HashMap<>();
+		this.conn_flags = new ConnectionFlags();
 
 		/*---------------------- Register Message Serializers ---------------------- */
 		this.registerMessageSerializer(this.channel_id, FindNodeRequest.ID, FindNodeRequest.serializer);
@@ -169,33 +161,11 @@ public class Kademlia extends GenericProtocol {
 		if (props.containsKey("kad_bootstrap")) {
 			var bootstrap_host = ASDUtils.hostsFromProp(props.getProperty("kad_bootstrap")).get(0);
 			logger.info("Connecting to boostrap node at " + bootstrap_host);
-			this.openConnection(bootstrap_host);
+			this.kadConnect(bootstrap_host);
 		}
 
 		this.setupPeriodicTimer(new CheckQueryTimeoutsTimer(), 1 * 1000, 1 * 1000);
 		this.setupPeriodicTimer(new RefreshRTTimer(), (5 + (long) (Math.random() * 30)) * 1000, 60 * 1000);
-	}
-
-	private void onPeerConnect(KadPeer peer) {
-		this.open_connections.add(peer.host);
-		if (this.rt.add(peer))
-			logger.info("Added " + peer + " to our routing table");
-
-		var pending_messages = this.pending_messages.remove(peer.host);
-		if (pending_messages != null) {
-			for (var msg : pending_messages)
-				this.sendMessage(msg, peer.host);
-		}
-
-		this.triggerNotification(new NeighbourUp(peer.host));
-	}
-
-	private void onPeerDisconnect(KadPeer peer) {
-		this.open_connections.remove(peer.host);
-		logger.info("Connection to " + peer + " is down");
-		this.rt.remove(peer.id);
-
-		this.triggerNotification(new NeighbourDown(peer.host));
 	}
 
 	/*--------------------------------- Public Helpers ---------------------------------------- */
@@ -210,219 +180,183 @@ public class Kademlia extends GenericProtocol {
 
 	/*--------------------------------- Helpers ---------------------------------------- */
 
-	private void sendHandshake(Host other) {
-		logger.info("Sending handshake to " + other);
-		this.sendMessage(new Handshake(this.self.id), other);
-	}
-
-	private boolean isEstablished(Host remote) {
-		return this.open_connections.contains(remote);
-	}
-
-	private void flushQueryMessages() {
-		while (true) {
-			var request = this.query_manager_io.pop();
-			if (request == null)
-				break;
-
-			var host = this.addrbook.getHostFromID(request.destination);
-			if (host == null) {
-				this.query_manager.onPeerError(request.context, request.destination);
-				continue;
-			}
-
-			if (this.isEstablished(host)) {
-				this.sendMessage(request.message, host);
-			} else {
-				this.openConnection(host);
-				this.pending_messages.computeIfAbsent(host, k -> new ArrayList<>()).add(request.message);
-			}
+	private void kadConnect(Host host) {
+		if (this.conn_flags.test(host, ConnectionFlags.IS_ATTEMPTING_CONNECT | ConnectionFlags.SENT_HANDSHAKE)) {
+			return;
 		}
+		this.conn_flags.set(host, ConnectionFlags.IS_ATTEMPTING_CONNECT | ConnectionFlags.SENT_HANDSHAKE);
+		this.openConnection(host);
+		this.loggedSendMessage(new Handshake(this.self.id), host);
+	}
+
+	private void kadSendMessage(ProtoMessage msg, Host host) {
+		if (!this.conn_flags.test(host, ConnectionFlags.IS_ATTEMPTING_CONNECT | ConnectionFlags.SENT_HANDSHAKE))
+			this.kadConnect(host);
+		this.loggedSendMessage(msg, host);
+	}
+
+	// Called when a peer has established a connection to us
+	private void onPeerConnect(KadPeer peer) {
+		if (this.rt.add(peer))
+			logger.info("Added " + peer + " to our routing table");
+		this.triggerNotification(new NeighbourUp(peer.host));
+		this.kadConnect(peer.host);
+	}
+
+	// Call when a peer has closed a connection to us
+	private void onPeerDisconnect(KadPeer peer) {
+		logger.info("Connection to " + peer + " is down");
+		this.rt.remove(peer.id);
+		this.triggerNotification(new NeighbourDown(peer.host));
+	}
+
+	private void ensureConnectionInEstablished(ProtoMessage msg, Host from, short source_proto,
+			int channel_id) {
+		assert channel_id == this.channel_id;
+		assert source_proto == ID;
+
+		if (!this.conn_flags.test(from, ConnectionFlags.RECEIVED_HANDSHAKE))
+			throw new IllegalStateException("Received message from " + from + " but connection is not established: "
+					+ msg.getClass().getName());
+	}
+
+	private void loggedSendMessage(ProtoMessage msg, Host destination) {
+		Metrics.kadSendMessage(destination, msg.getClass().getTypeName());
+		this.sendMessage(msg, destination);
 	}
 
 	private void startQuery(FindClosestQueryDescriptor descriptor) {
 		this.query_manager.startQuery(descriptor);
-		this.flushQueryMessages();
 	}
 
 	private void startQuery(FindValueQueryDescriptor descriptor) {
 		this.query_manager.startQuery(descriptor);
-		this.flushQueryMessages();
 	}
 
 	private void startQuery(FindSwarmQueryDescriptor descriptor) {
 		this.query_manager.startQuery(descriptor);
-		this.flushQueryMessages();
 	}
 
 	private void startQuery(FindPoolQueryDescriptor descriptor) {
 		this.query_manager.startQuery(descriptor);
-		this.flushQueryMessages();
 	}
 
 	/*--------------------------------- Message Handlers ---------------------------------------- */
 	private void onFindNodeRequest(FindNodeRequest msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "FindNodeRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+		logger.info("Received FindNodeRequest from " + from + " I am " + this.self.host + " with target " + msg.target);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindNodeRequest from a non-handshaked peer");
-
-		logger.info("Received FindNodeRequest from " + from + " with target " + msg.target);
 		var closest = this.rt.closest(msg.target);
-		this.sendMessage(new FindNodeResponse(msg.context, closest), from);
+		this.loggedSendMessage(new FindNodeResponse(msg.context, closest), from);
 	}
 
 	private void onFindNodeResponse(FindNodeResponse msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "FindNodeResponse");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
-
-		for (var peer : msg.peers)
-			this.addrbook.add(peer);
-
+		msg.peers.forEach(p -> this.addrbook.add(p));
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.query_manager.onFindNodeResponse(msg.context, peer.id, msg.peers);
-		this.flushQueryMessages();
 	}
 
 	public void onFindPoolRequest(FindPoolRequest msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "FindPoolRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+		logger.info("Received FindPoolRequest from " + from + " I am " + this.self.host + " with pool " + msg.pool);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindPoolRequest from a non-handshaked peer");
-
-		logger.info("Received FindPoolRequest from " + from + " with pool " + msg.pool);
 		var closest = this.rt.closest(msg.pool);
 		var members = this.addrbook.idsToPeers(this.pool_tracker.getSwarmSample(msg.pool));
-		this.sendMessage(new FindPoolResponse(msg.context, closest, members), from);
+		this.loggedSendMessage(new FindPoolResponse(msg.context, closest, members), from);
 	}
 
 	public void onFindPoolResponse(FindPoolResponse msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "FindPoolResponse");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+		logger.info("Received FindPoolResponse from " + from + " I am " + this.self.host);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindPoolResponse from a non-handshaked peer");
+		msg.peers.forEach(p -> this.addrbook.add(p));
+		msg.members.forEach(p -> this.addrbook.add(p));
 
-		for (var peer : msg.peers)
-			this.addrbook.add(peer);
-		for (var peer : msg.members)
-			this.addrbook.add(peer);
-
-		logger.info("Received FindPoolResponse from " + from);
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.query_manager.onFindPoolResponse(channel_id, peer.id, msg.peers, msg.members);
-		this.flushQueryMessages();
 	}
 
 	private void onFindSwarmRequest(FindSwarmRequest msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
-
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindSwarmRequest from a non-handshaked peer");
+		Metrics.kadReceiveMessage(from, "FindSwarmRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
 		var closest = this.rt.closest(msg.swarm);
 		var members = this.swarm_tracker.getSwarmSample(msg.swarm);
-		this.sendMessage(new FindSwarmResponse(msg.context, closest, this.addrbook.idsToPeers(members)), from);
-		logger.info("Received FindSwarmRequest from " + from + " with swarm " + msg.swarm +
+		this.loggedSendMessage(new FindSwarmResponse(msg.context, closest, this.addrbook.idsToPeers(members)), from);
+
+		logger.info("Received FindSwarmRequest from " + from + " I am " + this.self.host + " with swarm " + msg.swarm +
 				" and sending " + members.size() + " members and " + closest.size() + " closest peers");
 	}
 
 	private void onFindSwarmResponse(FindSwarmResponse msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "FindSwarmResponse");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindSwarmResponse from a non-handshaked peer");
-
-		for (var peer : msg.peers)
-			this.addrbook.add(peer);
-		for (var peer : msg.members)
-			this.addrbook.add(peer);
+		msg.peers.forEach(p -> this.addrbook.add(p));
+		msg.members.forEach(p -> this.addrbook.add(p));
 
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.query_manager.onFindSwarmResponse(msg.context, peer.id, msg.peers, msg.members);
-		this.flushQueryMessages();
 	}
 
 	private void onFindValueRequest(FindValueRequest msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
-
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
+		Metrics.kadReceiveMessage(from, "FindValueRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
 		var closest = this.rt.closest(msg.key);
 		var value = this.storage.get(msg.key);
 		var response = new FindValueResponse(msg.context, closest, value);
-		this.sendMessage(response, from);
+		this.loggedSendMessage(response, from);
 	}
 
 	private void onFindValueResponse(FindValueResponse msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "FindValueResponse");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
-
-		for (var peer : msg.peers)
-			this.addrbook.add(peer);
+		msg.peers.forEach(p -> this.addrbook.add(p));
 
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.query_manager.onFindValueResponse(msg.context, peer.id, msg.peers, msg.value);
-		this.flushQueryMessages();
 	}
 
 	private void onHandshake(Handshake msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
-
-		if (this.isEstablished(from))
-			throw new IllegalStateException("Received Handshake from a handshaked peer");
+		Metrics.kadReceiveMessage(from, "Handshake");
+		logger.info("Received handshake from " + from + ": " + msg);
 
 		var peer = new KadPeer(msg.id, from);
-		logger.info("Received handshake from " + peer);
 		this.addrbook.add(msg.id, from);
+		this.conn_flags.set(from, ConnectionFlags.RECEIVED_HANDSHAKE);
 		this.onPeerConnect(peer);
 	}
 
 	private void onJoinPoolRequest(JoinPoolRequest msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "JoinPoolRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+		logger.info("Received JoinPoolRequest from " + from + " I am " + this.self.host + " with pool " + msg.pool);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received JoinPoolRequest from a non-handshaked peer");
-
-		logger.info("Received JoinPoolRequest from " + from + " with pool " + msg.pool);
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.pool_tracker.add(msg.pool, peer.id);
 	}
 
 	private void onJoinSwarmRequest(JoinSwarmRequest msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
+		Metrics.kadReceiveMessage(from, "JoinSwarmRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+		logger.info("Received JoinSwarmRequest from " + from + " I am " + this.self.host + " with swarm " + msg.swarm);
 
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received JoinSwarmRequest from a non-handshaked peer");
-
-		logger.info("Received JoinSwarmRequest from " + from + " with swarm " + msg.swarm);
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.swarm_tracker.add(msg.swarm, peer.id);
 	}
 
 	private void onStoreRequest(StoreRequest msg, Host from, short source_proto, int channel_id) {
-		assert channel_id == this.channel_id;
-		assert source_proto == ID;
-
-		if (!this.isEstablished(from))
-			throw new IllegalStateException("Received FindNodeResponse from a non-handshaked peer");
-
-		logger.info("Received StoreRequest from " + from + " with key " + msg.key);
+		Metrics.kadReceiveMessage(from, "StoreRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+		logger.info("Received StoreRequest from " + from + " I am " + this.self.host + " with key " + msg.key);
 
 		this.storage.store(msg.key, msg.value);
 	}
@@ -454,7 +388,7 @@ public class Kademlia extends GenericProtocol {
 			if (closest.isPresent() && value.isPresent()) {
 				var host = this.addrbook.getHostFromID(closest.get());
 				var request = new StoreRequest(msg.key, value.get());
-				this.sendMessage(request, host);
+				this.kadSendMessage(request, host);
 			}
 			var reply = new FindValueReply(value);
 			this.sendReply(reply, source_proto);
@@ -485,7 +419,7 @@ public class Kademlia extends GenericProtocol {
 				if (host == null)
 					continue;
 				var request = new JoinSwarmRequest(swarm_id);
-				this.sendMessage(request, host);
+				this.kadSendMessage(request, host);
 			}
 
 			var reply = new JoinSwarmReply(msg.swarm, this.addrbook.idsToPeers(members));
@@ -503,7 +437,7 @@ public class Kademlia extends GenericProtocol {
 					continue;
 				}
 				logger.info("Sending StoreRequest to " + host);
-				this.sendMessage(request, host);
+				this.kadSendMessage(request, host);
 			}
 		});
 		this.startQuery(descriptor);
@@ -512,40 +446,40 @@ public class Kademlia extends GenericProtocol {
 	/*--------------------------------- Channel Event Handlers ---------------------------------------- */
 	private void onOutConnectionDown(OutConnectionDown event, int channel_id) {
 		assert channel_id == this.channel_id;
-
+		Metrics.connectionEvent(event.getNode(), "OutConnectionDown");
 		logger.info("Outgoing connection to " + event.getNode() + " is down");
-		var peer = this.addrbook.getPeerFromHost(event.getNode());
-		if (peer != null) {
-			assert peer.host.equals(event.getNode());
-			this.onPeerDisconnect(peer);
-			this.addrbook.remove(event.getNode());
-		}
-		this.pending_messages.remove(event.getNode());
+		this.conn_flags.unset(event.getNode(), ConnectionFlags.SENT_HANDSHAKE | ConnectionFlags.IS_ATTEMPTING_CONNECT);
 	}
 
 	private void onOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channel_id) {
 		assert channel_id == this.channel_id;
 		assert event.getPendingMessages().size() == 0;
+		Metrics.connectionEvent(event.getNode(), "OutConnectionFailed");
 		logger.info("Failed to connect to " + event.getNode());
-		this.pending_messages.remove(event.getNode());
+		this.conn_flags.unset(event.getNode(), ConnectionFlags.IS_ATTEMPTING_CONNECT);
 	}
 
 	private void onOutConnectionUp(OutConnectionUp event, int channel_id) {
 		assert channel_id == this.channel_id;
+		Metrics.connectionEvent(event.getNode(), "OutConnectionUp");
 		logger.info("Out connection up");
-		this.sendHandshake(event.getNode());
 	}
 
 	private void onInConnectionUp(InConnectionUp event, int channel_id) {
 		assert channel_id == this.channel_id;
+		Metrics.connectionEvent(event.getNode(), "InConnectionUp");
 		logger.info("In connection up");
-		this.openConnection(event.getNode());
 	}
 
 	private void onInConnectionDown(InConnectionDown event, int channel_id) {
 		assert channel_id == this.channel_id;
+		Metrics.connectionEvent(event.getNode(), "InConnectionDown");
 		logger.info("In connection down");
-		this.closeConnection(event.getNode());
+		var peer = this.addrbook.getPeerFromHost(event.getNode());
+		if (peer != null && this.conn_flags.test(event.getNode(), ConnectionFlags.RECEIVED_HANDSHAKE)) {
+			this.onPeerDisconnect(peer);
+			this.conn_flags.unset(event.getNode(), ConnectionFlags.RECEIVED_HANDSHAKE);
+		}
 	}
 
 	/*--------------------------------- Timer Handlers ---------------------------------------- */
@@ -556,5 +490,56 @@ public class Kademlia extends GenericProtocol {
 	private void onRefreshRT(RefreshRTTimer timer, long timer_id) {
 		logger.info("Refreshing routing table");
 		this.startQuery(new FindClosestQueryDescriptor(this.self.id));
+	}
+
+	/*--------------------------------- QueryManagerIO ---------------------------------------- */
+
+	@Override
+	public void discover(KadPeer peer) {
+		this.addrbook.add(peer);
+	}
+
+	@Override
+	public void findNodeRequest(long context, KadID id, KadID target) {
+		var host = this.addrbook.getHostFromID(id);
+		if (host == null) {
+			logger.warn("Could not find host for peer " + id + " while sending FindNodeRequest");
+			return;
+		}
+		var request = new FindNodeRequest(context, target);
+		this.kadSendMessage(request, host);
+	}
+
+	@Override
+	public void findValueRequest(long context, KadID id, KadID key) {
+		var host = this.addrbook.getHostFromID(id);
+		if (host == null) {
+			logger.warn("Could not find host for peer " + id + " while sending FindValueRequest");
+			return;
+		}
+		var request = new FindValueRequest(context, key);
+		this.kadSendMessage(request, host);
+	}
+
+	@Override
+	public void findSwarmRequest(long context, KadID id, KadID swarm) {
+		var host = this.addrbook.getHostFromID(id);
+		if (host == null) {
+			logger.warn("Could not find host for peer " + id + " while sending FindSwarmRequest");
+			return;
+		}
+		var request = new FindSwarmRequest(context, swarm);
+		this.kadSendMessage(request, host);
+	}
+
+	@Override
+	public void findPoolRequest(long context, KadID id, KadID pool) {
+		var host = this.addrbook.getHostFromID(id);
+		if (host == null) {
+			logger.warn("Could not find host for peer " + id + " while sending FindPoolRequest");
+			return;
+		}
+		var request = new FindPoolRequest(context, pool);
+		this.kadSendMessage(request, host);
 	}
 }

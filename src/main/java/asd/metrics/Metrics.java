@@ -2,21 +2,34 @@ package asd.metrics;
 
 import com.google.gson.Gson;
 
+import pt.unl.fct.di.novasys.network.data.Host;
+
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Properties;
 import java.util.UUID;
 
 public class Metrics {
 
-	public static final String FILE_PATH = "metrics/metrics_%d.json";
+	public static String FOLDER = "metrics/";
+	public static final String FILE_PATH_MASK = "%smetrics_%d_%sbi_%sps.json";
 	public static FileOutputStream fileOutputStream;
 	public static File metricsFile = null;
 
 	private static final Gson gson = new Gson();
 
-	public static void initMetrics(int nodeId)  {
-		metricsFile = new File(String.format(FILE_PATH, nodeId));
+	public static void initMetrics(Properties props) {
+		var nodeId = Integer.parseInt(props.getProperty("babel_port"));
+		if (props.containsKey("metrics_folder"))
+			FOLDER = props.getProperty("metrics_folder");
+		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId,
+				props.getProperty("broadcast_interval"), props.getProperty("payload_size"));
+
+		metricsFile = new File(filepath);
 
 		try {
+			Files.createDirectories(Paths.get(FOLDER));
 			metricsFile.createNewFile();
 			fileOutputStream = new FileOutputStream(metricsFile);
 		} catch (FileNotFoundException e) {
@@ -27,6 +40,9 @@ public class Metrics {
 	}
 
 	public static synchronized <T> void writeMetric(T message, String messageType) {
+		if (fileOutputStream == null)
+			return;
+
 		var metric = new Metric(System.currentTimeMillis(), messageType, message);
 		var json = gson.toJson(metric) + "\n";
 
@@ -35,10 +51,6 @@ public class Metrics {
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
-	}
-
-	public static void messageReceivedHops(UUID messageId, String topic, int hopCount) {
-		writeMetric(new MessageReceivedHops(messageId.toString(), topic, hopCount), "messageReceived");
 	}
 
 	public static void pubMessageSent(UUID messageId, String topic, boolean delivered) {
@@ -57,15 +69,42 @@ public class Metrics {
 		writeMetric(new UnsubscribedTopic(topic), "unsubscribedTopic");
 	}
 
-	public record Metric(long timestamp, String type, Object message) {}
+	public static void connectionEvent(Host host, String event) {
+		writeMetric(new ConnectionEvent(host.toString(), event), "connectionEvent");
+	}
 
-	public record SubscribedTopic(String topic) {}
+	public static void kadSendMessage(Host to, String messageType) {
+		writeMetric(new KadSendMessage(to.toString(), messageType), "kadSendMessage");
+	}
 
-	public record UnsubscribedTopic(String topic) {}
+	public static void kadReceiveMessage(Host from, String messageType) {
+		writeMetric(new KadReceiveMessage(from.toString(), messageType), "kadReceiveMessage");
+	}
 
-	public record MessageReceivedHops(String messageId, String topic, int hopCount) {}
+	public record Metric(long timestamp, String type, Object message) {
+	}
 
-	public record PubMessageSent(String messageId, String topic, boolean delivered) {}
+	public record SubscribedTopic(String topic) {
+	}
 
-	public record PubMessageReceived(String messageId, String topic, int hopCount, boolean delivered) {}
+	public record UnsubscribedTopic(String topic) {
+	}
+
+	public record MessageReceivedHops(String messageId, String topic, int hopCount) {
+	}
+
+	public record PubMessageSent(String messageId, String topic, boolean delivered) {
+	}
+
+	public record PubMessageReceived(String messageId, String topic, int hopCount, boolean delivered) {
+	}
+
+	public record ConnectionEvent(String host, String type) {
+	}
+
+	public record KadSendMessage(String to, String message_type) {
+	}
+
+	public record KadReceiveMessage(String from, String message_type) {
+	}
 }

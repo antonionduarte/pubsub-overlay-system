@@ -42,8 +42,8 @@ public class GossipSubSerializerTests extends TestCase {
         assertEquals(inMsg.getTopic(), outMsg.getTopic());
         assertEquals(inMsg.getMsgId(), outMsg.getMsgId());
         assertEquals(inMsg.getPropagationSource(), outMsg.getPropagationSource());
+        assertEquals(inMsg.getHopCount(), outMsg.getHopCount());
         assertArrayEquals(inMsg.getMsg(), outMsg.getMsg());
-
     }
 
     public void testPrune() throws IOException {

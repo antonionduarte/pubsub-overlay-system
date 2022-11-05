@@ -63,7 +63,7 @@ abstract class Query {
                 || this.peers.isInState(from, QPeerSet.State.FAILED)))
             throw new IllegalStateException("Received FindNodeResponse from peer that was not requested: " + from
                     + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished())
+        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
             return;
         this.peers.markFinished(from);
         this.removeActiveRequest(from);
@@ -76,7 +76,7 @@ abstract class Query {
                 || this.peers.isInState(from, QPeerSet.State.FAILED)))
             throw new IllegalStateException("Received FindValueResponse from peer that was not requested: " + from
                     + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished())
+        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
             return;
         this.peers.markFinished(from);
         this.removeActiveRequest(from);
@@ -89,7 +89,7 @@ abstract class Query {
                 || this.peers.isInState(from, QPeerSet.State.FAILED)))
             throw new IllegalStateException("Received FindSwarmResponse from peer that was not requested: " + from
                     + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished())
+        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
             return;
         this.peers.markFinished(from);
         this.removeActiveRequest(from);
@@ -102,7 +102,7 @@ abstract class Query {
                 || this.peers.isInState(from, QPeerSet.State.FAILED)))
             throw new IllegalStateException("Received FindPoolResponse from peer that was not requested: " + from
                     + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished())
+        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
             return;
         this.peers.markFinished(from);
         this.removeActiveRequest(from);
@@ -115,7 +115,7 @@ abstract class Query {
             return;
         if (!this.peers.contains(peer))
             return;
-        if (this.peers.isInState(peer, QPeerSet.State.FINISHED))
+        if (this.peers.isInState(peer, QPeerSet.State.FINISHED) || this.peers.isInState(peer, QPeerSet.State.FAILED))
             return;
         logger.info("Peer {} failed", peer);
         this.removeActiveRequest(peer);
