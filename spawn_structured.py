@@ -125,7 +125,7 @@ def run_container(port: int):
         "exec",
         f"kad_{port}",
         "java",
-        "-Xmx96M",
+        #"-Xmx96M",
         f"-DlogFilename=log/node_{port}.log",
         "-ea",
         "-cp",
