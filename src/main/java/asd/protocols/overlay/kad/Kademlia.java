@@ -453,7 +453,6 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 	private void onOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channel_id) {
 		assert channel_id == this.channel_id;
-		assert event.getPendingMessages().size() == 0;
 		Metrics.connectionEvent(event.getNode(), "OutConnectionFailed");
 		logger.info("Failed to connect to " + event.getNode());
 		this.conn_flags.unset(event.getNode(), ConnectionFlags.IS_ATTEMPTING_CONNECT);
