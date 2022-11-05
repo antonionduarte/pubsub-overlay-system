@@ -13,6 +13,29 @@ SECOND_PROTOCOL = 'Kademlia'
 NAME = FIRST_PROTOCOL + "-" + SECOND_PROTOCOL
 
 
+# Print iterations progress
+def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+
+
 def calc_redundancy(metrics):
     received = len(list(filter(lambda x: x["type"] == "pubReceived", metrics)))
     received_not_delivered = len(list(filter(lambda x: x["type"] == "pubReceived" and not x["message"]["delivered"],
@@ -77,6 +100,7 @@ def calc_reliability(list_node_metrics):
             total_expected_pubs += expected_pubs
             rel_per_msg.append((recv_pubs / expected_pubs) * 100 if expected_pubs > 0 else 100)
         i += 1
+        printProgressBar(i + 1, len(all_sorted_by_time), prefix='Progress:', suffix='Complete', length=50)
 
     return total_recv_pubs, total_expected_pubs, rel_per_second, rel_per_msg
 
