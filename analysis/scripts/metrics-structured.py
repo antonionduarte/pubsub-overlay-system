@@ -110,7 +110,7 @@ if __name__ == "__main__":
     list_avg_hops = []
     list_node_metrics = []
 
-    for filename in os.listdir(METRICS_PATH):
+    for filename in sorted(os.listdir(METRICS_PATH)):
         print(filename + ":")
         file = open(METRICS_PATH + filename)
         node_metrics = list(map(lambda x: json.loads(x), file.readlines()))
