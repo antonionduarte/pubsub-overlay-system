@@ -16,6 +16,8 @@ def spawn_kad_java_docker(port: int):
         "--rm",
         "-itd",
         "--network=host",
+        "--security-opt",
+        "label=disable",
         "-v",
         f"{cwd}/target/asdProj.jar:/usr/local/app.jar",
         "-v",
@@ -37,38 +39,6 @@ def spawn_kad_java_docker(port: int):
     ]
     if port != BOOTSTRAP_PORT:
         args.append(f"kad_bootstrap=127.0.0.1:{port - 1}")
-    subprocess.run(args)
-
-
-def spawn_kad_java_podman(port: int):
-    args = [
-        "podman",
-        "run",
-        f"--name=kad_{port}",
-        # "--rm",
-        "-itd",
-        "--network=host",
-        "-v",
-        "./target/asdProj.jar:/usr/local/app.jar:z",
-        "-v",
-        "./babel_config.properties:/usr/local/babel_config.properties:z",
-        "-v",
-        "./log4j2.xml:/usr/local/log4j2.xml:z",
-        "-v",
-        "./log/:/usr/local/log/:z",
-        "--workdir=/usr/local/",
-        "docker.io/amazoncorretto:19",
-        "java",
-        "-Xmx96M",
-        f"-DlogFilename=log/node_{port}.log" "-ea",
-        "-cp",
-        "/usr/local/app.jar",
-        "asd.StructuredMain",
-        f"babel_port={port}",
-        "babel_address=127.0.0.1",
-    ]
-    if port != BOOTSTRAP_PORT:
-        args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
     subprocess.run(args)
 
 
@@ -104,8 +74,10 @@ def create_container(port: int):
         # "--rm",
         "-itd",
         "--network=host",
+        "--security-opt",
+        "label=disable",
         "-v",
-        f"{cwd}/asdProj.jar:/usr/local/app.jar",
+        f"{cwd}/target/asdProj.jar:/usr/local/app.jar",
         "-v",
         f"{cwd}/babel_config.properties:/usr/local/babel_config.properties",
         "-v",
@@ -132,7 +104,8 @@ def run_container(port: int):
         "/usr/local/app.jar",
         "asd.StructuredMain",
         f"babel_port={port}",
-        "babel_address=127.0.0.1"]
+        "babel_address=127.0.0.1",
+    ]
     if port != BOOTSTRAP_PORT:
         args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
     subprocess.Popen(
