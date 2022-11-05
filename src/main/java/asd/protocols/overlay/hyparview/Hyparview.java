@@ -16,10 +16,7 @@ import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 public class Hyparview extends GenericProtocol {
 
@@ -42,7 +39,14 @@ public class Hyparview extends GenericProtocol {
 	private final Host self;
 
 	private final Set<Host> pending; // The nodes that are pending to be added into the activeView.
-	private Map<Short, Set<Host>> activeShuffles; // TODO;;;
+	private Map<UUID, Set<Host>> currentShuffles; // TODO;
+
+	/**
+	 * General Ideas uwu:
+	 * - Subscribe to a notification from the upper layer, so you always know what topics you have.
+	 * - Disseminate the topics you have through PlumTree.
+	 * - When you receive a Topic Dessimination message from a peer
+	 */
 
 	private final int channelId;
 

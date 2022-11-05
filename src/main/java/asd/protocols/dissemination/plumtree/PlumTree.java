@@ -44,7 +44,6 @@ public class PlumTree extends GenericProtocol {
 	private final Map<UUID, Long> missingTimers; // messageId -> timerId
 	private final Map<UUID, List<Host>> haveMessage; // messageId -> host
 
-	// TODO: This isn't very good yet, I should do LazyPush with some kind of policy instead of just pushing all messages everytime
 	public PlumTree(Properties properties, Host self) throws HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
 
