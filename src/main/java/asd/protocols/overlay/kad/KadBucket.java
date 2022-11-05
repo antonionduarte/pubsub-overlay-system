@@ -1,6 +1,8 @@
 package asd.protocols.overlay.kad;
 
-public class KadBucket {
+import java.util.Iterator;
+
+public class KadBucket implements Iterable<KadPeer> {
 	private final KadPeer[] peers;
 	private int size;
 
@@ -67,5 +69,24 @@ public class KadBucket {
 			if (this.peers[i].id.equals(id))
 				return i;
 		return -1;
+	}
+
+	@Override
+	public Iterator<KadPeer> iterator() {
+		return new Iterator<KadPeer>() {
+			private int index = 0;
+
+			@Override
+			public boolean hasNext() {
+				return this.index < KadBucket.this.size;
+			}
+
+			@Override
+			public KadPeer next() {
+				var peer = KadBucket.this.peers[this.index];
+				this.index += 1;
+				return peer;
+			}
+		};
 	}
 }

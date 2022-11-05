@@ -2,7 +2,10 @@ package asd.protocols.overlay.kad;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+
+import asd.utils.ASDUtils;
 
 public class KadRT {
 	private final int k;
@@ -31,6 +34,14 @@ public class KadRT {
 
 	public int size() {
 		return this.buckets.stream().mapToInt(KadBucket::size).sum();
+	}
+
+	public List<KadPeer> getPeersFromBucket(int index) {
+		var bucket = this.getBucketForCpl(index);
+		var peers = new ArrayList<KadPeer>(bucket.size());
+		for (var peer : bucket)
+			peers.add(peer);
+		return peers;
 	}
 
 	public List<KadPeer> closest(KadID id) {
@@ -68,6 +79,29 @@ public class KadRT {
 					return peers;
 			}
 		}
+		return peers;
+	}
+
+	public List<KadPeer> getBroadcastSample(int left_bucket, int size) {
+		assert size >= 2;
+		var hsize = size / 2;
+		var lpeers = new HashSet<KadPeer>();
+		var rpeers = new HashSet<KadPeer>();
+		var lbucket = this.getBucketForCpl(left_bucket);
+		for (var p : lbucket)
+			lpeers.add(p);
+		for (int i = left_bucket + 1; i < this.buckets.size(); ++i) {
+			var bucket = this.buckets.get(i);
+			for (var p : bucket)
+				rpeers.add(p);
+		}
+
+		var peers = new ArrayList<KadPeer>(size);
+		var lsample = ASDUtils.sample(hsize, lpeers);
+		var rsample = ASDUtils.sample(hsize, rpeers);
+		lsample.forEach(peers::add);
+		rsample.forEach(peers::add);
+
 		return peers;
 	}
 

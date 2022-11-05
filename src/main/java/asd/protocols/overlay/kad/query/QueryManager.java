@@ -1,5 +1,6 @@
 package asd.protocols.overlay.kad.query;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
@@ -11,20 +12,23 @@ import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadParams;
 import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.KadRT;
+import asd.protocols.overlay.kad.PoolsRT;
 
 public class QueryManager {
     private static final Logger logger = LogManager.getLogger(QueryManager.class);
 
     private final KadParams kadparams;
     private final KadRT routing_table;
+    private final PoolsRT pools_rt;
     private final KadID self;
     private final QueryManagerIO qmio;
     private final HashMap<Long, Query> queries;
     private long next_context;
 
-    public QueryManager(KadParams kadparams, KadRT routing_table, KadID self, QueryManagerIO qmio) {
+    public QueryManager(KadParams kadparams, KadRT routing_table, PoolsRT pools_rt, KadID self, QueryManagerIO qmio) {
         this.kadparams = kadparams;
         this.routing_table = routing_table;
+        this.pools_rt = pools_rt;
         this.self = self;
         this.qmio = qmio;
         this.queries = new HashMap<>();
@@ -33,7 +37,7 @@ public class QueryManager {
 
     public void startQuery(FindClosestQueryDescriptor descriptor) {
         var context = this.allocateContext();
-        var seeds = this.routing_table.closest(descriptor.target);
+        var seeds = this.getSeeds(descriptor.target, descriptor.pool);
         var qio = new QMQueryIO(this.qmio, context);
         var query = new FindClosestQuery(qio, this.self, this.kadparams, descriptor.target, seeds, descriptor);
         this.queries.put(context, query);
@@ -45,7 +49,7 @@ public class QueryManager {
 
     public void startQuery(FindValueQueryDescriptor descriptor) {
         var context = this.allocateContext();
-        var seeds = this.routing_table.closest(descriptor.target);
+        var seeds = this.getSeeds(descriptor.target);
         var qio = new QMQueryIO(this.qmio, context);
         var query = new FindValueQuery(qio, this.self, this.kadparams, descriptor.target, seeds, descriptor);
         this.queries.put(context, query);
@@ -57,7 +61,7 @@ public class QueryManager {
 
     public void startQuery(FindSwarmQueryDescriptor descriptor) {
         var context = this.allocateContext();
-        var seeds = this.routing_table.closest(descriptor.swarm);
+        var seeds = this.getSeeds(descriptor.swarm);
         var qio = new QMQueryIO(this.qmio, context);
         var query = new FindSwarmQuery(qio, this.self, this.kadparams, descriptor.swarm, seeds, descriptor);
         this.queries.put(context, query);
@@ -69,7 +73,7 @@ public class QueryManager {
 
     public void startQuery(FindPoolQueryDescriptor descriptor) {
         var context = this.allocateContext();
-        var seeds = this.routing_table.closest(descriptor.pool);
+        var seeds = this.getSeeds(descriptor.pool);
         var qio = new QMQueryIO(this.qmio, context);
         var query = new FindPoolQuery(qio, this.self, this.kadparams, descriptor.pool, seeds, descriptor);
         this.queries.put(context, query);
@@ -151,5 +155,20 @@ public class QueryManager {
 
     private long allocateContext() {
         return this.next_context++;
+    }
+
+    private List<KadPeer> getSeeds(KadID target) {
+        return this.getSeeds(target, Optional.empty());
+    }
+
+    private List<KadPeer> getSeeds(KadID target, Optional<KadID> pool) {
+        if (pool.isPresent()) {
+            var rt = this.pools_rt.getPool(pool.get());
+            if (rt == null)
+                return new ArrayList<>();
+            return rt.closest(target);
+        } else {
+            return this.routing_table.closest(target);
+        }
     }
 }

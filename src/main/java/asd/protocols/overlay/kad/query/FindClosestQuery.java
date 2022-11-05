@@ -1,6 +1,7 @@
 package asd.protocols.overlay.kad.query;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -12,17 +13,19 @@ import asd.protocols.overlay.kad.KadPeer;
 class FindClosestQuery extends Query {
     private static final Logger logger = LogManager.getLogger(FindClosestQuery.class);
 
+    private final Optional<KadID> pool;
     private final FindClosestQueryCallbacks callbacks;
 
     public FindClosestQuery(QueryIO qio, KadID self, KadParams kadparams, KadID target, List<KadPeer> seeds,
             FindClosestQueryDescriptor descriptor) {
         super(qio, self, kadparams, target, seeds);
+        this.pool = descriptor.pool;
         this.callbacks = descriptor.callbacks;
     }
 
     @Override
     void request(QueryIO qio, KadID peer, KadID target) {
-        qio.findNodeRequest(peer, target);
+        qio.findNodeRequest(peer, this.pool, target);
     }
 
     @Override
