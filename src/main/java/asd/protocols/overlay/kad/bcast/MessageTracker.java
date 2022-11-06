@@ -1,19 +1,26 @@
 package asd.protocols.overlay.kad.bcast;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.UUID;
 
 import asd.protocols.overlay.kad.KadID;
 
 public class MessageTracker {
 
+    public static record ExpiredRequest(KadID rtid, UUID uuid) {
+    }
+
     private static class State {
+        public final KadID rtid;
         public final HashSet<KadID> providers;
         public RequestState request;
 
-        public State() {
+        public State(KadID rtid) {
+            this.rtid = rtid;
             this.providers = new HashSet<>();
             this.request = null;
         }
@@ -35,9 +42,14 @@ public class MessageTracker {
         this.states = new HashMap<>();
     }
 
-    public void startTracking(UUID uuid) {
+    public void startTracking(KadID rtid, UUID uuid) {
         assert !this.states.containsKey(uuid);
-        this.states.put(uuid, new State());
+        this.states.put(uuid, new State(rtid));
+    }
+
+    public void stopTracking(UUID uuid) {
+        assert this.states.containsKey(uuid);
+        this.states.remove(uuid);
     }
 
     public boolean isTracking(UUID uuid) {
@@ -81,13 +93,18 @@ public class MessageTracker {
         state.request = null;
     }
 
-    public void cleanup() {
+    public List<ExpiredRequest> checkTimeouts() {
         var now = Instant.now();
+        var expired = new ArrayList<ExpiredRequest>();
         this.states.entrySet().removeIf(entry -> {
             var state = entry.getValue();
             if (state.request == null)
                 return false;
-            return state.request.start.plusSeconds(5).isBefore(now);
+            var remove = state.request.start.plusSeconds(5).isBefore(now);
+            if (remove)
+                expired.add(new ExpiredRequest(entry.getValue().rtid, entry.getKey()));
+            return remove;
         });
+        return expired;
     }
 }

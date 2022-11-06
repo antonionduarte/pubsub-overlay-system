@@ -54,6 +54,7 @@ import asd.protocols.overlay.kad.query.QueryManager;
 import asd.protocols.overlay.kad.query.QueryManagerIO;
 import asd.protocols.overlay.kad.routing.RoutingTables;
 import asd.protocols.overlay.kad.routing.SwarmTracker;
+import asd.protocols.overlay.kad.timers.CheckMessageTimeoutsTimer;
 import asd.protocols.overlay.kad.timers.CheckQueryTimeoutsTimer;
 import asd.protocols.overlay.kad.timers.RefreshRoutingTable;
 import asd.utils.ASDUtils;
@@ -176,6 +177,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.registerChannelEventHandler(this.channel_id, InConnectionDown.EVENT_ID, this::onInConnectionDown);
 
 		/*-------------------- Register Channel Events ------------------------------- */
+		this.registerTimerHandler(CheckMessageTimeoutsTimer.ID, this::onCheckMessageTimeouts);
 		this.registerTimerHandler(CheckQueryTimeoutsTimer.ID, this::onCheckQueryTimeouts);
 		this.registerTimerHandler(RefreshRoutingTable.ID, this::onRefreshRoutingTable);
 	}
@@ -280,7 +282,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 			var peer = this.addrbook.getPeerFromHost(from);
 			if (!this.msg_tracker.isTracking(msg.uuid))
-				this.msg_tracker.startTracking(msg.uuid);
+				this.msg_tracker.startTracking(msg.rtid, msg.uuid);
 
 			this.msg_tracker.addProvider(msg.uuid, peer.id);
 			if (!this.msg_tracker.isRequesting(msg.uuid)) {
@@ -632,6 +634,19 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	}
 
 	/*--------------------------------- Timer Handlers ---------------------------------------- */
+	private void onCheckMessageTimeouts(CheckMessageTimeoutsTimer timer, long timer_id) {
+		var expired = this.msg_tracker.checkTimeouts();
+		for (var exp : expired) {
+			var provider = this.msg_tracker.getProvider(exp.uuid());
+			if (provider == null) {
+				this.msg_tracker.stopTracking(exp.uuid());
+				continue;
+			}
+			this.msg_tracker.beginRequest(exp.uuid(), provider);
+			this.kadSendMessage(new BroadcastWant(exp.rtid(), exp.uuid()), this.addrbook.getHostFromID(provider));
+		}
+	}
+
 	private void onCheckQueryTimeouts(CheckQueryTimeoutsTimer timer, long timer_id) {
 		this.query_manager.checkTimeouts();
 	}
