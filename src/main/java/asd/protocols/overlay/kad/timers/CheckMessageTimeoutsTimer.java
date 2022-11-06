@@ -3,10 +3,10 @@ package asd.protocols.overlay.kad.timers;
 import asd.protocols.overlay.kad.Kademlia;
 import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 
-public class CheckQueryTimeoutsTimer extends ProtoTimer {
-    public static final short ID = Kademlia.ID + 2;
+public class CheckMessageTimeoutsTimer extends ProtoTimer {
+    public static final short ID = Kademlia.ID + 1;
 
-    public CheckQueryTimeoutsTimer() {
+    public CheckMessageTimeoutsTimer() {
         super(ID);
     }
 
