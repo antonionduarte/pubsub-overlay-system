@@ -30,7 +30,7 @@ public class View {
 	 */
 	public Host addPeer(Host peer) {
 		Host dropped = null;
-		if (!peer.equals(self)) {
+		if (!peer.equals(self) && !membership.contains(peer)) {
 			if (this.isFull())
 				dropped = this.dropRandomElement();
 			this.membership.add(peer);

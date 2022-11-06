@@ -351,6 +351,7 @@ public class Hyparview extends GenericProtocol {
 			this.passiveView.addPeer(dropped);
 			handleDropConnection(dropped);
 
+			logger.info("Peer DROPPED DROPPED DROPPED. Dropped: {}", dropped);
 			logger.info("Peer added to passive view: {}", dropped);
 		}
 
