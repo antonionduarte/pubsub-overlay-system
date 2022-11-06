@@ -18,8 +18,8 @@ asd.iml
 
 # Log file
 *.log
-analysis/metrics/
-metrics
+/analysis/metrics/
+/metrics
 text
 
 # BlueJ files
