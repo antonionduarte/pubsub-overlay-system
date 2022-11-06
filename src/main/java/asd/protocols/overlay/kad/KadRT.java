@@ -47,16 +47,12 @@ public class KadRT {
 	public List<KadPeer> closest(KadID id) {
 		var peers = new ArrayList<KadPeer>(this.k);
 		var bucket_idx = Math.min(this.self.cpl(id), this.bucketsSize() - 1);
-		var looped = false;
-		while (peers.size() < this.k && bucket_idx >= 0) {
-			var bucket = this.buckets.get(bucket_idx);
-			for (int i = 0; i < bucket.size(); ++i)
-				peers.add(bucket.get(i));
-			bucket_idx -= 1;
-			if (bucket_idx < 0 && !looped) {
-				bucket_idx = this.bucketsSize() - 1;
-				looped = true;
-			}
+		var iter_count = this.buckets.size();
+		for (int i = 0; i < iter_count && peers.size() < this.k; ++i) {
+			var idx = Math.floorMod(bucket_idx - i, iter_count);
+			var bucket = this.buckets.get(idx);
+			for (var peer : bucket)
+				peers.add(peer);
 		}
 		Collections.sort(peers, new PeerDistanceComparator(id));
 		while (peers.size() > this.k)
@@ -107,6 +103,10 @@ public class KadRT {
 
 	public List<KadPeer> getSample() {
 		return this.getSample(this.k);
+	}
+
+	public boolean isEmpty() {
+		return this.size() == 0;
 	}
 
 	private KadBucket getBucketForCpl(int cpl) {

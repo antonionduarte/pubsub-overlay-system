@@ -52,8 +52,8 @@ public class Metrics {
 		}
 	}
 
-	public static void pubMessageSent(UUID messageId, String topic, boolean delivered) {
-		writeMetric(new PubMessageSent(messageId.toString(), topic, delivered), "pubSent");
+	public static void pubMessageSent(UUID messageId, String topic, boolean delivered, int fanout) {
+		writeMetric(new PubMessageSent(messageId.toString(), topic, delivered, fanout), "pubSent");
 	}
 
 	public static void pubMessageReceived(UUID messageId, String topic, int hopCount, boolean delivered) {
@@ -68,16 +68,22 @@ public class Metrics {
 		writeMetric(new UnsubscribedTopic(topic), "unsubscribedTopic");
 	}
 
+	public static void span(String name, double ms) {
+		writeMetric(new Span(name, ms), "span");
+	}
+
 	public static void connectionEvent(Host host, String event) {
-		writeMetric(new ConnectionEvent(host.toString(), event), "connectionEvent");
+		// writeMetric(new ConnectionEvent(host.toString(), event), "connectionEvent");
 	}
 
 	public static void kadSendMessage(Host to, String messageType) {
-		writeMetric(new KadSendMessage(to.toString(), messageType), "kadSendMessage");
+		// writeMetric(new KadSendMessage(to.toString(), messageType),
+		// "kadSendMessage");
 	}
 
 	public static void kadReceiveMessage(Host from, String messageType) {
-		writeMetric(new KadReceiveMessage(from.toString(), messageType), "kadReceiveMessage");
+		// writeMetric(new KadReceiveMessage(from.toString(), messageType),
+		// "kadReceiveMessage");
 	}
 
 	public record Metric(long timestamp, String type, Object message) {
@@ -92,7 +98,7 @@ public class Metrics {
 	public record MessageReceivedHops(String messageId, String topic, int hopCount) {
 	}
 
-	public record PubMessageSent(String messageId, String topic, boolean delivered) {
+	public record PubMessageSent(String messageId, String topic, boolean delivered, int fanout) {
 	}
 
 	public record PubMessageReceived(String messageId, String topic, int hopCount, boolean delivered) {
@@ -105,5 +111,8 @@ public class Metrics {
 	}
 
 	public record KadReceiveMessage(String from, String message_type) {
+	}
+
+	public record Span(String name, double ms) {
 	}
 }

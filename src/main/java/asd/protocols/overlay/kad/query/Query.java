@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import asd.metrics.Profiling;
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadParams;
 import asd.protocols.overlay.kad.KadPeer;
@@ -15,13 +16,20 @@ import asd.protocols.overlay.kad.KadPeer;
 abstract class Query {
     private static final Logger logger = LogManager.getLogger(Query.class);
 
-    private static class ActiveRequest {
+    private static class ActiveRequest implements AutoCloseable {
         public final KadID peer;
         public final Instant start;
+        public final Profiling.Span span;
 
         public ActiveRequest(KadID peer) {
             this.peer = peer;
             this.start = Instant.now();
+            this.span = Profiling.span("query");
+        }
+
+        @Override
+        public void close() {
+            this.span.close();
         }
     }
 
@@ -117,7 +125,7 @@ abstract class Query {
             return;
         if (this.peers.isInState(peer, QPeerSet.State.FINISHED) || this.peers.isInState(peer, QPeerSet.State.FAILED))
             return;
-        logger.info("Peer {} failed", peer);
+        logger.warn("Peer {} failed", peer);
         this.removeActiveRequest(peer);
         this.peers.markFailed(peer);
         this.makeRequests();
@@ -136,8 +144,10 @@ abstract class Query {
                 timedout.add(req.peer);
         }
 
-        for (var peer : timedout)
+        for (var peer : timedout) {
+            logger.warn("Peer {} timed out in {}", peer, this.getClass().getName());
             this.onPeerError(peer);
+        }
     }
 
     protected final void finish() {
@@ -177,7 +187,14 @@ abstract class Query {
 
     private void removeActiveRequest(KadID peer) {
         assert this.active_requests.size() <= this.kadparams.alpha;
-        var removed = this.active_requests.removeIf(r -> r.peer.equals(peer));
+        var removed = this.active_requests.removeIf(r -> {
+            if (r.peer.equals(peer)) {
+                r.close();
+                return true;
+            } else {
+                return false;
+            }
+        });
         assert removed;
     }
 }

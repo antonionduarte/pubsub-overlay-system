@@ -78,7 +78,7 @@ public class QueryManager {
         var query = new FindPoolQuery(qio, this.self, this.kadparams, descriptor.pool, seeds, descriptor);
         this.queries.put(context, query);
 
-        logger.info("Starting query {} with swarm {} and {} seeds", context, descriptor.pool, seeds.size());
+        logger.info("Starting query {} with pool {} and {} seeds", context, descriptor.pool, seeds.size());
         query.start();
         this.checkQueryFinished(context);
     }

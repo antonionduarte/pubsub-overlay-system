@@ -9,11 +9,13 @@ public class MessageCache {
     public static class Message {
         public final UUID uuid;
         public final int depth;
+        public final KadPeer origin;
         public final byte[] payload;
 
-        public Message(UUID uuid, int depth, byte[] payload) {
+        public Message(UUID uuid, int depth, KadPeer origin, byte[] payload) {
             this.uuid = uuid;
             this.depth = depth;
+            this.origin = origin;
             this.payload = payload;
         }
     }
@@ -36,10 +38,10 @@ public class MessageCache {
         this.messages = new HashMap<>();
     }
 
-    public void add(UUID uuid, int depth, byte[] payload) {
+    public void add(UUID uuid, int depth, KadPeer origin, byte[] payload) {
         this.clean();
         this.queue.add(new QueueItem(uuid, Instant.now().plusSeconds(10 * 60)));
-        this.messages.put(uuid, new Message(uuid, depth, payload));
+        this.messages.put(uuid, new Message(uuid, depth, origin, payload));
     }
 
     public Message get(UUID uuid) {

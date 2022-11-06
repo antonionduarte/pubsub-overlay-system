@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.UUID;
 
 import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.Kademlia;
 import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
@@ -15,38 +16,39 @@ public class BroadcastMessage extends ProtoMessage {
     public final KadID pool;
     public final int depth;
     public final UUID uuid;
+    public final KadPeer origin;
     public final byte[] payload;
 
-    public BroadcastMessage(KadID pool, int depth, UUID uuid, byte[] payload) {
+    public BroadcastMessage(KadID pool, int depth, UUID uuid, KadPeer origin, byte[] payload) {
         super(ID);
         this.pool = pool;
         this.depth = depth;
         this.uuid = uuid;
+        this.origin = origin;
         this.payload = payload;
     }
 
     public static final ISerializer<BroadcastMessage> serializer = new ISerializer<BroadcastMessage>() {
         @Override
-        public void serialize(BroadcastMessage broadcastRequest, ByteBuf out) throws IOException {
-            KadID.serializer.serialize(broadcastRequest.pool, out);
-            out.writeInt(broadcastRequest.depth);
-            out.writeLong(broadcastRequest.uuid.getMostSignificantBits());
-            out.writeLong(broadcastRequest.uuid.getLeastSignificantBits());
-            out.writeInt(broadcastRequest.payload.length);
-            out.writeBytes(broadcastRequest.payload);
+        public void serialize(BroadcastMessage t, ByteBuf out) throws IOException {
+            KadID.serializer.serialize(t.pool, out);
+            out.writeInt(t.depth);
+            out.writeLong(t.uuid.getMostSignificantBits());
+            out.writeLong(t.uuid.getLeastSignificantBits());
+            KadPeer.serializer.serialize(t.origin, out);
+            out.writeInt(t.payload.length);
+            out.writeBytes(t.payload);
         }
 
         @Override
         public BroadcastMessage deserialize(ByteBuf in) throws IOException {
-            KadID pool = KadID.serializer.deserialize(in);
-            int depth = in.readInt();
-            long msb = in.readLong();
-            long lsb = in.readLong();
-            UUID uuid = new UUID(msb, lsb);
-            int length = in.readInt();
-            byte[] payload = new byte[length];
+            var pool = KadID.serializer.deserialize(in);
+            var depth = in.readInt();
+            var uuid = new UUID(in.readLong(), in.readLong());
+            var origin = KadPeer.serializer.deserialize(in);
+            var payload = new byte[in.readInt()];
             in.readBytes(payload);
-            return new BroadcastMessage(pool, depth, uuid, payload);
+            return new BroadcastMessage(pool, depth, uuid, origin, payload);
         }
     };
 

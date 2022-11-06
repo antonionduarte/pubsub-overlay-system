@@ -1,3 +1,3 @@
 #!/bin/sh
 
-rm analysis/metrics/*.json
+rm analysis/metrics_*/*.json

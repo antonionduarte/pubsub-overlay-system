@@ -4,7 +4,6 @@ import asd.metrics.Metrics;
 import asd.protocols.apps.AutomatedApp;
 import asd.protocols.apps.InteractiveApp;
 import asd.protocols.overlay.kad.Kademlia;
-import asd.protocols.pubsub.gossipsub.GossipSub;
 import asd.protocols.pubsub.kadpubsub.KadPubSub;
 import asd.utils.InterfaceToIp;
 import org.apache.logging.log4j.LogManager;
@@ -31,7 +30,7 @@ public class KadPubSubMain {
 	private static final String DEFAULT_CONF = "babel_config.properties";
 
 	// Numerical identifier of the pub-sub protocol to be used by the application
-	private static final short PUBSUB_PROTO_ID = GossipSub.ID;
+	private static final short PUBSUB_PROTO_ID = KadPubSub.ID;
 
 	public static void main(String[] args) throws Exception {
 
@@ -68,7 +67,7 @@ public class KadPubSubMain {
 		var kademlia = new Kademlia(props, myself);
 
 		// PubSub protocol
-		var kadpubsub = new KadPubSub(props, myself); // The EmptyPubSub protocol does nothing
+		var kadpubsub = new KadPubSub(props, myself, app.getProtoId()); // The EmptyPubSub protocol does nothing
 
 		// Register applications in babel
 		babel.registerProtocol(app);
