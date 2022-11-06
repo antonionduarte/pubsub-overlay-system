@@ -8,9 +8,33 @@ METRICS_PATH = 'metrics/'
 PLOTS_OUT_PATH = 'plots/'
 TEXT_OUT_PATH = 'text/'
 
-FIRST_PROTOCOL = 'PlumTree'
-SECOND_PROTOCOL = 'Hyparview'
+FIRST_PROTOCOL = 'HyparView'
+SECOND_PROTOCOL = 'PlumTree'
 NAME = FIRST_PROTOCOL + "-" + SECOND_PROTOCOL
+
+
+# Print iterations progress
+def printProgressBar(iteration, total, prefix='', suffix='', decimals=1, length=100, fill='█', printEnd="\r"):
+    """
+    Call in a loop to create terminal progress bar
+    @params:
+        iteration   - Required  : current iteration (Int)
+        total       - Required  : total iterations (Int)
+        prefix      - Optional  : prefix string (Str)
+        suffix      - Optional  : suffix string (Str)
+        decimals    - Optional  : positive number of decimals in percent complete (Int)
+        length      - Optional  : character length of bar (Int)
+        fill        - Optional  : bar fill character (Str)
+        printEnd    - Optional  : end character (e.g. "\r", "\r\n") (Str)
+    """
+    percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
+    filledLength = int(length * iteration // total)
+    bar = fill * filledLength + '-' * (length - filledLength)
+    print(f'\r{prefix} |{bar}| {percent}% {suffix}', end=printEnd)
+    # Print New Line on Complete
+    if iteration == total:
+        print()
+
 
 def calc_redundancy(metrics):
     received = len(list(filter(lambda x: x["type"] == "pubReceived", metrics)))
@@ -42,7 +66,13 @@ def create_conjoined_metrics_file(lines):
 
 def calc_reliability(list_node_metrics):
     all_sorted_by_time = sorted([e for m in list_node_metrics for e in m], key=lambda x: x["timestamp"])
-    create_conjoined_metrics_file(all_sorted_by_time)  # for debug
+    only_delivered_pubs = list(
+        filter(lambda x: x["type"] == "pubReceived" and x["message"]["delivered"], all_sorted_by_time))
+    subs_and_sends = list(
+        filter(lambda x: x["type"] == "pubSent" or x["type"] == "subscribedTopic" or x["type"] == "unsubscribedTopic",
+               all_sorted_by_time))
+    # create_conjoined_metrics_file(all_sorted_by_time)  # for debug
+
     rel_per_second = []
     rel_per_msg = []
     second_start = None
@@ -52,7 +82,7 @@ def calc_reliability(list_node_metrics):
     second_recv_pubs, second_expected_pubs = 0, 0
     subs = dd(lambda: 0)
     i = 0
-    for e in all_sorted_by_time:
+    for e in subs_and_sends:
         if e["type"] == "subscribedTopic":
             subs[e["message"]["topic"]] += 1
         elif e["type"] == "unsubscribedTopic":
@@ -65,9 +95,8 @@ def calc_reliability(list_node_metrics):
                 second_start = e["timestamp"]
                 second_recv_pubs, second_expected_pubs = 0, 0
                 s += 1
-            recv_pubs = len(list(filter(
-                lambda x: x["type"] == "pubReceived" and x["message"]["delivered"] and x["message"]["messageId"] ==
-                          e["message"]["messageId"], all_sorted_by_time[max(0, i - 100)::]))) + (
+            recv_pubs = len(
+                list(filter(lambda x: x["message"]["messageId"] == e["message"]["messageId"], only_delivered_pubs))) + (
                             1 if e["message"]["delivered"] else 0)
             expected_pubs = subs[e["message"]["topic"]]
             second_recv_pubs += recv_pubs
@@ -76,6 +105,7 @@ def calc_reliability(list_node_metrics):
             total_expected_pubs += expected_pubs
             rel_per_msg.append((recv_pubs / expected_pubs) * 100 if expected_pubs > 0 else 100)
         i += 1
+        printProgressBar(i + 1, len(subs_and_sends), prefix='Progress:', suffix='Complete', length=50)
 
     return total_recv_pubs, total_expected_pubs, rel_per_second, rel_per_msg
 
@@ -87,18 +117,18 @@ def print_reliability_results(recv_pubs, expected_pubs, rel_per_second, rel_per_
     fig, ax = plt.subplots(num=1, clear=True)
     os.makedirs(PLOTS_OUT_PATH, exist_ok=True)
     ax.plot(rel_per_second, label=NAME, color="blue")
-    ax.set(xlabel='Time (s)', ylabel='Avg Reliability (%)', xlim=(0, len(rel_per_second)-1), ylim=(0, 105))
+    ax.set(xlabel='Time (s)', ylabel='Avg Reliability (%)', xlim=(0, len(rel_per_second) - 1), ylim=(0, 105))
     ax.legend()
     fig.tight_layout()
-    fig.savefig(PLOTS_OUT_PATH + "Rel_per_sec_"+NAME+".pdf")
+    fig.savefig(PLOTS_OUT_PATH + "Rel_per_sec_" + NAME + ".pdf")
 
     fig, ax = plt.subplots(num=1, clear=True)
     os.makedirs(PLOTS_OUT_PATH, exist_ok=True)
-    ax.plot(rel_per_msg, label="NAME", color="blue")
-    ax.set(xlabel='Message', ylabel='Avg Reliability (%)', xlim=(0, len(rel_per_msg)-1), ylim=(0, 105))
+    ax.plot(rel_per_msg, label=NAME, color="blue")
+    ax.set(xlabel='Message', ylabel='Avg Reliability (%)', xlim=(0, len(rel_per_msg) - 1), ylim=(0, 105))
     ax.legend()
     fig.tight_layout()
-    fig.savefig(PLOTS_OUT_PATH + "Rel_per_msg_"+ NAME +".pdf")
+    fig.savefig(PLOTS_OUT_PATH + "Rel_per_msg_" + NAME + ".pdf")
 
 
 if __name__ == "__main__":
@@ -109,7 +139,7 @@ if __name__ == "__main__":
     list_avg_hops = []
     list_node_metrics = []
 
-    for filename in os.listdir(METRICS_PATH):
+    for filename in sorted(os.listdir(METRICS_PATH)):
         print(filename + ":")
         file = open(METRICS_PATH + filename)
         node_metrics = list(map(lambda x: json.loads(x), file.readlines()))
