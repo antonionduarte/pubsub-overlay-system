@@ -1,9 +1,11 @@
-package asd.protocols.overlay.kad;
+package asd.protocols.overlay.kad.bcast;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.UUID;
+
+import asd.protocols.overlay.kad.KadID;
 
 public class MessageTracker {
 

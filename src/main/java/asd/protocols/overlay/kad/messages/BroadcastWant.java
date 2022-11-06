@@ -12,19 +12,19 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 public class BroadcastWant extends ProtoMessage {
     public static final short ID = Kademlia.ID + 23;
 
-    public final KadID pool;
+    public final KadID rtid;
     public final UUID uuid;
 
-    public BroadcastWant(KadID pool, UUID uuid) {
+    public BroadcastWant(KadID rtid, UUID uuid) {
         super(ID);
-        this.pool = pool;
+        this.rtid = rtid;
         this.uuid = uuid;
     }
 
     public static final ISerializer<BroadcastWant> serializer = new ISerializer<BroadcastWant>() {
         @Override
         public void serialize(BroadcastWant t, ByteBuf out) throws IOException {
-            KadID.serializer.serialize(t.pool, out);
+            KadID.serializer.serialize(t.rtid, out);
             out.writeLong(t.uuid.getMostSignificantBits());
             out.writeLong(t.uuid.getLeastSignificantBits());
         }

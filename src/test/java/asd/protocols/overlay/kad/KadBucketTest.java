@@ -6,12 +6,14 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import asd.protocols.overlay.kad.routing.Bucket;
+
 public class KadBucketTest {
 	private static final int K = 20;
 
 	@Test
 	public void emptyBucketTest() {
-		var bucket = new KadBucket(K);
+		var bucket = new Bucket(K);
 
 		assertEquals(0, bucket.size());
 		assertTrue(!bucket.isFull());
@@ -19,7 +21,7 @@ public class KadBucketTest {
 
 	@Test
 	public void addBucketTest() {
-		var bucket = new KadBucket(K);
+		var bucket = new Bucket(K);
 		for (int i = 0; i < K; ++i) {
 			var added = bucket.add(KadTestUtils.randomPeer());
 			assertTrue(added);
@@ -38,7 +40,7 @@ public class KadBucketTest {
 		var p1 = KadTestUtils.randomPeer();
 		var p2 = KadTestUtils.randomPeer();
 		var p3 = p1;
-		var bucket = new KadBucket(K);
+		var bucket = new Bucket(K);
 
 		assertTrue(bucket.add(p1));
 		assertTrue(bucket.add(p2));
@@ -52,7 +54,7 @@ public class KadBucketTest {
 		var p3 = KadTestUtils.randomPeer();
 		var p4 = KadTestUtils.randomPeer();
 
-		var bucket = new KadBucket(K);
+		var bucket = new Bucket(K);
 		bucket.add(p1);
 		bucket.add(p2);
 		bucket.add(p3);

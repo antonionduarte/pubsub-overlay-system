@@ -1,14 +1,12 @@
 package asd.protocols.overlay.kad.query;
 
-import java.util.Optional;
-
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
 
 public interface QueryIO {
     void discover(KadPeer peer);
 
-    void findNodeRequest(KadID id, Optional<KadID> pool, KadID target);
+    void findNodeRequest(KadID id, KadID rtid, KadID target);
 
     void findValueRequest(KadID id, KadID key);
 

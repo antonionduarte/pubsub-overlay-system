@@ -52,8 +52,8 @@ public class Metrics {
 		}
 	}
 
-	public static void pubMessageSent(UUID messageId, String topic, boolean delivered, int fanout) {
-		writeMetric(new PubMessageSent(messageId.toString(), topic, delivered, fanout), "pubSent");
+	public static void pubMessageSent(UUID messageId, String topic, boolean delivered) {
+		writeMetric(new PubMessageSent(messageId.toString(), topic, delivered), "pubSent");
 	}
 
 	public static void pubMessageReceived(UUID messageId, String topic, int hopCount, boolean delivered) {
@@ -69,7 +69,7 @@ public class Metrics {
 	}
 
 	public static void span(String name, double ms) {
-		writeMetric(new Span(name, ms), "span");
+		// writeMetric(new Span(name, ms), "span");
 	}
 
 	public static void connectionEvent(Host host, String event) {
@@ -98,7 +98,7 @@ public class Metrics {
 	public record MessageReceivedHops(String messageId, String topic, int hopCount) {
 	}
 
-	public record PubMessageSent(String messageId, String topic, boolean delivered, int fanout) {
+	public record PubMessageSent(String messageId, String topic, boolean delivered) {
 	}
 
 	public record PubMessageReceived(String messageId, String topic, int hopCount, boolean delivered) {

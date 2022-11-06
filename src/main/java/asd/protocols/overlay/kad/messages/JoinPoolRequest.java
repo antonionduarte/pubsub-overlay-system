@@ -11,22 +11,22 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 public class JoinPoolRequest extends ProtoMessage {
     public static final short ID = Kademlia.ID + 2000;
 
-    public final KadID pool;
+    public final KadID rtid;
 
-    public JoinPoolRequest(KadID pool) {
+    public JoinPoolRequest(KadID rtid) {
         super(ID);
-        this.pool = pool;
+        this.rtid = rtid;
     }
 
     @Override
     public String toString() {
-        return "JoinPoolRequest [pool=" + pool + "]";
+        return "JoinPoolRequest [pool=" + rtid + "]";
     }
 
     public static final ISerializer<JoinPoolRequest> serializer = new ISerializer<JoinPoolRequest>() {
         @Override
         public void serialize(JoinPoolRequest t, ByteBuf out) throws IOException {
-            KadID.serializer.serialize(t.pool, out);
+            KadID.serializer.serialize(t.rtid, out);
         }
 
         @Override

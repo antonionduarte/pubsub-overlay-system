@@ -1,41 +1,35 @@
 package asd.protocols.overlay.kad.query;
 
-import java.util.Optional;
+import java.util.List;
 
 import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.KadParams;
+import asd.protocols.overlay.kad.KadPeer;
 
-public class FindClosestQueryDescriptor {
+public class FindClosestQueryDescriptor implements QueryDescriptor {
+    final KadID rtid;
     final KadID target;
-    final Optional<KadID> pool;
     final FindClosestQueryCallbacks callbacks;
 
-    public FindClosestQueryDescriptor(KadID target) {
+    public FindClosestQueryDescriptor(KadID rtid, KadID target, FindClosestQueryCallbacks callbacks) {
+        this.rtid = rtid;
         this.target = target;
-        this.pool = Optional.empty();
-        this.callbacks = null;
-    }
-
-    public FindClosestQueryDescriptor(KadID target, KadID pool) {
-        this.target = target;
-        this.pool = Optional.of(pool);
-        this.callbacks = null;
-    }
-
-    public FindClosestQueryDescriptor(KadID target, FindClosestQueryCallbacks callbacks) {
-        this.target = target;
-        this.pool = Optional.empty();
         this.callbacks = callbacks;
     }
 
-    public FindClosestQueryDescriptor(KadID target, KadID pool, FindClosestQueryCallbacks callbacks) {
-        this.target = target;
-        this.pool = Optional.of(pool);
-        this.callbacks = callbacks;
+    @Override
+    public KadID getRtid() {
+        return this.rtid;
     }
 
-    public FindClosestQueryDescriptor(KadID target, Optional<KadID> pool, FindClosestQueryCallbacks callbacks) {
-        this.target = target;
-        this.pool = pool;
-        this.callbacks = callbacks;
+    @Override
+    public KadID getTarget() {
+        return this.target;
+    }
+
+    @Override
+    public Query createQuery(QueryIO qio, KadID self, KadParams kadparams, List<KadPeer> seeds) {
+        var query = new FindClosestQuery(qio, self, kadparams, this.target, seeds, this);
+        return query;
     }
 }

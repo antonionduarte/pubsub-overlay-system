@@ -1,4 +1,4 @@
-package asd.protocols.overlay.kad;
+package asd.protocols.overlay.kad.routing;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -6,6 +6,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
+import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.KadParams;
 import asd.utils.ASDUtils;
 
 public class SwarmTracker {

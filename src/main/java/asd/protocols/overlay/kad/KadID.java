@@ -14,6 +14,7 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 
 public class KadID {
 	public static final int ID_LENGTH = 20;
+	public static final KadID DEFAULT_RTID = KadID.zero();
 
 	private final byte[] id;
 

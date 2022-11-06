@@ -13,15 +13,15 @@ import pt.unl.fct.di.novasys.network.ISerializer;
 public class BroadcastMessage extends ProtoMessage {
     public static final short ID = Kademlia.ID + 20;
 
-    public final KadID pool;
+    public final KadID rtid;
     public final int depth;
     public final UUID uuid;
     public final KadPeer origin;
     public final byte[] payload;
 
-    public BroadcastMessage(KadID pool, int depth, UUID uuid, KadPeer origin, byte[] payload) {
+    public BroadcastMessage(KadID rtid, int depth, UUID uuid, KadPeer origin, byte[] payload) {
         super(ID);
-        this.pool = pool;
+        this.rtid = rtid;
         this.depth = depth;
         this.uuid = uuid;
         this.origin = origin;
@@ -31,7 +31,7 @@ public class BroadcastMessage extends ProtoMessage {
     public static final ISerializer<BroadcastMessage> serializer = new ISerializer<BroadcastMessage>() {
         @Override
         public void serialize(BroadcastMessage t, ByteBuf out) throws IOException {
-            KadID.serializer.serialize(t.pool, out);
+            KadID.serializer.serialize(t.rtid, out);
             out.writeInt(t.depth);
             out.writeLong(t.uuid.getMostSignificantBits());
             out.writeLong(t.uuid.getLeastSignificantBits());

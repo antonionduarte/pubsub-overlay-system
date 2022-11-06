@@ -1,12 +1,15 @@
-package asd.protocols.overlay.kad;
+package asd.protocols.overlay.kad.routing;
 
 import java.util.Iterator;
 
-public class KadBucket implements Iterable<KadPeer> {
+import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.KadPeer;
+
+public class Bucket implements Iterable<KadPeer> {
 	private final KadPeer[] peers;
 	private int size;
 
-	public KadBucket(int k) {
+	public Bucket(int k) {
 		this.peers = new KadPeer[k];
 		this.size = 0;
 	}
@@ -78,12 +81,12 @@ public class KadBucket implements Iterable<KadPeer> {
 
 			@Override
 			public boolean hasNext() {
-				return this.index < KadBucket.this.size;
+				return this.index < Bucket.this.size;
 			}
 
 			@Override
 			public KadPeer next() {
-				var peer = KadBucket.this.peers[this.index];
+				var peer = Bucket.this.peers[this.index];
 				this.index += 1;
 				return peer;
 			}

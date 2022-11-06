@@ -13,19 +13,19 @@ import asd.protocols.overlay.kad.KadPeer;
 class FindClosestQuery extends Query {
     private static final Logger logger = LogManager.getLogger(FindClosestQuery.class);
 
-    private final Optional<KadID> pool;
+    private final KadID rtid;
     private final FindClosestQueryCallbacks callbacks;
 
     public FindClosestQuery(QueryIO qio, KadID self, KadParams kadparams, KadID target, List<KadPeer> seeds,
             FindClosestQueryDescriptor descriptor) {
         super(qio, self, kadparams, target, seeds);
-        this.pool = descriptor.pool;
+        this.rtid = descriptor.rtid;
         this.callbacks = descriptor.callbacks;
     }
 
     @Override
     void request(QueryIO qio, KadID peer, KadID target) {
-        qio.findNodeRequest(peer, this.pool, target);
+        qio.findNodeRequest(peer, this.rtid, target);
     }
 
     @Override

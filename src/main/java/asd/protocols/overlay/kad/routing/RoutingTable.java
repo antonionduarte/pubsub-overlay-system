@@ -1,23 +1,26 @@
-package asd.protocols.overlay.kad;
+package asd.protocols.overlay.kad.routing;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 
+import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.KadPeer;
+import asd.protocols.overlay.kad.PeerDistanceComparator;
 import asd.utils.ASDUtils;
 
-public class KadRT {
+public class RoutingTable {
 	private final int k;
 	private final KadID self;
-	private final ArrayList<KadBucket> buckets;
+	private final ArrayList<Bucket> buckets;
 
-	public KadRT(int k, KadID self) {
+	public RoutingTable(int k, KadID self) {
 		this.k = k;
 		this.self = self;
 		this.buckets = new ArrayList<>();
 
-		this.buckets.add(new KadBucket(this.k));
+		this.buckets.add(new Bucket(this.k));
 	}
 
 	public boolean add(KadPeer peer) {
@@ -33,7 +36,7 @@ public class KadRT {
 	}
 
 	public int size() {
-		return this.buckets.stream().mapToInt(KadBucket::size).sum();
+		return this.buckets.stream().mapToInt(Bucket::size).sum();
 	}
 
 	public List<KadPeer> getPeersFromBucket(int index) {
@@ -109,14 +112,14 @@ public class KadRT {
 		return this.size() == 0;
 	}
 
-	private KadBucket getBucketForCpl(int cpl) {
+	private Bucket getBucketForCpl(int cpl) {
 		if (cpl < this.buckets.size())
 			return this.buckets.get(cpl);
 		var last = this.buckets.get(this.buckets.size() - 1);
 		return last;
 	}
 
-	private KadBucket getOrCreateBucketForCpl(int cpl) {
+	private Bucket getOrCreateBucketForCpl(int cpl) {
 		if (cpl < this.buckets.size()) {
 			if (cpl == this.buckets.size() - 1)
 				if (this.buckets.get(cpl).isFull())
@@ -135,7 +138,7 @@ public class KadRT {
 	private void unfoldLastBucket() {
 		var last_cpl = this.buckets.size() - 1;
 		var last = this.buckets.get(last_cpl);
-		var new_last = new KadBucket(this.k);
+		var new_last = new Bucket(this.k);
 		this.buckets.add(new_last);
 		assert last.isFull();
 
@@ -171,7 +174,7 @@ public class KadRT {
 		return this.buckets.size();
 	}
 
-	KadBucket getBucket(int index) {
+	Bucket getBucket(int index) {
 		return this.buckets.get(index);
 	}
 }

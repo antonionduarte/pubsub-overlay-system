@@ -68,7 +68,7 @@ public class InteractiveKad extends GenericProtocol {
                                 if (components.length == 3) {
                                     var pool = components[2];
                                     System.out.println("Finding closest to " + target + " in pool " + pool);
-                                    sendRequest(new FindClosest(target, pool), Kademlia.ID);
+                                    sendRequest(new FindClosest(pool, target), Kademlia.ID);
                                 } else {
                                     System.out.println("Finding closest with cpl = " + cpl);
                                     sendRequest(new FindClosest(target), Kademlia.ID);

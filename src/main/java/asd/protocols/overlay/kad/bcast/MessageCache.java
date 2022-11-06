@@ -1,4 +1,4 @@
-package asd.protocols.overlay.kad;
+package asd.protocols.overlay.kad.bcast;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
@@ -6,20 +6,6 @@ import java.util.HashMap;
 import java.util.UUID;
 
 public class MessageCache {
-    public static class Message {
-        public final UUID uuid;
-        public final int depth;
-        public final KadPeer origin;
-        public final byte[] payload;
-
-        public Message(UUID uuid, int depth, KadPeer origin, byte[] payload) {
-            this.uuid = uuid;
-            this.depth = depth;
-            this.origin = origin;
-            this.payload = payload;
-        }
-    }
-
     private static class QueueItem {
         public final UUID uuid;
         public final Instant expire;
@@ -38,10 +24,10 @@ public class MessageCache {
         this.messages = new HashMap<>();
     }
 
-    public void add(UUID uuid, int depth, KadPeer origin, byte[] payload) {
+    public void add(Message message) {
         this.clean();
-        this.queue.add(new QueueItem(uuid, Instant.now().plusSeconds(10 * 60)));
-        this.messages.put(uuid, new Message(uuid, depth, origin, payload));
+        this.queue.add(new QueueItem(message.uuid, Instant.now().plusSeconds(10 * 60)));
+        this.messages.put(message.uuid, message);
     }
 
     public Message get(UUID uuid) {

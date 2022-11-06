@@ -2,7 +2,7 @@ package asd.protocols.overlay.kad;
 
 import java.util.Comparator;
 
-class PeerDistanceComparator implements Comparator<KadPeer> {
+public class PeerDistanceComparator implements Comparator<KadPeer> {
 	private final KadID from;
 
 	public PeerDistanceComparator(KadID from) {

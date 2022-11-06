@@ -5,11 +5,13 @@ import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
 
+import asd.protocols.overlay.kad.routing.RoutingTable;
+
 public class KadRTTest {
     private static final int K = 20;
 
     static KadID self = KadID.random();
-    static KadRT rt = new KadRT(K, self);
+    static RoutingTable rt = new RoutingTable(K, self);
 
     @Test
     public void peerAddTest() {
@@ -29,7 +31,7 @@ public class KadRTTest {
     @Test
     public void findClosestTest() {
         var self = KadID.random();
-        var rt = new KadRT(K, self);
+        var rt = new RoutingTable(K, self);
 
         for (int i = 0; i < 10; ++i)
             for (int j = 0; j < K; ++j)

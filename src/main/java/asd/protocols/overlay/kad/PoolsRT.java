@@ -5,10 +5,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 
+import asd.protocols.overlay.kad.routing.RoutingTable;
+
 public class PoolsRT {
     private final KadParams params;
     private final KadID self;
-    private final HashMap<KadID, KadRT> pools;
+    private final HashMap<KadID, RoutingTable> pools;
 
     public PoolsRT(KadParams params, KadID self) {
         this.params = params;
@@ -16,13 +18,13 @@ public class PoolsRT {
         this.pools = new HashMap<>();
     }
 
-    public KadRT createPool(KadID pool) {
+    public RoutingTable createPool(KadID pool) {
         if (!this.containsPool(pool))
-            this.pools.put(pool, new KadRT(this.params.k, this.self));
+            this.pools.put(pool, new RoutingTable(this.params.k, this.self));
         return this.pools.get(pool);
     }
 
-    public KadRT getPool(KadID pool) {
+    public RoutingTable getPool(KadID pool) {
         return this.pools.get(pool);
     }
 
@@ -31,18 +33,18 @@ public class PoolsRT {
     }
 
     public List<KadPeer> getPoolSample(KadID pool) {
-        KadRT rt = pools.get(pool);
+        RoutingTable rt = pools.get(pool);
         if (rt == null)
             return List.of();
         return rt.getSample(this.params.k);
     }
 
-    public Iterator<Entry<KadID, KadRT>> iterator() {
+    public Iterator<Entry<KadID, RoutingTable>> iterator() {
         return this.pools.entrySet().iterator();
     }
 
     public void removePeer(KadID peer) {
-        for (KadRT rt : this.pools.values())
+        for (RoutingTable rt : this.pools.values())
             rt.remove(peer);
     }
 }
