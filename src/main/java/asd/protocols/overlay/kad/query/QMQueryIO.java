@@ -1,5 +1,7 @@
 package asd.protocols.overlay.kad.query;
 
+import java.util.Optional;
+
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
 
@@ -18,8 +20,8 @@ class QMQueryIO implements QueryIO {
     }
 
     @Override
-    public void findNodeRequest(KadID id, KadID target) {
-        this.qmio.findNodeRequest(this.context, id, target);
+    public void findNodeRequest(KadID id, Optional<KadID> pool, KadID target) {
+        this.qmio.findNodeRequest(this.context, id, pool, target);
     }
 
     @Override

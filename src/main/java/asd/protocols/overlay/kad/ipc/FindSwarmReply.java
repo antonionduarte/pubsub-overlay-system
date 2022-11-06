@@ -7,7 +7,7 @@ import asd.protocols.overlay.kad.Kademlia;
 import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
 public class FindSwarmReply extends ProtoReply {
-    public static final short ID = Kademlia.ID + 4;
+    public static final short ID = Kademlia.ID + 6;
 
     public final String swarm;
     public final List<KadPeer> peers;

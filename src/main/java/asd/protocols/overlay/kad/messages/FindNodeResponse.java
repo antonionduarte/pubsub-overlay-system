@@ -3,7 +3,9 @@ package asd.protocols.overlay.kad.messages;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
+import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.Kademlia;
 import io.netty.buffer.ByteBuf;
@@ -15,40 +17,65 @@ public class FindNodeResponse extends ProtoMessage {
 
     public final long context;
     public final List<KadPeer> peers;
+    public final Optional<KadID> pool;
 
     public FindNodeResponse(long context, List<KadPeer> closest) {
         super(ID);
         this.context = context;
         this.peers = List.copyOf(closest);
+        this.pool = Optional.empty();
+    }
+
+    public FindNodeResponse(long context, List<KadPeer> closest, KadID pool) {
+        super(ID);
+        this.context = context;
+        this.peers = List.copyOf(closest);
+        this.pool = Optional.of(pool);
+    }
+
+    public FindNodeResponse(long context, List<KadPeer> closest, Optional<KadID> pool) {
+        super(ID);
+        this.context = context;
+        this.peers = List.copyOf(closest);
+        this.pool = pool;
     }
 
     @Override
     public String toString() {
-        return "FindNodeResponse{" +
-                "context=" + context +
-                ", peers=" + peers +
-                '}';
+        return "FindNodeResponse [context=" + context + ", peers=" + peers + ", pool=" + pool + "]";
     }
 
     public static final ISerializer<FindNodeResponse> serializer = new ISerializer<FindNodeResponse>() {
+
         @Override
-        public void serialize(FindNodeResponse t, ByteBuf out) throws IOException {
-            out.writeLong(t.context);
-            out.writeInt(t.peers.size());
-            for (KadPeer peer : t.peers) {
+        public void serialize(FindNodeResponse m, ByteBuf out) throws IOException {
+            out.writeLong(m.context);
+            out.writeInt(m.peers.size());
+            for (KadPeer peer : m.peers) {
                 KadPeer.serializer.serialize(peer, out);
+            }
+            if (m.pool.isPresent()) {
+                out.writeBoolean(true);
+                KadID.serializer.serialize(m.pool.get(), out);
+            } else {
+                out.writeBoolean(false);
             }
         }
 
         @Override
         public FindNodeResponse deserialize(ByteBuf in) throws IOException {
-            var context = in.readLong();
-            var size = in.readInt();
-            var peers = new ArrayList<KadPeer>(size);
+            long context = in.readLong();
+            int size = in.readInt();
+            List<KadPeer> peers = new ArrayList<>(size);
             for (int i = 0; i < size; i++) {
                 peers.add(KadPeer.serializer.deserialize(in));
             }
-            return new FindNodeResponse(context, peers);
+            if (in.readBoolean()) {
+                KadID pool = KadID.serializer.deserialize(in);
+                return new FindNodeResponse(context, peers, pool);
+            } else {
+                return new FindNodeResponse(context, peers);
+            }
         }
     };
 }

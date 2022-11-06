@@ -3,7 +3,8 @@ package asd.protocols.pubsub.kadpubsub;
 import java.io.IOException;
 import java.util.Properties;
 
-import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
+import asd.protocols.overlay.kad.ipc.Broadcast;
+import asd.protocols.overlay.kad.ipc.JoinPool;
 import asd.protocols.pubsub.common.PublishRequest;
 import asd.protocols.pubsub.common.SubscriptionRequest;
 import asd.protocols.pubsub.common.UnsubscriptionRequest;
@@ -21,8 +22,6 @@ public class KadPubSub extends GenericProtocol {
         this.registerRequestHandler(PublishRequest.REQUEST_ID, this::onPublishRequest);
         this.registerRequestHandler(SubscriptionRequest.REQUEST_ID, this::onSubscriptionRequest);
         this.registerRequestHandler(UnsubscriptionRequest.REQUEST_ID, this::onUnsubscriptionRequest);
-
-        this.subscribeNotification(ChannelCreatedNotification.ID, this::onChannelCreated);
     }
 
     @Override
@@ -31,17 +30,13 @@ public class KadPubSub extends GenericProtocol {
 
     /*--------------------------------- Notification Handlers ---------------------------------------- */
     private void onPublishRequest(PublishRequest request, short source_proto) {
+        this.sendRequest(new Broadcast(request.getTopic(), request.getMsgID(), request.getMessage()), source_proto);
     }
 
     private void onSubscriptionRequest(SubscriptionRequest request, short source_proto) {
+        this.sendRequest(new JoinPool(request.getTopic()), source_proto);
     }
 
     private void onUnsubscriptionRequest(UnsubscriptionRequest request, short source_proto) {
     }
-
-    /*--------------------------------- Notification Handlers ---------------------------------------- */
-
-    private void onChannelCreated(ChannelCreatedNotification notification, short source_proto) {
-    }
-
 }

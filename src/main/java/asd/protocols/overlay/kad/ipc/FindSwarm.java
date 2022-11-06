@@ -7,7 +7,7 @@ import asd.protocols.overlay.kad.Kademlia;
 import pt.unl.fct.di.novasys.babel.generic.ProtoRequest;
 
 public class FindSwarm extends ProtoRequest {
-    public static final short ID = Kademlia.ID + 3;
+    public static final short ID = Kademlia.ID + 5;
 
     public final String swarm;
     public final Optional<Integer> sample_size;

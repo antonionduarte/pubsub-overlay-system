@@ -7,7 +7,7 @@ import sys
 BOOTSTRAP_PORT = 5000
 
 
-def spawn_kad_java_native(port: int):
+def spawn_java_native(port: int):
     cwd = os.getcwd()
     args = [
         shutil.which("java"),
@@ -17,12 +17,12 @@ def spawn_kad_java_native(port: int):
         f"-DlogFilename=log/node_{port}.log",
         "-cp",
         f"{cwd}/target/asdProj.jar",
-        "asd.UnstructuredMain",
+        "asd.StructuredMain",
         f"babel_port={port}",
         "babel_address=127.0.0.1",
     ]
     if port != BOOTSTRAP_PORT:
-        args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
+        args.append(f"hypar_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
     subprocess.Popen(
         args,
         start_new_session=True,
@@ -30,12 +30,12 @@ def spawn_kad_java_native(port: int):
 
 
 def create_container(port: int):
-    print(f"Creating container hypar_{port}")
+    print(f"Creating container hypv_{port}")
     cwd = os.getcwd()
     args = [
         "docker",
         "run",
-        f"--name=hypar_{port}",
+        f"--name=hypv_{port}",
         # "--rm",
         "-itd",
         "--network=host",
@@ -48,31 +48,31 @@ def create_container(port: int):
         "-v",
         f"{cwd}/log4j2.xml:/usr/local/log4j2.xml",
         "-v",
-        f"{cwd}/analysis/metrics:/usr/local/metrics/",
+        f"{cwd}/analysis/metrics_unstructured:/usr/local/metrics/",
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
     ]
     subprocess.run(args)
 
 
-def run_container(port: int, main_class):
+def run_container(port: int):
     print(f"Spawning process in port {port}")
     args = [
         "docker",
         "exec",
-        f"hypar_{port}",
+        f"hypv_{port}",
         "java",
         "-Xmx96M",
         f"-DlogFilename=log/node_{port}.log",
         "-ea",
         "-cp",
         "/usr/local/app.jar",
-        f"asd.{main_class}",
+        f"asd.UnstructuredMain",
         f"babel_port={port}",
         "babel_address=127.0.0.1",
     ]
     if port != BOOTSTRAP_PORT:
-        args.append(f"hypar_bootstrap=127.0.0.1:{port - 1}")
+        args.append(f"hypar_bootstrap=127.0.0.1:{port-1}")
     subprocess.Popen(
         args,
         start_new_session=True,
@@ -81,14 +81,13 @@ def run_container(port: int, main_class):
 
 def main():
     num = int(sys.argv[1])
-    main_class = sys.argv[2]
     for i in range(0, num):
         create_container(BOOTSTRAP_PORT + i)
-    run_container(BOOTSTRAP_PORT, main_class)
+    run_container(BOOTSTRAP_PORT)
     time.sleep(2)
     for i in range(1, num):
         time.sleep(0.2)
-        run_container(BOOTSTRAP_PORT + i, main_class)
+        run_container(BOOTSTRAP_PORT + i)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@ package asd.protocols.overlay.kad;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.logging.log4j.LogManager;
@@ -13,9 +13,11 @@ import asd.metrics.Metrics;
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
+import asd.protocols.overlay.kad.ipc.Broadcast;
 import asd.protocols.overlay.kad.ipc.FindClosest;
 import asd.protocols.overlay.kad.ipc.FindClosestReply;
 import asd.protocols.overlay.kad.ipc.FindPool;
+import asd.protocols.overlay.kad.ipc.FindPoolReply;
 import asd.protocols.overlay.kad.ipc.FindSwarm;
 import asd.protocols.overlay.kad.ipc.FindSwarmReply;
 import asd.protocols.overlay.kad.ipc.FindValue;
@@ -25,6 +27,9 @@ import asd.protocols.overlay.kad.ipc.JoinPoolReply;
 import asd.protocols.overlay.kad.ipc.JoinSwarm;
 import asd.protocols.overlay.kad.ipc.JoinSwarmReply;
 import asd.protocols.overlay.kad.ipc.StoreValue;
+import asd.protocols.overlay.kad.messages.BroadcastHave;
+import asd.protocols.overlay.kad.messages.BroadcastMessage;
+import asd.protocols.overlay.kad.messages.BroadcastWant;
 import asd.protocols.overlay.kad.messages.FindNodeRequest;
 import asd.protocols.overlay.kad.messages.FindNodeResponse;
 import asd.protocols.overlay.kad.messages.FindPoolRequest;
@@ -37,6 +42,7 @@ import asd.protocols.overlay.kad.messages.Handshake;
 import asd.protocols.overlay.kad.messages.JoinPoolRequest;
 import asd.protocols.overlay.kad.messages.JoinSwarmRequest;
 import asd.protocols.overlay.kad.messages.StoreRequest;
+import asd.protocols.overlay.kad.notifications.BroadcastReceived;
 import asd.protocols.overlay.kad.query.FindClosestQueryDescriptor;
 import asd.protocols.overlay.kad.query.FindPoolQueryDescriptor;
 import asd.protocols.overlay.kad.query.FindSwarmQueryDescriptor;
@@ -74,6 +80,8 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	private final PoolsRT pools_rt;
 	private final SwarmTracker pool_tracker;
 	private final ConnectionFlags conn_flags;
+	private final MessageCache msg_cache;
+	private final MessageTracker msg_tracker;
 
 	public Kademlia(Properties props, Host self) throws IOException, HandlerRegistrationException {
 		super(NAME, ID);
@@ -99,14 +107,19 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.rt = new KadRT(params.k, this.self.id);
 		this.storage = new KadStorage();
 		this.addrbook = new KadAddrBook();
-		this.query_manager = new QueryManager(params, this.rt, this.self.id, this);
 		this.swarm_tracker = new SwarmTracker(params);
 		this.params = params;
 		this.pools_rt = new PoolsRT(params, this.self.id);
 		this.pool_tracker = new SwarmTracker(params);
 		this.conn_flags = new ConnectionFlags();
+		this.query_manager = new QueryManager(params, this.rt, this.pools_rt, this.self.id, this);
+		this.msg_cache = new MessageCache();
+		this.msg_tracker = new MessageTracker();
 
 		/*---------------------- Register Message Serializers ---------------------- */
+		this.registerMessageSerializer(this.channel_id, BroadcastHave.ID, BroadcastHave.serializer);
+		this.registerMessageSerializer(this.channel_id, BroadcastMessage.ID, BroadcastMessage.serializer);
+		this.registerMessageSerializer(this.channel_id, BroadcastWant.ID, BroadcastWant.serializer);
 		this.registerMessageSerializer(this.channel_id, FindNodeRequest.ID, FindNodeRequest.serializer);
 		this.registerMessageSerializer(this.channel_id, FindNodeResponse.ID, FindNodeResponse.serializer);
 		this.registerMessageSerializer(this.channel_id, FindPoolRequest.ID, FindPoolRequest.serializer);
@@ -117,9 +130,13 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.registerMessageSerializer(this.channel_id, FindValueResponse.ID, FindValueResponse.serializer);
 		this.registerMessageSerializer(this.channel_id, Handshake.ID, Handshake.serializer);
 		this.registerMessageSerializer(this.channel_id, JoinSwarmRequest.ID, JoinSwarmRequest.serializer);
+		this.registerMessageSerializer(this.channel_id, JoinPoolRequest.ID, JoinPoolRequest.serializer);
 		this.registerMessageSerializer(this.channel_id, StoreRequest.ID, StoreRequest.serializer);
 
 		/*---------------------- Register Message Handlers -------------------------- */
+		this.registerMessageHandler(this.channel_id, BroadcastHave.ID, this::onBroadcastHave);
+		this.registerMessageHandler(this.channel_id, BroadcastMessage.ID, this::onBroadcastMessage);
+		this.registerMessageHandler(this.channel_id, BroadcastWant.ID, this::onBroadcastWant);
 		this.registerMessageHandler(this.channel_id, FindNodeRequest.ID, this::onFindNodeRequest);
 		this.registerMessageHandler(this.channel_id, FindNodeResponse.ID, this::onFindNodeResponse);
 		this.registerMessageHandler(this.channel_id, FindPoolRequest.ID, this::onFindPoolRequest);
@@ -134,6 +151,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.registerMessageHandler(this.channel_id, StoreRequest.ID, this::onStoreRequest);
 
 		/*--------------------- Register Request Handlers ----------------------------- */
+		this.registerRequestHandler(Broadcast.ID, this::onBroadcast);
 		this.registerRequestHandler(FindClosest.ID, this::onFindClosest);
 		this.registerRequestHandler(FindPool.ID, this::onFindPool);
 		this.registerRequestHandler(FindSwarm.ID, this::onFindSwarm);
@@ -174,6 +192,16 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		System.out.println(this.rt);
 	}
 
+	public void printPoolRoutingTable(String pool) {
+		var id = KadID.ofData(pool);
+		var rt = this.pools_rt.getPool(id);
+		if (rt == null) {
+			System.out.println("No routing table for pool " + pool);
+		} else {
+			System.out.println(rt);
+		}
+	}
+
 	public KadID getID() {
 		return this.self.id;
 	}
@@ -207,6 +235,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	private void onPeerDisconnect(KadPeer peer) {
 		logger.info("Connection to " + peer + " is down");
 		this.rt.remove(peer.id);
+		this.pools_rt.removePeer(peer.id);
 		this.triggerNotification(new NeighbourDown(peer.host));
 	}
 
@@ -241,14 +270,78 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.query_manager.startQuery(descriptor);
 	}
 
+	private KadRT getRtFromPool(Optional<KadID> pool) {
+		if (pool.isEmpty())
+			return this.rt;
+		return this.pools_rt.getPool(pool.get());
+	}
+
 	/*--------------------------------- Message Handlers ---------------------------------------- */
+	private void onBroadcastHave(BroadcastHave msg, Host from, short source_proto, int channel_id) {
+		Metrics.kadReceiveMessage(from, "BroadcastHave");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+
+		if (!this.pools_rt.containsPool(msg.pool))
+			return;
+		if (this.msg_cache.contains(msg.uuid))
+			return;
+
+		var peer = this.addrbook.getPeerFromHost(from);
+		if (!this.msg_tracker.isTracking(msg.uuid))
+			this.msg_tracker.startTracking(msg.uuid);
+
+		this.msg_tracker.addProvider(msg.uuid, peer.id);
+		if (!this.msg_tracker.isRequesting(msg.uuid)) {
+			this.msg_tracker.beginRequest(msg.uuid, peer.id);
+			this.kadSendMessage(new BroadcastWant(msg.pool, msg.uuid), from);
+		}
+	}
+
+	private void onBroadcastMessage(BroadcastMessage msg, Host from, short source_proto, int channel_id) {
+		Metrics.kadReceiveMessage(from, "BroadcastRequest");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+
+		if (!this.pools_rt.containsPool(msg.pool))
+			return;
+		if (this.msg_cache.contains(msg.uuid))
+			return;
+
+		var pool = this.pools_rt.getPool(msg.pool);
+		var peers = pool.getBroadcastSample(msg.depth, 10);
+		for (var peer : peers)
+			this.kadSendMessage(new BroadcastHave(msg.pool, msg.uuid), peer.host);
+
+		this.msg_cache.add(msg.uuid, msg.depth, msg.payload);
+		this.triggerNotification(new BroadcastReceived(msg.uuid, msg.payload));
+	}
+
+	private void onBroadcastWant(BroadcastWant msg, Host from, short source_proto, int channel_id) {
+		Metrics.kadReceiveMessage(from, "BroadcastWant");
+		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+
+		var m = this.msg_cache.get(msg.uuid);
+		if (m == null)
+			return;
+
+		this.kadSendMessage(new BroadcastMessage(msg.pool, m.depth + 1, m.uuid, m.payload), from);
+	}
+
 	private void onFindNodeRequest(FindNodeRequest msg, Host from, short source_proto, int channel_id) {
 		Metrics.kadReceiveMessage(from, "FindNodeRequest");
 		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
-		logger.info("Received FindNodeRequest from " + from + " I am " + this.self.host + " with target " + msg.target);
 
-		var closest = this.rt.closest(msg.target);
-		this.loggedSendMessage(new FindNodeResponse(msg.context, closest), from);
+		var rt = this.getRtFromPool(msg.pool);
+		var closest = rt == null ? List.<KadPeer>of() : rt.closest(msg.target);
+		logger.info("Received FindNodeRequest from " + from + " I am " + this.self.host + " with target " + msg.target
+				+ " and pool " + msg.pool + ". closest = " + closest);
+		if (msg.pool.isPresent()) {
+			var pool_id = msg.pool.get();
+			var pool = this.pools_rt.getPool(pool_id);
+			var peer = this.addrbook.getPeerFromHost(from);
+			if (pool != null && peer != null)
+				pool.add(peer);
+		}
+		this.loggedSendMessage(new FindNodeResponse(msg.context, closest, msg.pool), from);
 	}
 
 	private void onFindNodeResponse(FindNodeResponse msg, Host from, short source_proto, int channel_id) {
@@ -256,6 +349,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
 		msg.peers.forEach(p -> this.addrbook.add(p));
+
 		var peer = this.addrbook.getPeerFromHost(from);
 		this.query_manager.onFindNodeResponse(msg.context, peer.id, msg.peers);
 	}
@@ -263,7 +357,8 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	public void onFindPoolRequest(FindPoolRequest msg, Host from, short source_proto, int channel_id) {
 		Metrics.kadReceiveMessage(from, "FindPoolRequest");
 		this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
-		logger.info("Received FindPoolRequest from " + from + " I am " + this.self.host + " with pool " + msg.pool);
+		logger.info("Received FindPoolRequest from " + from + " I am " + this.self.host + " with pool " + msg.pool
+				+ " and context " + msg.context);
 
 		var closest = this.rt.closest(msg.pool);
 		var members = this.addrbook.idsToPeers(this.pool_tracker.getSwarmSample(msg.pool));
@@ -279,7 +374,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		msg.members.forEach(p -> this.addrbook.add(p));
 
 		var peer = this.addrbook.getPeerFromHost(from);
-		this.query_manager.onFindPoolResponse(channel_id, peer.id, msg.peers, msg.members);
+		this.query_manager.onFindPoolResponse(msg.context, peer.id, msg.peers, msg.members);
 	}
 
 	private void onFindSwarmRequest(FindSwarmRequest msg, Host from, short source_proto, int channel_id) {
@@ -362,8 +457,28 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	}
 
 	/*--------------------------------- Request Handlers ---------------------------------------- */
+	private void onBroadcast(Broadcast msg, short source_proto) {
+		var pool_id = KadID.ofData(msg.pool);
+		this.msg_cache.add(msg.uuid, 0, msg.payload);
+		var pool = this.pools_rt.getPool(pool_id);
+		if (pool == null) {
+			this.startQuery(new FindPoolQueryDescriptor(pool_id, (__, members) -> {
+				for (var member : members) {
+					var peer = this.addrbook.getPeerFromID(member);
+					if (peer == null)
+						continue;
+					this.kadSendMessage(new BroadcastMessage(pool_id, 0, msg.uuid, msg.payload), peer.host);
+				}
+			}));
+		} else {
+			var peers = pool.getBroadcastSample(0, 10);
+			for (var peer : peers)
+				this.kadSendMessage(new BroadcastMessage(pool_id, 1, msg.uuid, msg.payload), peer.host);
+		}
+	}
+
 	private void onFindClosest(FindClosest msg, short source_proto) {
-		this.startQuery(new FindClosestQueryDescriptor(msg.target, closest -> {
+		this.startQuery(new FindClosestQueryDescriptor(msg.target, msg.pool, closest -> {
 			var closest_peers = this.addrbook.idsToPeers(closest);
 			var reply = new FindClosestReply(msg.target, closest_peers);
 			this.sendReply(reply, source_proto);
@@ -371,7 +486,10 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	}
 
 	private void onFindPool(FindPool msg, short source_proto) {
-		// TODO: maybe remove this
+		var pool_id = KadID.ofData(msg.pool);
+		this.startQuery(new FindPoolQueryDescriptor(pool_id, (__, members) -> {
+			this.sendReply(new FindPoolReply(msg.pool, this.addrbook.idsToPeers(members)), source_proto);
+		}));
 	}
 
 	private void onFindSwarm(FindSwarm msg, short source_proto) {
@@ -402,10 +520,16 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 			return;
 		}
 
-		this.pools_rt.createPool(pool_id);
-		var pool = this.pools_rt.getPool(pool_id);
-		this.startQuery(new FindPoolQueryDescriptor(pool_id, (__, members) -> {
+		var pool = this.pools_rt.createPool(pool_id);
+		this.startQuery(new FindPoolQueryDescriptor(pool_id, (closest, members) -> {
 			this.addrbook.idsToPeers(members).forEach(pool::add);
+			for (var peer : closest) {
+				var host = this.addrbook.getHostFromID(peer);
+				if (host == null)
+					continue;
+				var request = new JoinPoolRequest(pool_id);
+				this.kadSendMessage(request, host);
+			}
 			this.sendReply(new JoinPoolReply(msg.pool), source_proto);
 		}));
 	}
@@ -489,6 +613,20 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	private void onRefreshRT(RefreshRTTimer timer, long timer_id) {
 		logger.info("Refreshing routing table");
 		this.startQuery(new FindClosestQueryDescriptor(this.self.id));
+
+		var iter = this.pools_rt.iterator();
+		while (iter.hasNext()) {
+			var item = iter.next();
+			this.startQuery(new FindClosestQueryDescriptor(this.self.id, item.getKey(), (members) -> {
+				var rt = item.getValue();
+				for (var id : members) {
+					var peer = this.addrbook.getPeerFromID(id);
+					if (peer == null)
+						continue;
+					rt.add(peer);
+				}
+			}));
+		}
 	}
 
 	/*--------------------------------- QueryManagerIO ---------------------------------------- */
@@ -499,13 +637,13 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	}
 
 	@Override
-	public void findNodeRequest(long context, KadID id, KadID target) {
+	public void findNodeRequest(long context, KadID id, Optional<KadID> pool, KadID target) {
 		var host = this.addrbook.getHostFromID(id);
 		if (host == null) {
 			logger.warn("Could not find host for peer " + id + " while sending FindNodeRequest");
 			return;
 		}
-		var request = new FindNodeRequest(context, target);
+		var request = new FindNodeRequest(context, target, pool);
 		this.kadSendMessage(request, host);
 	}
 

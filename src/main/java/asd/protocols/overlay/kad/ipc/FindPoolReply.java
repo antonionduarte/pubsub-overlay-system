@@ -2,18 +2,18 @@ package asd.protocols.overlay.kad.ipc;
 
 import java.util.List;
 
+import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.Kademlia;
-import pt.unl.fct.di.novasys.babel.generic.ProtoRequest;
-import pt.unl.fct.di.novasys.network.data.Host;
+import pt.unl.fct.di.novasys.babel.generic.ProtoReply;
 
-public class FindPoolReply extends ProtoRequest {
+public class FindPoolReply extends ProtoReply {
 
-    public static final short ID = Kademlia.ID + 1;
+    public static final short ID = Kademlia.ID + 4;
 
     public final String pool;
-    public final List<Host> members;
+    public final List<KadPeer> members;
 
-    public FindPoolReply(String pool, List<Host> members) {
+    public FindPoolReply(String pool, List<KadPeer> members) {
         super(ID);
         this.pool = pool;
         this.members = members;

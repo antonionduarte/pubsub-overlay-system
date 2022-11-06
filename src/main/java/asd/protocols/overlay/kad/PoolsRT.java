@@ -1,7 +1,9 @@
 package asd.protocols.overlay.kad;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
 
 public class PoolsRT {
     private final KadParams params;
@@ -14,13 +16,13 @@ public class PoolsRT {
         this.pools = new HashMap<>();
     }
 
-    public void createPool(KadID pool) {
+    public KadRT createPool(KadID pool) {
         if (!this.containsPool(pool))
             this.pools.put(pool, new KadRT(this.params.k, this.self));
+        return this.pools.get(pool);
     }
 
     public KadRT getPool(KadID pool) {
-        assert this.containsPool(pool);
         return this.pools.get(pool);
     }
 
@@ -33,5 +35,14 @@ public class PoolsRT {
         if (rt == null)
             return List.of();
         return rt.getSample(this.params.k);
+    }
+
+    public Iterator<Entry<KadID, KadRT>> iterator() {
+        return this.pools.entrySet().iterator();
+    }
+
+    public void removePeer(KadID peer) {
+        for (KadRT rt : this.pools.values())
+            rt.remove(peer);
     }
 }
