@@ -34,11 +34,11 @@ def spawn_hypv_java_docker(port: int):
         "babel_address=127.0.0.1",
     ]
     if port != BOOTSTRAP_PORT:
-        args.append(f"hypar_bootstrap=127.0.0.1:{port - 1}")
+        args.append(f"hypar_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
     subprocess.run(args)
 
     if port != BOOTSTRAP_PORT:
-        args.append(f"hypar_bootstrap=127.0.0.1:{port - 1}")
+        args.append(f"hypar_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
     subprocess.Popen(
         args,
         start_new_session=True,

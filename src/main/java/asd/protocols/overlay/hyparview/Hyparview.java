@@ -179,6 +179,9 @@ public class Hyparview extends GenericProtocol {
 			this.activeView.removePeer(from);
 			this.passiveView.addPeer(from);
 
+			var toAdd = this.passiveView.selectRandomDiffPeer(from);
+			this.handleRequestNeighbour(toAdd);
+
 			logger.info("Node " + from + " disconnected");
 		}
 	}
