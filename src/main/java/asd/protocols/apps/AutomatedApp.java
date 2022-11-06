@@ -28,6 +28,8 @@ public class AutomatedApp extends GenericProtocol {
 
 	// Size of the payload of each message (in bytes)
 	private final int payloadSize;
+	// Time to wait until starting sending subs
+	private final int preparePrepareTime;
 	// Time to wait until starting sending messages
 	private final int prepareTime;
 	// Time to run before shutting down
@@ -63,6 +65,7 @@ public class AutomatedApp extends GenericProtocol {
 
 		// Read configurations
 		this.payloadSize = Integer.parseInt(properties.getProperty("payload_size"));
+		this.preparePrepareTime = Integer.parseInt(properties.getProperty("prepare_prepare_time")); // in seconds
 		this.prepareTime = Integer.parseInt(properties.getProperty("prepare_time")); // in seconds
 		this.cooldownTime = Integer.parseInt(properties.getProperty("cooldown_time")); // in seconds
 		this.runTime = Integer.parseInt(properties.getProperty("run_time")); // in seconds
@@ -113,7 +116,7 @@ public class AutomatedApp extends GenericProtocol {
 	public void init(Properties props) {
 		// Wait prepareTime seconds before starting
 		logger.info("Waiting...");
-		setupTimer(new StartTimer(), prepareTime * 1000);
+		setupTimer(new StartTimer(), preparePrepareTime * 1000);
 	}
 
 	private void uponStartTimer(StartTimer startTimer, long timerId) {
@@ -126,7 +129,7 @@ public class AutomatedApp extends GenericProtocol {
 
 		logger.info("Starting publications in 2 seconds");
 		// Start broadcasting periodically
-		broadCastTimer = setupPeriodicTimer(new DisseminationTimer(), 2000, disseminationInterval);
+		broadCastTimer = setupPeriodicTimer(new DisseminationTimer(), prepareTime * 1000, disseminationInterval);
 		// And set up the stop timer
 		setupTimer(new StopTimer(), runTime * 1000);
 	}

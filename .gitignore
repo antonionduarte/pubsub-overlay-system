@@ -45,3 +45,4 @@ hs_err_pid*
 /analysis/text/
 /analysis/metrics_structured/
 /analysis/metrics_unstructured/
+/analysis/metrics_kadpubsub/

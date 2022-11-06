@@ -25,7 +25,7 @@ def create_container(port: int, bi, ps):
         "-v",
         f"{cwd}/log4j2.xml:/usr/local/log4j2.xml",
         "-v",
-        f"{cwd}/analysis/metrics_structured/{bi}ms_{ps}b:/usr/local/metrics/",
+        f"{cwd}/analysis/metrics_kadpubsub/{bi}ms_{ps}b:/usr/local/metrics/",
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
     ]
@@ -44,7 +44,7 @@ def run_container(port: int, bi, ps):
         "-ea",
         "-cp",
         "/usr/local/app.jar",
-        "asd.StructuredMain",
+        "asd.KadPubSubMain",
         f"babel_port={port}",
         "babel_address=127.0.0.1",
         f"broadcast_interval={bi}",
