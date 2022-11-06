@@ -13,7 +13,7 @@ import java.util.UUID;
 public class Metrics {
 
 	public static String FOLDER = "metrics/";
-	public static final String FILE_PATH_MASK = "%smetrics_%d_%sbi_%sps.json";
+	public static final String FILE_PATH_MASK = "%smetrics_%d.json";
 	public static FileOutputStream fileOutputStream;
 	public static File metricsFile = null;
 
@@ -23,8 +23,7 @@ public class Metrics {
 		var nodeId = Integer.parseInt(props.getProperty("babel_port"));
 		if (props.containsKey("metrics_folder"))
 			FOLDER = props.getProperty("metrics_folder");
-		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId,
-				props.getProperty("broadcast_interval"), props.getProperty("payload_size"));
+		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId);
 
 		metricsFile = new File(filepath);
 

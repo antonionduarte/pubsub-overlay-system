@@ -195,10 +195,10 @@ public class GossipSub extends GenericProtocol {
 		var toSend = selectPeersToPublish(topic);
 
 		if (toSend.isEmpty()) {
-			logger.warn("No peers to publish :(, trying to find with Kademlia...");
-			pendingPublishes.computeIfAbsent(topic, k -> new HashSet<>());
-			pendingPublishes.get(topic).add(publishMessage);
-			sendRequest(new FindSwarm(topic, degree), Kademlia.ID);
+//			logger.warn("No peers to publish :(, trying to find with Kademlia...");
+//			pendingPublishes.computeIfAbsent(topic, k -> new HashSet<>());
+//			pendingPublishes.get(topic).add(publishMessage);
+//			sendRequest(new FindSwarm(topic, degree), Kademlia.ID);
 			return;
 		}
 
