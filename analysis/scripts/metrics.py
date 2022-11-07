@@ -125,7 +125,6 @@ def plot_hop_latency_results(hop_latency_results):
     fig.tight_layout()
     fig.savefig(PLOTS_OUT_PATH + "Hop_Latency_" + system_name[typ] + ".pdf")
 
-
 def calc_reliability(all_sorted_by_time):
     only_delivered_pubs = list(
         filter(lambda x: x["type"] == "pubReceived" and x["message"]["delivered"], all_sorted_by_time))
@@ -232,7 +231,10 @@ if __name__ == "__main__":
         print_latency_results(avg_latency)
         results["latency"][bi, ps] = avg_latency
 
-        recv_pubs, expected_pubs, rel_per_second = calc_reliability(all_sorted_by_time)
+        # recv_pubs, expected_pubs, rel_per_second = calc_reliability(all_sorted_by_time)
+
+        recv_pubs, expected_pubs, rel_per_second = calc_reliability_fast((all_sorted_by_time)
+
         print_reliability_results(recv_pubs, expected_pubs)
         results["reliability"][bi, ps] = rel_per_second
     plot_redundancy_results(results["redundancy"])

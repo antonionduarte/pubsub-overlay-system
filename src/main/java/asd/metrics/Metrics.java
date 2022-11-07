@@ -16,11 +16,12 @@ public class Metrics {
 	public static final String FILE_PATH_MASK = "%smetrics_%d.json";
 	public static FileOutputStream fileOutputStream;
 	public static File metricsFile = null;
+	public static int nodeId;
 
 	private static final Gson gson = new Gson();
 
 	public static void initMetrics(Properties props) {
-		var nodeId = Integer.parseInt(props.getProperty("babel_port"));
+		nodeId = Integer.parseInt(props.getProperty("babel_port"));
 		if (props.containsKey("metrics_folder"))
 			FOLDER = props.getProperty("metrics_folder");
 		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId);
@@ -42,7 +43,7 @@ public class Metrics {
 		if (fileOutputStream == null)
 			return;
 
-		var metric = new Metric(System.currentTimeMillis(), messageType, message);
+		var metric = new Metric(System.currentTimeMillis(), messageType, nodeId, message);
 		var json = gson.toJson(metric) + "\n";
 
 		try {
@@ -86,7 +87,7 @@ public class Metrics {
 		// "kadReceiveMessage");
 	}
 
-	public record Metric(long timestamp, String type, Object message) {
+	public record Metric(long timestamp, String type, int nodeId, Object message) {
 	}
 
 	public record SubscribedTopic(String topic) {
