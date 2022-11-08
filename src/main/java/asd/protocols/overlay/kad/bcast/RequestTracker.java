@@ -12,106 +12,109 @@ import asd.protocols.overlay.kad.KadID;
 
 public class RequestTracker {
 
-    public static record ExpiredRequest(KadID rtid, UUID uuid) {
-    }
+	public static record ExpiredRequest(KadID rtid, UUID uuid) {
+	}
 
-    private static class State {
-        public final KadID rtid;
-        public final HashSet<KadID> providers;
-        public RequestState request;
+	public static record ExpiredRequest(KadID rtid, UUID uuid) {
+	}
 
-        public State(KadID rtid) {
-            this.rtid = rtid;
-            this.providers = new HashSet<>();
-            this.request = null;
-        }
-    }
+	private static class State {
+		public final KadID rtid;
+		public final HashSet<KadID> providers;
+		public RequestState request;
 
-    private static class RequestState {
-        public final KadID peer;
-        public final Instant start;
+		public State(KadID rtid) {
+			this.rtid = rtid;
+			this.providers = new HashSet<>();
+			this.request = null;
+		}
+	}
 
-        public RequestState(KadID peer) {
-            this.peer = peer;
-            this.start = Instant.now();
-        }
-    }
+	private static class RequestState {
+		public final KadID peer;
+		public final Instant start;
 
-    private final HashMap<UUID, State> states;
-    private final Duration requestTimeout;
+		public RequestState(KadID peer) {
+			this.peer = peer;
+			this.start = Instant.now();
+		}
+	}
 
-    public RequestTracker() {
-        this(Duration.ofSeconds(10));
-    }
+	private final HashMap<UUID, State> states;
+	private final Duration requestTimeout;
 
-    public RequestTracker(Duration timeout) {
-        this.states = new HashMap<>();
-        this.requestTimeout = timeout;
-    }
+	public RequestTracker() {
+		this(Duration.ofSeconds(10));
+	}
 
-    public void startTracking(KadID rtid, UUID uuid) {
-        assert !this.states.containsKey(uuid);
-        this.states.put(uuid, new State(rtid));
-    }
+	public RequestTracker(Duration timeout) {
+		this.states = new HashMap<>();
+		this.requestTimeout = timeout;
+	}
 
-    public void stopTracking(UUID uuid) {
-        assert this.states.containsKey(uuid);
-        this.states.remove(uuid);
-    }
+	public void startTracking(KadID rtid, UUID uuid) {
+		assert !this.states.containsKey(uuid);
+		this.states.put(uuid, new State(rtid));
+	}
 
-    public boolean isTracking(UUID uuid) {
-        return this.states.containsKey(uuid);
-    }
+	public void stopTracking(UUID uuid) {
+		assert this.states.containsKey(uuid);
+		this.states.remove(uuid);
+	}
 
-    public boolean isRequesting(UUID uuid) {
-        var state = this.states.get(uuid);
-        return state != null && state.request != null;
-    }
+	public boolean isTracking(UUID uuid) {
+		return this.states.containsKey(uuid);
+	}
 
-    public void addProvider(UUID uuid, KadID id) {
-        assert this.states.containsKey(uuid);
-        this.states.get(uuid).providers.add(id);
-    }
+	public boolean isRequesting(UUID uuid) {
+		var state = this.states.get(uuid);
+		return state != null && state.request != null;
+	}
 
-    public KadID getProvider(UUID uuid) {
-        assert this.states.containsKey(uuid);
-        var state = this.states.get(uuid);
-        if (state.providers.isEmpty())
-            return null;
-        return state.providers.iterator().next();
-    }
+	public void addProvider(UUID uuid, KadID id) {
+		assert this.states.containsKey(uuid);
+		this.states.get(uuid).providers.add(id);
+	}
 
-    public void beginRequest(UUID uuid, KadID id) {
-        assert this.states.containsKey(uuid);
-        var state = this.states.get(uuid);
-        assert state.request == null;
-        state.request = new RequestState(id);
-    }
+	public KadID getProvider(UUID uuid) {
+		assert this.states.containsKey(uuid);
+		var state = this.states.get(uuid);
+		if (state.providers.isEmpty())
+			return null;
+		return state.providers.iterator().next();
+	}
 
-    public void endRequest(UUID uuid) {
-        this.states.remove(uuid);
-    }
+	public void beginRequest(UUID uuid, KadID id) {
+		assert this.states.containsKey(uuid);
+		var state = this.states.get(uuid);
+		assert state.request == null;
+		state.request = new RequestState(id);
+	}
 
-    public void failedRequest(UUID uuid) {
-        assert this.states.containsKey(uuid);
-        var state = this.states.get(uuid);
-        assert state.request != null;
-        state.providers.remove(state.request.peer);
-        state.request = null;
-    }
+	public void endRequest(UUID uuid) {
+		this.states.remove(uuid);
+	}
 
-    public List<ExpiredRequest> checkTimeouts() {
-        var now = Instant.now();
-        var expired = new ArrayList<ExpiredRequest>();
-        this.states.entrySet().removeIf(entry -> {
-            var state = entry.getValue();
-            if (state.request == null)
-                return false;
-            var remove = state.request.start.plus(this.requestTimeout).isBefore(now);
-            if (remove)
-                expired.add(new ExpiredRequest(entry.getValue().rtid, entry.getKey()));
-            return remove;
-        });
-        return expired;
-    }
+	public void failedRequest(UUID uuid) {
+		assert this.states.containsKey(uuid);
+		var state = this.states.get(uuid);
+		assert state.request != null;
+		state.providers.remove(state.request.peer);
+		state.request = null;
+	}
+
+	public List<ExpiredRequest> checkTimeouts() {
+		var now = Instant.now();
+		var expired = new ArrayList<ExpiredRequest>();
+		this.states.entrySet().removeIf(entry -> {
+			var state = entry.getValue();
+			if (state.request == null)
+				return false;
+			var remove = state.request.start.plus(this.requestTimeout).isBefore(now);
+			if (remove)
+				expired.add(new ExpiredRequest(entry.getValue().rtid, entry.getKey()));
+			return remove;
+		});
+		return expired;
+	}
 }

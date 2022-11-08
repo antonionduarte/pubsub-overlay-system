@@ -88,7 +88,6 @@ public class UnstructuredMain {
 
 		// Start babel and protocol threads
 		babel.start();
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.info("Goodbye")));
-
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.error("Goodbye")));
 	}
 }

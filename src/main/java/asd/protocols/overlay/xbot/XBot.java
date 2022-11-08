@@ -26,6 +26,11 @@ public class XBot extends Hyparview {
 		super(properties, self);
 	}
 
+	@Override
+	public void init(Properties properties) throws HandlerRegistrationException, IOException {
+		super.init(properties);
+	}
+
 	private void onChannelCreated(ChannelCreatedNotification notification, short protoID) {
 		this.channelId = notification.channel_id;
 		registerSharedChannel(channelId);

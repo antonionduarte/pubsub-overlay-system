@@ -179,6 +179,9 @@ public class Hyparview extends GenericProtocol {
 			this.activeView.removePeer(from);
 			this.passiveView.addPeer(from);
 
+			var toAdd = this.passiveView.selectRandomDiffPeer(from);
+			this.handleRequestNeighbour(toAdd);
+
 			logger.info("Node " + from + " disconnected");
 		}
 	}
@@ -255,7 +258,6 @@ public class Hyparview extends GenericProtocol {
 
 	/*--------------------------------- TCPChannel Events ---------------------------- */
 
-	// An out connection is down.
 	private void uponOutConnectionDown(OutConnectionDown event, int channelId) {
 		if (activeView.removePeer(event.getNode())) {
 			var toPromote = passiveView.selectRandomPeer();
@@ -266,7 +268,6 @@ public class Hyparview extends GenericProtocol {
 		this.passiveView.addPeer(event.getNode());
 	}
 
-	// An out connection fails to be established.
 	private void uponOutConnectionFailed(OutConnectionFailed<ProtoMessage> event, int channelId) {
 		if (pending.contains(event.getNode())) {
 			this.pending.remove(event.getNode());

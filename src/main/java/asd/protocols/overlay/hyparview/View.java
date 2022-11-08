@@ -23,11 +23,6 @@ public class View {
 		return this.membership;
 	}
 
-	/**
-	 *
-	 * @param peer The node to add to the view.
-	 * @return In case the View's capacity was full, return the node that was dropped.
-	 */
 	public Host addPeer(Host peer) {
 		Host dropped = null;
 		if (!peer.equals(self) && !membership.contains(peer)) {
@@ -63,12 +58,14 @@ public class View {
 	}
 
 	public Set<Host> subsetRandomElements(int size) {
-		List<Host> list = new ArrayList<>(membership);
-		Set<Host> subset = new HashSet<>();
+		var list = new ArrayList<Host>(membership);
+		var subset = new HashSet<Host>();
+
 		Collections.shuffle(list);
 		for (int i = 0; i < Math.min(size, membership.size()); i++) {
 			subset.add(list.get(i));
 		}
+
 		return subset;
 	}
 
