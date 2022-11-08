@@ -16,55 +16,60 @@ public class BroadcastMessage extends MetricsProtoMessage {
     public static final short ID = Kademlia.ID + 20;
 
     public final KadID rtid;
-    public final int depth;
     public final UUID uuid;
     public final KadPeer origin;
-    public final byte[] payload;
     public final int hop_count;
+    public final int ceil;
+    public final boolean apply_redundancy;
+    public final byte[] payload;
 
-    public BroadcastMessage(KadID rtid, int depth, UUID uuid, KadPeer origin, byte[] payload, int hop_count) {
+    public BroadcastMessage(KadID rtid, UUID uuid, KadPeer origin, int hop_count, int ceil, boolean apply_redundancy,
+            byte[] payload) {
         super(ID);
         this.rtid = rtid;
-        this.depth = depth;
         this.uuid = uuid;
         this.origin = origin;
-        this.payload = payload;
         this.hop_count = hop_count;
+        this.ceil = ceil;
+        this.apply_redundancy = apply_redundancy;
+        this.payload = payload;
+    }
+
+    @Override
+    public MetricsMessage serializeToMetric() {
+        return new MetricsMessage("BroadcastMessage")
+                .property("topic", TopicRegistry.lookup(rtid))
+                .property("message_id", uuid.toString())
+                .property("payload", payload.length)
+                .property("ceil", ceil)
+                .property("hop_count", hop_count);
     }
 
     public static final ISerializer<BroadcastMessage> serializer = new ISerializer<BroadcastMessage>() {
         @Override
         public void serialize(BroadcastMessage t, ByteBuf out) throws IOException {
             KadID.serializer.serialize(t.rtid, out);
-            out.writeInt(t.depth);
             out.writeLong(t.uuid.getMostSignificantBits());
             out.writeLong(t.uuid.getLeastSignificantBits());
             KadPeer.serializer.serialize(t.origin, out);
+            out.writeInt(t.hop_count);
+            out.writeInt(t.ceil);
+            out.writeBoolean(t.apply_redundancy);
             out.writeInt(t.payload.length);
             out.writeBytes(t.payload);
-            out.writeInt(t.hop_count);
         }
 
         @Override
         public BroadcastMessage deserialize(ByteBuf in) throws IOException {
-            var pool = KadID.serializer.deserialize(in);
-            var depth = in.readInt();
+            var rtid = KadID.serializer.deserialize(in);
             var uuid = new UUID(in.readLong(), in.readLong());
             var origin = KadPeer.serializer.deserialize(in);
+            var hop_count = in.readInt();
+            var ceil = in.readInt();
+            var apply_redundancy = in.readBoolean();
             var payload = new byte[in.readInt()];
             in.readBytes(payload);
-            var hop_count = in.readInt();
-            return new BroadcastMessage(pool, depth, uuid, origin, payload, hop_count);
+            return new BroadcastMessage(rtid, uuid, origin, hop_count, ceil, apply_redundancy, payload);
         }
     };
-
-    @Override
-    public MetricsMessage serializeToMetric() {
-        return new MetricsMessage("BroadcastMessage")
-                .property("topic", TopicRegistry.lookup(rtid))
-                .property("depth", depth)
-                .property("message_id", uuid.toString())
-                .property("payload", payload.length)
-                .property("hop_count", hop_count);
-    }
 }

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 from typing import Any
 
@@ -8,7 +10,7 @@ class BroadcastHave:
     message_id: str
 
     @staticmethod
-    def from_properties(properties: dict) -> "BroadcastHave":
+    def from_properties(properties: dict) -> BroadcastHave:
         return BroadcastHave(
             topic=properties["topic"],
             message_id=properties["message_id"],
@@ -21,14 +23,16 @@ class BroadcastMessage:
     message_id: str
     payload: int
     hop_count: int
+    ceil: int
 
     @staticmethod
-    def from_properties(properties: dict) -> "BroadcastMessage":
+    def from_properties(properties: dict) -> BroadcastMessage:
         return BroadcastMessage(
             topic=properties["topic"],
             message_id=properties["message_id"],
             payload=properties["payload"],
             hop_count=properties["hop_count"],
+            ceil=properties["ceil"],
         )
 
 
@@ -38,7 +42,7 @@ class BroadcastWant:
     message_id: str
 
     @staticmethod
-    def from_properties(properties: dict) -> "BroadcastWant":
+    def from_properties(properties: dict) -> BroadcastWant:
         return BroadcastWant(
             topic=properties["topic"],
             message_id=properties["message_id"],

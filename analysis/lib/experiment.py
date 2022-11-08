@@ -7,11 +7,13 @@ import os
 import logging
 import subprocess
 import json
+import yaml
 
 BOOTSTRAP_PORT = 5000
 
 PROTOCOL_KADPUBSUB = "kadpubsub"
 PROTOCOL_GOSSIPSUB = "gossipsub"
+PROTOCOL_PLUMTREE = "plumtree"
 
 
 @dataclasses.dataclass
@@ -40,6 +42,11 @@ class PubSubExperiment:
     broadcast_rate: float
     # Random seed used to run the experiment
     random_seed: int
+    # Metrics logging level
+    # off - no metrics are logged
+    # basic - only pubsub and network metrics are logged
+    # detailed - all metrics are logged
+    metric_level: str
     # Protocol specific properties
     protocol_parameters: Dict[str, Any]
 
@@ -78,8 +85,41 @@ def load_experiments(path: str) -> Dict[str, PubSubExperiment]:
 
     :param path: The path to the JSON file containing the experiments
     """
-    exps = json.loads(open(path).read())
-    return {name: PubSubExperiment(**exp) for name, exp in exps.items()}
+
+    def _merge_configs(configs):
+        merged = {}
+        for config in configs:
+            mpp = config.get("protocol_parameters", {})
+            cpp = merged.get("protocol_parameters", {})
+            merged = merged | config
+            merged["protocol_parameters"] = mpp | cpp
+        return merged
+
+    def _load_template(name, templates, visited=set()):
+        if name in visited:
+            raise ValueError(f"Recursive template definition")
+        if name not in templates:
+            raise ValueError(f"Template {name} not found")
+        template = templates[name]
+        derived = [
+            _load_template(t, templates, visited.union({name}))
+            for t in template.get("derive", [])
+        ]
+        parameters = template.get("parameters", {})
+        return _merge_configs(derived + [parameters])
+
+    d = yaml.safe_load(open(path))
+    e = {}
+    templates = d.get("templates", {})
+    experiments = d.get("experiments", {})
+
+    for name, experiment in experiments.items():
+        derived = [_load_template(t, templates) for t in experiment.get("derive", [])]
+        parameters = experiment.get("parameters", {})
+        exp = _merge_configs(derived + [parameters])
+        e[name] = PubSubExperiment(**exp)
+
+    return e
 
 
 def load_experiment_results(path: str) -> PubSubExperimentResults:
@@ -111,8 +151,15 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
     logging.info(f"Creating {experiment.number_nodes} containers")
     protocol_to_main_class = {
         PROTOCOL_KADPUBSUB: "asd.KadPubSubMain",
-        PROTOCOL_GOSSIPSUB: "asd.GossipSubMain",
+        PROTOCOL_GOSSIPSUB: "asd.StructuredMain",
+        PROTOCOL_PLUMTREE: "asd.UnstructuredMain",
     }
+    metrics_level_to_number = {
+        "off": 0,
+        "basic": 1,
+        "detailed": 2,
+    }
+    metrics_level = metrics_level_to_number[experiment.metric_level]
     abs_jar_path = os.getcwd() + "/" + jarpath
     abs_log4j_path = os.getcwd() + "/../log4j2.xml"
     abs_metrics_path = os.getcwd() + "/metrics"
@@ -120,9 +167,9 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
         port = BOOTSTRAP_PORT + i
         args = [
             "docker",
-            "run",
+            "create",
             f"--name=asd_{port}",
-            "-itd",
+            "-it",
             "--network=host",
             "--security-opt",
             "label=disable",
@@ -155,9 +202,11 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
             f"pub_topics={experiment.number_topics_to_publish}",
             f"broadcast_interval={int((1 / experiment.broadcast_rate) * 1000)}",
             f"random_seed={experiment.random_seed}",
+            f"metrics_level={metrics_level}",
         ]
         if i != 0:
             args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
+            args.append(f"hypar_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
         # Protocol parameters
         for key, value in experiment.protocol_parameters.items():
             args.append(f"{key}={value}")
@@ -171,9 +220,9 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
             "start",
             f"asd_{port}",
         ]
+        subprocess.Popen(args, stdout=subprocess.DEVNULL, start_new_session=True)
         if i == 0:
             time.sleep(2)
-        subprocess.Popen(args, stdout=subprocess.DEVNULL, start_new_session=True)
 
     procs = []
     for i in range(experiment.number_nodes):

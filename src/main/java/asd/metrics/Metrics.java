@@ -2,7 +2,6 @@ package asd.metrics;
 
 import com.google.gson.Gson;
 
-import asd.protocols.overlay.kad.KadID;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.*;
@@ -14,21 +13,29 @@ import java.util.Properties;
 import java.util.UUID;
 
 public class Metrics {
+	private static final int METRIC_LEVEL_OFF = 0;
+	private static final int METRIC_LEVEL_BASIC = 1;
+	private static final int METRIC_LEVEL_DETAILED = 2;
 
-	public static String FOLDER = "metrics/";
-	public static final String FILE_PATH_MASK = "%s%d.json";
-	public static FileOutputStream fileOutputStream;
-	public static File metricsFile = null;
+	private static String FOLDER = "metrics/";
+	private static final String FILE_PATH_MASK = "%s%d.json";
+	private static FileOutputStream fileOutputStream;
+	private static File metricsFile = null;
+	private static int metricsLevel = 0;
 
+	private static final long startTime = System.nanoTime();
 	private static final Gson gson = new Gson();
 
 	public static void initMetrics(Properties props) {
 		var nodeId = Integer.parseInt(props.getProperty("babel_port"));
+
 		if (props.containsKey("metrics_folder"))
 			FOLDER = props.getProperty("metrics_folder");
-		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId);
 
+		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId);
 		metricsFile = new File(filepath);
+
+		metricsLevel = Integer.parseInt(props.getProperty("metrics_level"));
 
 		try {
 			Files.createDirectories(Paths.get(FOLDER));
@@ -48,7 +55,7 @@ public class Metrics {
 		if (fileOutputStream == null)
 			return;
 
-		var metric = new Metric(System.currentTimeMillis(), message_type, message);
+		var metric = new Metric(System.nanoTime() - startTime, message_type, message);
 		var json = gson.toJson(metric) + "\n";
 
 		try {
@@ -62,6 +69,8 @@ public class Metrics {
 	}
 
 	public static void pubMessageSent(Host source, UUID messageId, String topic, boolean delivered) {
+		if (metricsLevel < METRIC_LEVEL_BASIC)
+			return;
 		writeMetric(new PubMessageSent(source.toString(), messageId.toString(), topic, delivered), "PubSubMessageSent");
 	}
 
@@ -69,6 +78,8 @@ public class Metrics {
 	}
 
 	public static void pubMessageReceived(Host source, UUID messageId, String topic, int hopCount, boolean delivered) {
+		if (metricsLevel < METRIC_LEVEL_BASIC)
+			return;
 		writeMetric(new PubMessageReceived(source.toString(), messageId.toString(), topic, hopCount, delivered),
 				"PubSubMessageReceived");
 	}
@@ -77,6 +88,8 @@ public class Metrics {
 	}
 
 	public static void subscribedTopic(String topic) {
+		if (metricsLevel < METRIC_LEVEL_BASIC)
+			return;
 		writeMetric(new SubscribedTopic(topic), "PubSubSubscription");
 	}
 
@@ -84,6 +97,8 @@ public class Metrics {
 	}
 
 	public static void unsubscribedTopic(String topic) {
+		if (metricsLevel < METRIC_LEVEL_BASIC)
+			return;
 		writeMetric(new UnsubscribedTopic(topic), "PubSubUnsubscription");
 	}
 
@@ -91,6 +106,8 @@ public class Metrics {
 	}
 
 	public static void span(String name, double duration) {
+		if (metricsLevel < METRIC_LEVEL_DETAILED)
+			return;
 		writeMetric(new Span(name, duration), "Span");
 	}
 
@@ -98,6 +115,8 @@ public class Metrics {
 	}
 
 	public static void network(long in, long out) {
+		if (metricsLevel < METRIC_LEVEL_BASIC)
+			return;
 		writeMetric(new Network(in, out), "Network");
 	}
 
@@ -105,12 +124,15 @@ public class Metrics {
 	}
 
 	public static void messageSent(Host destination, MetricsMessage msg) {
+		if (metricsLevel < METRIC_LEVEL_DETAILED)
+			return;
 		if (msg == null)
 			return;
 		writeMetric(new MessageSent(msg.name, destination.toString(), msg.properties), "MessageSent");
 	}
 
 	public static void messageSent(Host destination, MetricsProtoMessage msg) {
+
 		messageSent(destination, msg.serializeToMetric());
 	}
 
@@ -118,6 +140,8 @@ public class Metrics {
 	}
 
 	public static void messageReceived(Host source, MetricsMessage msg) {
+		if (metricsLevel < METRIC_LEVEL_DETAILED)
+			return;
 		if (msg == null)
 			return;
 		writeMetric(new MessageReceived(msg.name, source.toString(), msg.properties), "MessageReceived");
@@ -132,59 +156,9 @@ public class Metrics {
 	}
 
 	public static void routingTable(String topic, List<List<String>> routingTable) {
+		if (metricsLevel < METRIC_LEVEL_DETAILED)
+			return;
 		writeMetric(new RoutingTable(topic, routingTable), "RoutingTable");
 	}
 
-	public record KadIdentification(String host, String id) {
-	}
-
-	public static void kadIdentification(Host host, KadID id) {
-		// writeMetric(new KadIdentification(host.toString(), id.toString()),
-		// "KadIdentification");
-	}
-
-	public record KadBroadcast(String topic, String message_id, String destination) {
-	}
-
-	public static void kadBroadcast(String topic, UUID messageId, KadID destination) {
-		// writeMetric(new KadBroadcast(topic, messageId.toString(),
-		// destination.toString()), "KadBroadcast");
-	}
-
-	public record KadBroadcastHave(String topic, String message_id, String destination) {
-	}
-
-	public static void kadBroadcastHave(String topic, UUID messageId, KadID destination) {
-		// writeMetric(new KadBroadcastHave(topic, messageId.toString(),
-		// destination.toString()), "KadBroadcastHave");
-	}
-
-	public record KadBroadcastWant(String topic, String message_id, String destination) {
-	}
-
-	public record KadBroadcastReceived(String topic, String message_id, String source) {
-	}
-
-	public static void kadBroadcastReceived(String topic, UUID messageId, KadID source) {
-		// writeMetric(new KadBroadcastReceived(topic, messageId.toString(),
-		// source.toString()), "KadBroadcastReceived");
-	}
-
-	public record KadBroadcastReceivedHave(String topic, String message_id, String source) {
-	}
-
-	public static void kadBroadcastReceivedHave(String topic, UUID messageId, KadID source) {
-		// writeMetric(new KadBroadcastReceivedHave(topic, messageId.toString(),
-		// source.toString()),
-		// "KadBroadcastReceivedHave");
-	}
-
-	public record KadBroadcastReceivedWant(String topic, String message_id, String source) {
-	}
-
-	public static void kadBroadcastReceivedWant(String topic, UUID messageId, KadID source) {
-		// writeMetric(new KadBroadcastReceivedWant(topic, messageId.toString(),
-		// source.toString()),
-		// "KadBroadcastReceivedWant");
-	}
 }

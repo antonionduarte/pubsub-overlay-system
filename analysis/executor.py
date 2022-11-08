@@ -2,15 +2,15 @@ import argparse
 import logging
 import lib.experiment as experiment
 
-DEFAULT_EXPERIMENTS_PATH = "experiments.json"
+DEFAULT_EXPERIMENTS_PATH = "experiments.yaml"
 
 
 def entrypoint_run(args):
     experiments = experiment.load_experiments(DEFAULT_EXPERIMENTS_PATH)
     exp = experiments[args.experiment]
     if experiment is None:
+        print(experiments)
         raise ValueError(f"Experiment {args.experiment} not found")
-    output = args.output or f"{args.experiment}.json"
     experiment.run_experiment(args.experiment, exp, args.jarpath)
 
 

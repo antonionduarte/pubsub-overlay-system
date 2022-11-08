@@ -39,6 +39,14 @@ public class RoutingTable {
 		return this.buckets.stream().mapToInt(Bucket::size).sum();
 	}
 
+	public int buckets() {
+		return this.buckets.size();
+	}
+
+	public Bucket bucket(int index) {
+		return this.buckets.get(index);
+	}
+
 	public List<KadPeer> getPeersFromBucket(int index) {
 		var bucket = this.getBucketForCpl(index);
 		var peers = new ArrayList<KadPeer>(bucket.size());

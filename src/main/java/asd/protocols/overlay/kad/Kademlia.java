@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -107,11 +108,12 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 		var k = Integer.parseInt(props.getProperty("kad_k", "20"));
 		var alpha = Integer.parseInt(props.getProperty("kad_alpha", "3"));
+		var query_cache_ttl = Duration.parse(props.getProperty("kad_query_cache_ttl", "PT0.5S"));
 		var swarmttl = Duration.parse(props.getProperty("kad_swarm_ttl", "PT10M"));
-		var pubsub_fanout = Integer.parseInt(props.getProperty("kad_pubsub_fanout"));
 		var pubsub_msg_timeout = Duration.parse(props.getProperty("kad_pubsub_msg_timeout"));
 		var pubsub_k = Integer.parseInt(props.getProperty("kad_pubsub_k"));
-		var params = new KadParams(k, alpha, swarmttl, pubsub_fanout, pubsub_msg_timeout, pubsub_k);
+		var pubsub_rfac = Integer.parseInt(props.getProperty("kad_pubsub_rfac"));
+		var params = new KadParams(k, alpha, swarmttl, pubsub_msg_timeout, pubsub_k, pubsub_rfac);
 
 		this.channel_id = createChannel(TCPChannel.NAME, channel_props); // Create the channel with the given properties
 		this.self = new KadPeer(KadID.random(), self);
@@ -122,8 +124,9 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.params = params;
 		this.pool_tracker = new SwarmTracker(params);
 		this.conn_flags = new ConnectionFlags();
-		this.query_manager = new CachedQueryManager(new BasicQueryManager(params, this.rts, this.self.id, this),
-				Duration.ofMillis(500));
+		this.query_manager = new CachedQueryManager(
+				new BasicQueryManager(params, this.rts, this.self.id, this),
+				query_cache_ttl);
 		this.msg_cache = new MessageCache();
 		this.msg_tracker = new RequestTracker();
 
@@ -282,9 +285,6 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 			if (!this.rts.contains(msg.rtid))
 				return;
 
-			var topic = TopicRegistry.lookup(msg.rtid);
-			Metrics.kadBroadcastReceivedHave(topic, msg.uuid, this.addrbook.getIdFromHost(from));
-
 			if (this.msg_cache.contains(msg.uuid))
 				return;
 
@@ -311,27 +311,25 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 				return;
 			}
 
-			var topic = TopicRegistry.lookup(msg.rtid);
-			Metrics.kadBroadcastReceived(topic, msg.uuid, this.addrbook.getIdFromHost(from));
-
 			if (this.msg_cache.contains(msg.uuid)) {
 				Metrics.pubMessageReceived(from, msg.uuid, TopicRegistry.lookup(msg.rtid), msg.hop_count, false);
 				return;
 			}
 
-			var pool = this.rts.get(msg.rtid);
-			var peers = pool.getBroadcastSample(msg.depth, this.params.pubsub_fanout);
-			for (var peer : peers) {
-				Metrics.kadBroadcastHave(topic, msg.uuid, peer.id);
-				this.kadSendMessage(new BroadcastHave(msg.rtid, msg.uuid), peer.host);
+			var extra_hops = 1;
+			if (this.msg_tracker.isTracking(msg.uuid)) {
+				extra_hops = 3; // Add the hops from Have/Want messages
+				this.msg_tracker.endRequest(msg.uuid);
 			}
 
-			var message = new Message(msg.uuid, msg.depth + 1, msg.origin, msg.payload, topic, msg.hop_count + 1);
+			var message = new Message(msg.rtid, msg.uuid, msg.origin, msg.payload, msg.hop_count + extra_hops);
 			this.msg_cache.add(message);
 
 			this.triggerNotification(
 					new BroadcastReceived(TopicRegistry.lookup(msg.rtid), msg.uuid, msg.origin, msg.payload));
 			Metrics.pubMessageReceived(from, msg.uuid, TopicRegistry.lookup(msg.rtid), message.hop_count, true);
+
+			this.broadcastMessageAsSubscriber(message, msg.ceil, msg.apply_redundancy);
 		}
 	}
 
@@ -345,12 +343,12 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 			if (m == null)
 				return;
 
-			var topic = TopicRegistry.lookup(msg.rtid);
-			Metrics.kadBroadcastReceivedWant(topic, msg.uuid, this.addrbook.getIdFromHost(from));
-			Metrics.kadBroadcast(topic, msg.uuid, this.addrbook.getIdFromHost(from));
-
-			this.kadSendMessage(new BroadcastMessage(msg.rtid, m.depth + 1, m.uuid, m.origin, m.payload, m.hop_count),
-					from);
+			var rt = this.rts.get(msg.rtid);
+			var peer_id = this.addrbook.getIdFromHost(from);
+			var peer_cpl = this.self.id.cpl(peer_id);
+			var ceil = Math.min(rt.buckets(), peer_cpl + 1);
+			var bmessage = new BroadcastMessage(m.rtid, m.uuid, m.origin, m.hop_count, ceil, false, m.payload);
+			this.kadSendMessage(bmessage, from);
 		}
 	}
 
@@ -522,35 +520,67 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		}
 	}
 
+	private void broadcastMessage(Message message) {
+		if (!this.rts.contains(message.rtid))
+			this.broadcastMessageAsNonSubscriber(message);
+		else
+			this.broadcastMessageAsSubscriber(message, 0, true);
+	}
+
+	private void broadcastMessageAsSubscriber(Message message, int ceil, boolean apply_redundancy) {
+		var rt = this.rts.get(message.rtid);
+		var redundancy = apply_redundancy ? this.params.pubsub_rfac : 1;
+		var rbucket_index = rt.buckets() - 1;
+		var rbucket = rt.bucket(rbucket_index);
+		var rbucket_size = rbucket.size();
+
+		// Only broadcast the full message if ceil == 0, that means we are the source of
+		// the message and no one else has broadcasted it yet.
+
+		for (int i = ceil; i <= rbucket_index; ++i) {
+			var bucket = rt.bucket(i);
+			var bucket_size = bucket.size();
+			var bucket_n = i == rbucket_index ? rbucket_size : Math.min(bucket_size, redundancy);
+
+			for (int j = 0; j < bucket_n; ++j) {
+				var peer = bucket.get(j);
+				MetricsProtoMessage bmessage = null;
+				if (ceil == 0)
+					bmessage = new BroadcastMessage(message.rtid, message.uuid, message.origin, message.hop_count,
+							i + 1, false, message.payload);
+				else
+					bmessage = new BroadcastHave(message.rtid, message.uuid);
+				this.kadSendMessage(bmessage, peer.host);
+			}
+		}
+	}
+
+	private void broadcastMessageAsNonSubscriber(Message message) {
+		var redundancy = this.params.pubsub_rfac;
+		this.query_manager.findPool(message.rtid, (closest, members) -> {
+			var targets = ASDUtils.sample(redundancy, Set.copyOf(members));
+			var bmessage = new BroadcastMessage(message.rtid, message.uuid, message.origin, message.hop_count, 0, true,
+					message.payload);
+			for (var target : targets)
+				this.kadSendMessage(bmessage, this.addrbook.getHostFromID(target));
+		});
+	}
+
 	/*--------------------------------- Request Handlers ---------------------------------------- */
 	private void onBroadcast(Broadcast msg, short source_proto) {
-		var rtid = KadID.ofData(msg.pool);
+		var rtid = KadID.ofData(msg.topic);
 		var rt = this.rts.get(rtid);
-		var message = new Message(msg.uuid, 0, this.self, msg.payload, msg.pool, 0);
-		var proto_message = new BroadcastMessage(rtid, message.depth, msg.uuid, message.origin, msg.payload,
-				message.hop_count);
+		var message = new Message(rtid, msg.uuid, this.self, msg.payload, 0);
 		var deliver = rt != null; // Are we subscribed to this topic
 
 		this.msg_cache.add(message);
-
 		if (deliver) {
-			Metrics.pubMessageReceived(this.self.host, message.uuid, msg.pool, 0, true);
-			this.triggerNotification(new BroadcastReceived(message.topic, msg.uuid, message.origin, msg.payload));
+			Metrics.pubMessageReceived(this.self.host, message.uuid, msg.topic, 0, true);
+			this.triggerNotification(new BroadcastReceived(msg.topic, msg.uuid, message.origin, msg.payload));
 		}
 
-		if (rt == null || rt.size() < 2) {
-			this.query_manager.findPool(rtid, (closest, members) -> {
-				this.addrbook.idsToPeers(members).forEach((peer) -> {
-					this.kadSendMessage(proto_message, peer.host);
-				});
-				Metrics.pubMessageSent(this.self.host, msg.uuid, message.topic, deliver);
-			});
-		} else {
-			var peers = rt.getBroadcastSample(message.depth, this.params.pubsub_fanout);
-			for (var peer : peers)
-				this.kadSendMessage(proto_message, peer.host);
-			Metrics.pubMessageSent(this.self.host, msg.uuid, message.topic, deliver);
-		}
+		Metrics.pubMessageSent(this.self.host, msg.uuid, msg.topic, deliver);
+		this.broadcastMessage(message);
 	}
 
 	private void onFindClosest(FindClosest msg, short source_proto) {
