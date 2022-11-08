@@ -15,9 +15,6 @@ public class RequestTracker {
 	public static record ExpiredRequest(KadID rtid, UUID uuid) {
 	}
 
-	public static record ExpiredRequest(KadID rtid, UUID uuid) {
-	}
-
 	private static class State {
 		public final KadID rtid;
 		public final HashSet<KadID> providers;
