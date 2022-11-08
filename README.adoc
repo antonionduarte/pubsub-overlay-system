@@ -32,4 +32,16 @@ Publish Subscribe System with Structured and Unstructured Overlays - Algorithms 
 | `kad_swarm_ttl`
 | No
 | Kademlia swarm TTL. Default = `PT10M`.
+
+| `kad_pubsub_fanout`
+| Yes
+| Kademlia pubsub fanout.
+
+| `kad_pubsub_msg_timeout`
+| Yes
+| Kademlia pubsub message timeout. How long until we request from another peer.
+
+| `kad_pubsub_k`
+| Yes
+| Kademlia pubsub `k` parameter.
 |===

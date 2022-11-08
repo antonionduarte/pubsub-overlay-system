@@ -19,6 +19,8 @@ def spawn_kad_java_podman(port: int):
         "./babel_config.properties:/usr/local/babel_config.properties:z",
         "-v",
         "./log4j2.xml:/usr/local/log4j2.xml:z",
+        "-v",
+        "./metrics:/usr/local/metrics:z",
         "--workdir=/usr/local/",
         "docker.io/amazoncorretto:19",
         "java",
@@ -104,7 +106,7 @@ def main():
     # spawn_kad_rust_podman(BOOTSTRAP_PORT)
     spawn_kad_java_podman(BOOTSTRAP_PORT)
     time.sleep(2)
-    for i in range(1, 4):
+    for i in range(1, 10):
         print("Spawning kad ", 5050 + i)
         spawn_kad_java_podman(5050 + i)
         # if i < 10:

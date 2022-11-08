@@ -5,13 +5,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import asd.metrics.MetricsProtoMessage;
 import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.Kademlia;
 import io.netty.buffer.ByteBuf;
-import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-public class FindValueResponse extends ProtoMessage {
+public class FindValueResponse extends MetricsProtoMessage {
     public static final short ID = Kademlia.ID + 6;
 
     public final long context;

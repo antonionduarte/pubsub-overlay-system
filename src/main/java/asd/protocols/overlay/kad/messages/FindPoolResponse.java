@@ -4,13 +4,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import asd.metrics.MetricsProtoMessage;
 import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.Kademlia;
 import io.netty.buffer.ByteBuf;
-import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-public class FindPoolResponse extends ProtoMessage {
+public class FindPoolResponse extends MetricsProtoMessage {
     public static final short ID = Kademlia.ID + 10000;
 
     public final long context;

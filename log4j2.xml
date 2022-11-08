@@ -20,7 +20,7 @@
         <Logger level="info" name="babel"/>
 
         <Root level="trace">
-            <AppenderRef ref="Console" level="error"/>
+            <AppenderRef ref="Console" level="debug"/>
             <AppenderRef ref="MyFile" level="all"/>
        </Root>
    </Loggers>

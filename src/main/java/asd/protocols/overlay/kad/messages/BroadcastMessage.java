@@ -3,14 +3,16 @@ package asd.protocols.overlay.kad.messages;
 import java.io.IOException;
 import java.util.UUID;
 
+import asd.metrics.MetricsMessage;
+import asd.metrics.MetricsProtoMessage;
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
 import asd.protocols.overlay.kad.Kademlia;
+import asd.protocols.overlay.kad.TopicRegistry;
 import io.netty.buffer.ByteBuf;
-import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-public class BroadcastMessage extends ProtoMessage {
+public class BroadcastMessage extends MetricsProtoMessage {
     public static final short ID = Kademlia.ID + 20;
 
     public final KadID rtid;
@@ -18,14 +20,16 @@ public class BroadcastMessage extends ProtoMessage {
     public final UUID uuid;
     public final KadPeer origin;
     public final byte[] payload;
+    public final int hop_count;
 
-    public BroadcastMessage(KadID rtid, int depth, UUID uuid, KadPeer origin, byte[] payload) {
+    public BroadcastMessage(KadID rtid, int depth, UUID uuid, KadPeer origin, byte[] payload, int hop_count) {
         super(ID);
         this.rtid = rtid;
         this.depth = depth;
         this.uuid = uuid;
         this.origin = origin;
         this.payload = payload;
+        this.hop_count = hop_count;
     }
 
     public static final ISerializer<BroadcastMessage> serializer = new ISerializer<BroadcastMessage>() {
@@ -38,6 +42,7 @@ public class BroadcastMessage extends ProtoMessage {
             KadPeer.serializer.serialize(t.origin, out);
             out.writeInt(t.payload.length);
             out.writeBytes(t.payload);
+            out.writeInt(t.hop_count);
         }
 
         @Override
@@ -48,8 +53,18 @@ public class BroadcastMessage extends ProtoMessage {
             var origin = KadPeer.serializer.deserialize(in);
             var payload = new byte[in.readInt()];
             in.readBytes(payload);
-            return new BroadcastMessage(pool, depth, uuid, origin, payload);
+            var hop_count = in.readInt();
+            return new BroadcastMessage(pool, depth, uuid, origin, payload, hop_count);
         }
     };
 
+    @Override
+    public MetricsMessage serializeToMetric() {
+        return new MetricsMessage("BroadcastMessage")
+                .property("topic", TopicRegistry.lookup(rtid))
+                .property("depth", depth)
+                .property("message_id", uuid.toString())
+                .property("payload", payload.length)
+                .property("hop_count", hop_count);
+    }
 }

@@ -13,7 +13,7 @@ public class Profiling {
         @Override
         public void close() {
             var elapsed = System.nanoTime() - this.start;
-            var ms = (double) elapsed / 1_000_000.0;
+            var ms = (double) elapsed / 1_000_000_000.0;
             Metrics.span(this.name, ms);
         }
 

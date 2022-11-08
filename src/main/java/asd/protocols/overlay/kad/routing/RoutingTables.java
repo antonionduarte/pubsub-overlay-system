@@ -3,6 +3,7 @@ package asd.protocols.overlay.kad.routing;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadParams;
@@ -18,12 +19,12 @@ public class RoutingTables {
         this.self = self;
         this.tables = new HashMap<>();
 
-        this.create(KadID.DEFAULT_RTID);
+        this.tables.put(KadID.DEFAULT_RTID, new RoutingTable(this.params.k, this.self));
     }
 
     public RoutingTable create(KadID rtid) {
         if (!this.contains(rtid))
-            this.tables.put(rtid, new RoutingTable(this.params.k, this.self));
+            this.tables.put(rtid, new RoutingTable(this.params.pubsub_k, this.self));
         return this.tables.get(rtid);
     }
 
@@ -65,5 +66,16 @@ public class RoutingTables {
 
     public List<KadPeer> closest(KadID target) {
         return this.closest(KadID.DEFAULT_RTID, target);
+    }
+
+    // Metrics helping crap
+    public List<Map.Entry<KadID, RoutingTable>> allButTheMainOne() {
+        List<Map.Entry<KadID, RoutingTable>> allButTheMainOne = new ArrayList<>();
+        for (Map.Entry<KadID, RoutingTable> entry : this.tables.entrySet()) {
+            if (!entry.getKey().equals(KadID.DEFAULT_RTID)) {
+                allButTheMainOne.add(entry);
+            }
+        }
+        return allButTheMainOne;
     }
 }

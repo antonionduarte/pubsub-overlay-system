@@ -1,5 +1,6 @@
 package asd.protocols.overlay.kad.bcast;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,7 +10,7 @@ import java.util.UUID;
 
 import asd.protocols.overlay.kad.KadID;
 
-public class MessageTracker {
+public class RequestTracker {
 
     public static record ExpiredRequest(KadID rtid, UUID uuid) {
     }
@@ -36,10 +37,16 @@ public class MessageTracker {
         }
     }
 
-    private HashMap<UUID, State> states;
+    private final HashMap<UUID, State> states;
+    private final Duration requestTimeout;
 
-    public MessageTracker() {
+    public RequestTracker() {
+        this(Duration.ofSeconds(10));
+    }
+
+    public RequestTracker(Duration timeout) {
         this.states = new HashMap<>();
+        this.requestTimeout = timeout;
     }
 
     public void startTracking(KadID rtid, UUID uuid) {
@@ -100,7 +107,7 @@ public class MessageTracker {
             var state = entry.getValue();
             if (state.request == null)
                 return false;
-            var remove = state.request.start.plusSeconds(5).isBefore(now);
+            var remove = state.request.start.plus(this.requestTimeout).isBefore(now);
             if (remove)
                 expired.add(new ExpiredRequest(entry.getValue().rtid, entry.getKey()));
             return remove;
