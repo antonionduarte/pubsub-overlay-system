@@ -39,6 +39,14 @@ public class RoutingTable {
 		return this.buckets.stream().mapToInt(Bucket::size).sum();
 	}
 
+	public int buckets() {
+		return this.buckets.size();
+	}
+
+	public Bucket bucket(int index) {
+		return this.buckets.get(index);
+	}
+
 	public List<KadPeer> getPeersFromBucket(int index) {
 		var bucket = this.getBucketForCpl(index);
 		var peers = new ArrayList<KadPeer>(bucket.size());
@@ -82,8 +90,17 @@ public class RoutingTable {
 	}
 
 	public List<KadPeer> getBroadcastSample(int left_bucket, int size) {
+		// Note: Experimenting with flooding all buckets
+		// var peers = new ArrayList<KadPeer>(this.size());
+		// for (var bucket : this.buckets) {
+		// for (int i = 0; i < bucket.size(); ++i) {
+		// peers.add(bucket.get(i));
+		// }
+		// }
+
 		assert size >= 2;
-		var hsize = size / 2;
+		var lsize = 2;
+		var rsize = size - lsize;
 		var lpeers = new HashSet<KadPeer>();
 		var rpeers = new HashSet<KadPeer>();
 		var lbucket = this.getBucketForCpl(left_bucket);
@@ -96,8 +113,8 @@ public class RoutingTable {
 		}
 
 		var peers = new ArrayList<KadPeer>(size);
-		var lsample = ASDUtils.sample(hsize, lpeers);
-		var rsample = ASDUtils.sample(hsize, rpeers);
+		var lsample = ASDUtils.sample(lsize, lpeers);
+		var rsample = ASDUtils.sample(rsize, rpeers);
 		lsample.forEach(peers::add);
 		rsample.forEach(peers::add);
 
@@ -176,5 +193,20 @@ public class RoutingTable {
 
 	Bucket getBucket(int index) {
 		return this.buckets.get(index);
+	}
+
+	// Metrics utilities
+	public List<List<String>> dumpForMetrics() {
+		var dump = new ArrayList<List<String>>();
+		for (int i = 0; i < this.buckets.size(); ++i) {
+			var bucket = this.buckets.get(i);
+			var row = new ArrayList<String>();
+			for (int j = 0; j < bucket.size(); ++j) {
+				var peer = bucket.get(j);
+				row.add(String.valueOf(peer.host.getPort()));
+			}
+			dump.add(row);
+		}
+		return dump;
 	}
 }

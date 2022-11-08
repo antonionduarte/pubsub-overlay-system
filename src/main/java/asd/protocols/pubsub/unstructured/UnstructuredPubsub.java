@@ -9,6 +9,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
 import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -23,13 +24,14 @@ public class UnstructuredPubsub extends GenericProtocol {
 	public static final String PROTO_NAME = "Unstructured PubSub";
 	public static final short PROTO_ID = 800;
 
+	private final Host self;
 	private final Set<String> subscribedTopics;
-
 	private final Set<UUID> seenMessages;
 
-	public UnstructuredPubsub() throws HandlerRegistrationException {
+	public UnstructuredPubsub(Host self) throws HandlerRegistrationException {
 		super(PROTO_NAME, PROTO_ID);
 
+		this.self = self;
 		this.subscribedTopics = new HashSet<>();
 		this.seenMessages = new HashSet<>();
 
@@ -59,12 +61,12 @@ public class UnstructuredPubsub extends GenericProtocol {
 						deliverBroadcast.getMsg());
 				triggerNotification(deliver);
 
-				Metrics.pubMessageReceived(msgId, topic, hopCount, true);
+				Metrics.pubMessageReceived(deliverBroadcast.getSender(), msgId, topic, hopCount, true);
 			} else {
-				Metrics.pubMessageReceived(msgId, topic, hopCount, false);
+				Metrics.pubMessageReceived(deliverBroadcast.getSender(), msgId, topic, hopCount, false);
 			}
 		} else {
-			Metrics.pubMessageReceived(msgId, topic, hopCount, false);
+			Metrics.pubMessageReceived(deliverBroadcast.getSender(), msgId, topic, hopCount, false);
 		}
 	}
 
@@ -78,7 +80,8 @@ public class UnstructuredPubsub extends GenericProtocol {
 
 	private void uponPublishRequest(PublishRequest request, short sourceProto) {
 		logger.info("Completed publication on topic " + request.getTopic() + " and id: " + request.getMsgID());
-		sendRequest(new Broadcast(request.getMessage(), request.getTopic(), request.getMsgID(), request.getSender()), PlumTree.PROTOCOL_ID);
+		sendRequest(new Broadcast(request.getMessage(), request.getTopic(), request.getMsgID(), request.getSender()),
+				PlumTree.PROTOCOL_ID);
 
 		if (subscribedTopics.contains(request.getTopic())) {
 			var deliver = new DeliverNotification(
@@ -88,9 +91,9 @@ public class UnstructuredPubsub extends GenericProtocol {
 					request.getMessage());
 			triggerNotification(deliver);
 
-			Metrics.pubMessageSent(request.getMsgID(), request.getTopic(), true);
+			Metrics.pubMessageSent(this.self, request.getMsgID(), request.getTopic(), true);
 		} else {
-			Metrics.pubMessageSent(request.getMsgID(), request.getTopic(), false);
+			Metrics.pubMessageSent(this.self, request.getMsgID(), request.getTopic(), false);
 		}
 	}
 

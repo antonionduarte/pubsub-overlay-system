@@ -8,6 +8,9 @@
 .factorypath
 .project
 
+# Python
+__pycache__/
+
 # Intellij
 .idea
 asd.iml

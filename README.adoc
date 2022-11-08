@@ -17,6 +17,10 @@ Publish Subscribe System with Structured and Unstructured Overlays - Algorithms 
 | Yes
 | Address to bind to
 
+| `metrics_level`
+| Yes
+| Metrics level. 0 = no metrics, 1 = basic metrics (pubsub + network), 2 = detailed metrics (all metrics).
+
 | `kad_k`
 | No
 | Kademlia `k` parameter . Default = `20`.
@@ -29,7 +33,44 @@ Publish Subscribe System with Structured and Unstructured Overlays - Algorithms 
 | No
 | Kademlia bootstrap node address.
 
+| `kad_query_cache_ttl`
+| No
+| Kademlia query cache TTL. Default = `PT0.5S`.
+
 | `kad_swarm_ttl`
 | No
 | Kademlia swarm TTL. Default = `PT10M`.
+
+| `kad_pubsub_msg_timeout`
+| Yes
+| Kademlia pubsub message timeout. How long until we request from another peer.
+
+| `kad_pubsub_k`
+| Yes
+| Kademlia pubsub `k` parameter.
+
+| `kad_pubsub_rfac`
+| Yes
+| Kademlia pubsub redundancy factor.
 |===
+
+== dumpster of text
+
+[source, python]
+----
+# Create a binary tree
+dot = graphviz.Digraph("Identifier Space")
+depth = 6
+for i in range(depth):
+    n = 2**i
+    subdot = graphviz.Digraph()
+    for j in range(n):
+        parent_label = f"{i-1}-{j//2}"
+        label = "" if i != depth - 1 else f"{j}"
+        subdot.node(f"{i}-{j}", label=label, level=f"{i}")
+        if not (i == 0 and j == 0):
+            dot.edge(parent_label, f"{i}-{j}")
+    subdot.attr(rank="same")
+    dot.subgraph(subdot)
+dot
+----

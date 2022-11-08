@@ -85,7 +85,7 @@
 				<appendAssemblyId>false</appendAssemblyId>
 				<archive>
 					<manifest>
-						<mainClass>Main</mainClass>
+						<mainClass>asd.StructuredMain</mainClass>
 					</manifest>
 					<manifestEntries>
 						<Multi-Release>true</Multi-Release>

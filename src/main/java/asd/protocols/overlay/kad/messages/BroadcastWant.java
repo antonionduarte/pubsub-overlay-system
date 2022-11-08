@@ -3,13 +3,15 @@ package asd.protocols.overlay.kad.messages;
 import java.io.IOException;
 import java.util.UUID;
 
+import asd.metrics.MetricsMessage;
+import asd.metrics.MetricsProtoMessage;
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.Kademlia;
+import asd.protocols.overlay.kad.TopicRegistry;
 import io.netty.buffer.ByteBuf;
-import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-public class BroadcastWant extends ProtoMessage {
+public class BroadcastWant extends MetricsProtoMessage {
     public static final short ID = Kademlia.ID + 23;
 
     public final KadID rtid;
@@ -34,4 +36,11 @@ public class BroadcastWant extends ProtoMessage {
             return new BroadcastWant(KadID.serializer.deserialize(in), new UUID(in.readLong(), in.readLong()));
         }
     };
+
+    @Override
+    public MetricsMessage serializeToMetric() {
+        return new MetricsMessage("BroadcastWant")
+                .property("topic", TopicRegistry.lookup(rtid))
+                .property("message_id", uuid.toString());
+    }
 }

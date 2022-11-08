@@ -37,11 +37,11 @@ class FindValueQuery extends Query {
 
     @Override
     protected final void onFindValueResponse(KadID from, List<KadPeer> closest, Optional<byte[]> value) {
-        super.onFindValueResponse(from, closest, value);
         if (value.isPresent()) {
             this.provider = from;
             this.value = value;
             this.finish();
         }
+        super.onFindValueResponse(from, closest, value);
     }
 }

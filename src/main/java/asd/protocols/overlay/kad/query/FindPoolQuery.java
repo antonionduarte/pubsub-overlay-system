@@ -34,12 +34,12 @@ class FindPoolQuery extends Query {
 
     @Override
     protected final void onFindPoolResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
-        super.onFindPoolResponse(from, closest, members);
         members.stream().map(m -> m.id).forEach(this.members::add);
         if (this.members.size() >= this.sample_size) {
             while (this.members.size() > this.sample_size)
                 this.members.remove(this.members.iterator().next());
             this.finish();
         }
+        super.onFindPoolResponse(from, closest, members);
     }
 }

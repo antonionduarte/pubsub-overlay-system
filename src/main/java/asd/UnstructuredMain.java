@@ -69,7 +69,7 @@ public class UnstructuredMain {
 		var plumtree = new PlumTree(props, myself);
 
 		// PubSub protocol
-		var pubsub = new UnstructuredPubsub();
+		var pubsub = new UnstructuredPubsub(myself);
 		var hyparview = new Hyparview(props, myself);
 
 		// Register applications in babel

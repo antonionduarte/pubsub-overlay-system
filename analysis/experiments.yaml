@@ -1,0 +1,81 @@
+templates:
+  base:
+    parameters:
+      bootstrap_time: 60
+      prepare_time: 20
+      run_time: 60
+      cooldown_time: 30
+      number_topics: 6
+      number_topics_to_subscribe: 3
+      number_topics_to_publish: 3
+      random_seed: 12345
+      metric_level: basic
+
+  kad-base:
+    parameters:
+      protocol_parameters:
+        kad_k: 20
+        kad_alpha: 3
+        kad_pubsub_msg_timeout: PT8S
+        kad_pubsub_k: 5
+        kad_pubsub_rfac: 1
+
+  hyparview-base:
+    parameters:
+      protocol_parameters:
+        k_active: 3
+        k_passive: 4
+        shuffle_period: 1000
+        arwl: 6
+        prwl: 3
+        passive_view_capacity: 6
+        active_view_capacity: 2
+
+  kadpubsub:
+    derive: [base, kad-base]
+    parameters:
+      protocol: kadpubsub
+
+  gossipsub:
+    derive: [base, kad-base]
+    parameters:
+      protocol: gossipsub
+
+  plumtree:
+    derive: [base, hyparview-base]
+    parameters:
+      protocol: plumtree
+      protocol_parameters:
+        missing_timeout: 1000
+        missing_timeout_second: 500
+
+  quick:
+    derive: [base]
+    parameters:
+      metric_level: detailed
+      bootstrap_time: 10
+      prepare_time: 10
+      run_time: 20
+      cooldown_time: 8
+      number_nodes: 15
+      broadcast_rate: 2
+      payload_size: 1024
+
+  config1:
+    parameters:
+      number_nodes: 50
+      broadcast_rate: 5
+      payload_size: 1024
+
+experiments:
+  kadpubsub-quick:
+    derive: [kadpubsub, quick]
+  plumtree-quick:
+    derive: [plumtree, quick]
+
+  kadpubsub-config1:
+    derive: [kadpubsub, config1]
+  gossipsub-config1:
+    derive: [gossipsub, config1]
+  plumtree-config1:
+    derive: [plumtree, config1]
