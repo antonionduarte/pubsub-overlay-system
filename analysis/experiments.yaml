@@ -16,6 +16,7 @@ templates:
       protocol_parameters:
         kad_k: 20
         kad_alpha: 3
+        kad_rt_refresh: PT10S
         kad_pubsub_msg_timeout: PT8S
         kad_pubsub_k: 5
         kad_pubsub_rfac: 1
@@ -70,6 +71,8 @@ templates:
 experiments:
   kadpubsub-quick:
     derive: [kadpubsub, quick]
+  gossipsub-quick:
+    derive: [gossipsub, quick]
   plumtree-quick:
     derive: [plumtree, quick]
 

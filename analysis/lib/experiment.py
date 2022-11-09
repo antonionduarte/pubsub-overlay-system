@@ -192,24 +192,27 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
             f"babel_port={port}",
             "babel_address=127.0.0.1",
             # Experiment parameters
-            f"prepare_preapre_time={experiment.bootstrap_time}",
+            f"prepare_prepare_time={experiment.bootstrap_time}",
             f"prepare_time={experiment.prepare_time}",
             f"run_time={experiment.run_time}",
             f"cooldown_time={experiment.cooldown_time}",
             f"payload_size={experiment.payload_size}",
             f"n_topics={experiment.number_topics}",
-            f"sub_topcs={experiment.number_topics_to_subscribe}",
+            f"sub_topics={experiment.number_topics_to_subscribe}",
             f"pub_topics={experiment.number_topics_to_publish}",
             f"broadcast_interval={int((1 / experiment.broadcast_rate) * 1000)}",
             f"random_seed={experiment.random_seed}",
             f"metrics_level={metrics_level}",
+            "automated=true",
         ]
-        if i != 0:
+        if port != BOOTSTRAP_PORT:
+            args.append(f"hypar_bootstrap=127.0.0.1:{port - 1}")
             args.append(f"kad_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
-            args.append(f"hypar_bootstrap=127.0.0.1:{BOOTSTRAP_PORT}")
+
         # Protocol parameters
         for key, value in experiment.protocol_parameters.items():
             args.append(f"{key}={value}")
+
         subprocess.run(args)
 
     logging.info("Starting containers")

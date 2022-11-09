@@ -147,12 +147,19 @@ class PubSubAnalyzer:
             lambda m: isinstance(m, PubSubMessageReceived) and m.message_id == message
         )
 
+        colors = ["red", "green", "blue", "orange", "purple", "yellow", "pink"]
+
         dot = graphviz.Digraph(name="Message path")
         for sub in subscribers:
             dot.node(sub, label=sub)
 
         for receive in receives:
-            dot.edge(receive.source, receive.node, label=str(receive.hop_count))
+            dot.edge(
+                receive.source,
+                receive.node,
+                label=str(receive.hop_count),
+                color=colors[receive.hop_count % len(colors)],
+            )
 
         return dot
 
