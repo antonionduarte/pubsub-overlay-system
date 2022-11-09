@@ -163,7 +163,7 @@ class PubSubAnalyzer:
 
         return dot
 
-    def publish_latencies(self, message: str) -> pd.DataFrame:
+    def message_publish_latency(self, message: str) -> pd.DataFrame:
         receives = self.metrics(
             type=PubSubMessageReceived,
             filter=lambda m: m.message_id == message and m.delivered,
@@ -171,7 +171,7 @@ class PubSubAnalyzer:
         hops = pd.Series(map(lambda m: m.hop_count, receives))
         return pd.DataFrame({"latency": hops})
 
-    def publish_latencies(self) -> pd.Series:
+    def publish_latency(self) -> pd.DataFrame:
         receives = self.metrics(
             type=PubSubMessageReceived, filter=lambda m: m.delivered
         )
@@ -213,6 +213,7 @@ class PubSubAnalyzer:
         timestamps = [m.timestamp for m in timestamped]
         # Only consider messages of topics that had subscribers
         reliabilities = [self.message_reliability(m.message_id) for m in timestamped]
+        assert len(timestamps) == len(reliabilities)
         return pd.DataFrame(
             pd.Series(reliabilities, index=timestamps, name="reliability")
         )
@@ -276,6 +277,14 @@ class PubSubAnalyzer:
         """
         experiment, metrics = _parse_experiment_results(results, ignore_unknown_metrics)
         return PubSubAnalyzer(experiment, metrics)
+
+    @staticmethod
+    def from_experiment_results_file(path: str) -> PubSubAnalyzer:
+        """
+        Create an analyzer from the results of an experiment
+        """
+        results = PubSubExperimentResults.load_from_file(path)
+        return PubSubAnalyzer.from_experiment_results(results)
 
 
 class KadPubSubAnalyzer(PubSubAnalyzer):
@@ -346,6 +355,14 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
         """
         experiment, metrics = _parse_experiment_results(results, ignore_unknown_metrics)
         return KadPubSubAnalyzer(experiment, metrics)
+
+    @staticmethod
+    def from_experiment_results_file(path: str) -> KadPubSubAnalyzer:
+        """
+        Create an analyzer from the results of an experiment
+        """
+        results = PubSubExperimentResults.load_from_file(path)
+        return KadPubSubAnalyzer.from_experiment_results(results)
 
 
 def _parse_experiment_results(

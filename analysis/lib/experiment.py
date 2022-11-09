@@ -50,6 +50,23 @@ class PubSubExperiment:
     # Protocol specific properties
     protocol_parameters: Dict[str, Any]
 
+    def is_equivalent(self, other: PubSubExperiment) -> bool:
+        filds_to_skip = ["protocol", "metric_level"]
+        for field in dataclasses.fields(self):
+            if field.name in filds_to_skip:
+                continue
+            if field.name == "protocol_parameters":
+                for k, v in self.protocol_parameters.items():
+                    if (
+                        k in other.protocol_parameters
+                        and other.protocol_parameters[k] != v
+                    ):
+                        return False
+                continue
+            if getattr(self, field.name) != getattr(other, field.name):
+                return False
+        return True
+
 
 @dataclasses.dataclass
 class PubSubExperimentResults:

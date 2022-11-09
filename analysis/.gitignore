@@ -1,2 +1,5 @@
 /experiments/
 /metrics/
+
+# This script is generated from the notebook
+/plots.py
