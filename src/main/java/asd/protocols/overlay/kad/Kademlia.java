@@ -90,6 +90,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	private final ConnectionFlags conn_flags;
 	private final MessageCache msg_cache;
 	private final RequestTracker msg_tracker;
+	private final Duration routing_table_refresh;
 
 	public Kademlia(Properties props, Host self) throws IOException, HandlerRegistrationException {
 		super(NAME, ID);
@@ -108,6 +109,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 		var k = Integer.parseInt(props.getProperty("kad_k", "20"));
 		var alpha = Integer.parseInt(props.getProperty("kad_alpha", "3"));
+		var routing_table_refresh = Duration.parse(props.getProperty("kad_rt_refresh"));
 		var query_cache_ttl = Duration.parse(props.getProperty("kad_query_cache_ttl", "PT0.5S"));
 		var swarmttl = Duration.parse(props.getProperty("kad_swarm_ttl", "PT10M"));
 		var pubsub_msg_timeout = Duration.parse(props.getProperty("kad_pubsub_msg_timeout"));
@@ -129,6 +131,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 				query_cache_ttl);
 		this.msg_cache = new MessageCache();
 		this.msg_tracker = new RequestTracker();
+		this.routing_table_refresh = routing_table_refresh;
 
 		/*---------------------- Register Message Serializers ---------------------- */
 		this.registerMessageSerializer(this.channel_id, BroadcastHave.ID, BroadcastHave.serializer);
@@ -752,9 +755,10 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.query_manager.findClosest(timer.rtid, this.self.id, closest -> {
 			closest.stream().map(this.addrbook::getPeerFromID).filter(Objects::nonNull).forEach(rt::add);
 
-			var next_refresh = 2 * 1000;
-			if (rt.size() >= this.params.k)
-				next_refresh *= 2;
+			var next_refresh = this.routing_table_refresh.getSeconds() * 1000
+					+ this.routing_table_refresh.getNano() / 1000000;
+			if (rt.size() < this.params.k / 4)
+				next_refresh = Math.min(2000, next_refresh);
 			this.setupTimer(new RefreshRoutingTable(timer.rtid), next_refresh);
 		});
 	}
