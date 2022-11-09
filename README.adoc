@@ -1,58 +1,43 @@
 = pubsub-overlay-system
 Publish Subscribe System with Structured and Unstructured Overlays - Algorithms and Distributed Systems Course 22/23 @ FCT-UNL
 
-== CONFIGURATION
+== Running the experiments
 
-[cols="2,1,5"]
-|===
-| **Variable**
-| **Required**
-| **Description**
+All experiments are defined in the `analysis/experiments.yaml` file.
+The experiments can be run locally or in the cluster.
+To assist with the running of the experiments, metrics collection and analysis, there are some scripts to automate the process.
 
-| `babel_port`
-| Yes
-| Port to bind to
+=== Setup
+First, the project needs to be build.
+[source, bash]
+----
+$ mvn compile assembly:single
+----
 
-| `babel_address`
-| Yes
-| Address to bind to
+=== Running the experiments locally
+To run the experiments locally use the `scripts/run-experiment.sh` script. This script takes a single argument, a regex expression that matches the experiment names to run.
 
-| `metrics_level`
-| Yes
-| Metrics level. 0 = no metrics, 1 = basic metrics (pubsub + network), 2 = detailed metrics (all metrics).
+.example usage
+[source, bash]
+----
+$ scripts/run-experiment.sh '.*-config[1,2]'
+----
 
-| `kad_k`
-| No
-| Kademlia `k` parameter . Default = `20`.
+=== Running the experiments in the cluster
+To run the experiments in the cluster use the `scripts/run-experiment-in-cluster.sh` script. This script is similar to the previous one but it takes a few more arguments.
+The first argument is the cluster frontend hostname, this is the name used by ssh in `ssh <hostname>`.
+The second argument is the job id to use for the experiment.
+The third argument is the machine name to use for the experiment.
+The fourth argument is the regex expression that matches the experiment names to run.
 
-| `kad_alpha`
-| No
-| Kademlia `alpha` parameter. Default = `3`.
+.example usage
+[source, bash]
+----
+$ scripts/run-experiment-in-cluster.sh cluster 16099 lugia-5 '.*-config[1,2]'
+----
 
-| `kad_bootstrap`
-| No
-| Kademlia bootstrap node address.
-
-| `kad_query_cache_ttl`
-| No
-| Kademlia query cache TTL. Default = `PT0.5S`.
-
-| `kad_swarm_ttl`
-| No
-| Kademlia swarm TTL. Default = `PT10M`.
-
-| `kad_pubsub_msg_timeout`
-| Yes
-| Kademlia pubsub message timeout. How long until we request from another peer.
-
-| `kad_pubsub_k`
-| Yes
-| Kademlia pubsub `k` parameter.
-
-| `kad_pubsub_rfac`
-| Yes
-| Kademlia pubsub redundancy factor.
-|===
+=== Analyzing the results
+After running the experiments using one of the previous scripts the directory `analysis/experiments` should could a json file for each experiment. To analyze the results there are 2 notebooks, `analysis/plots.ipynb` and `analysis/experiment.ipynb`. The first one contains the plots used in the report and the second one is used to analyze the results of a single experiment.
 
 == dumpster of text
 
