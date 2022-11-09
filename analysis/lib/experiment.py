@@ -163,7 +163,7 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
         os.remove(os.path.join("metrics", filename))
 
     logging.info("Removing all existing containers")
-    subprocess.run(["sh", "-c", "docker rm -f $(docker ps -aq)"])
+    subprocess.run(["sh", "-c", "docker rm -f $(docker ps -aq)"], capture_output=True)
 
     logging.info(f"Creating {experiment.number_nodes} containers")
     protocol_to_main_class = {
@@ -230,7 +230,7 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
         for key, value in experiment.protocol_parameters.items():
             args.append(f"{key}={value}")
 
-        subprocess.run(args)
+        subprocess.run(args, capture_output=True)
 
     logging.info("Starting containers")
     for i in range(experiment.number_nodes):
@@ -240,7 +240,7 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
             "start",
             f"asd_{port}",
         ]
-        subprocess.Popen(args, stdout=subprocess.DEVNULL, start_new_session=True)
+        subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if i == 0:
             time.sleep(2)
 
@@ -253,7 +253,7 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
             f"asd_{port}",
         ]
         procs.append(
-            subprocess.Popen(args, stdout=subprocess.DEVNULL, start_new_session=True)
+            subprocess.Popen(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         )
 
     logging.info("Waiting for containers to finish")

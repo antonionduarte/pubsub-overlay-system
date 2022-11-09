@@ -5,4 +5,4 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-rsync -avz --progress --exclude analysis/metrics --exclude analysis/experiments ./ $1:./asd-project1
+rsync -avzq --exclude analysis/metrics --exclude analysis/experiments ./ $1:./asd-project1

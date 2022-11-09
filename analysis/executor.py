@@ -1,17 +1,22 @@
 import argparse
 import logging
 import lib.experiment as experiment
+import re
 
 DEFAULT_EXPERIMENTS_PATH = "experiments.yaml"
 
 
 def entrypoint_run(args):
     experiments = experiment.load_experiments(DEFAULT_EXPERIMENTS_PATH)
-    exp = experiments[args.experiment]
-    if experiment is None:
-        print(experiments)
-        raise ValueError(f"Experiment {args.experiment} not found")
-    experiment.run_experiment(args.experiment, exp, args.jarpath)
+    experiment_names = list(experiments.keys())
+    matched_names = [
+        name for name in experiment_names if re.match(args.experiment, name)
+    ]
+    if len(matched_names) == 0:
+        raise ValueError(f"No experiments matched {args.experiment}")
+    logging.info(f"Running experiments: {matched_names}")
+    for name in matched_names:
+        experiment.run_experiment(name, experiments[name], args.jarpath)
 
 
 if __name__ == "__main__":
@@ -24,11 +29,13 @@ if __name__ == "__main__":
     package = subparsers.add_parser(
         "run", help="Run the experiment and generate the results"
     )
-    package.add_argument("experiment", help="The experiment to run")
+    package.add_argument(
+        "experiment",
+        help="The experiment to run, this can be regex to match on experiment names",
+    )
     package.add_argument(
         "--jarpath", default="../target/asdProj.jar", help="The path to the jar file"
     )
-    package.add_argument("--output", help="The output file with the results")
     package.set_defaults(func=entrypoint_run)
 
     args = parser.parse_args()
