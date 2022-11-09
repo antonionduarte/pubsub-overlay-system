@@ -1,54 +1,115 @@
 templates:
   base:
     parameters:
+      ## The protocol to run the experiment with.
+      # Can be one of:
+      #   + kadpubsub
+      #   + gossipsub
+      #   + plumtree
+      # protocol: ...
+
+      ## Number of nodes to run the experiment with
+      #number_nodes: 0
+
+      ## How long to wait until the first topic subscription is made
       bootstrap_time: 60
+
+      ## How long to wait, after the first subscription is made, to publish the first message
       prepare_time: 20
+
+      ## How long each node will spend publishing messages after the prepare time
       run_time: 60
+
+      ## How long each will stay active after stopping to send messages
       cooldown_time: 30
+
+      ## How many topics to generate
       number_topics: 6
+
+      ## How many topics each node will subscribe to
       number_topics_to_subscribe: 3
+
+      ## How many topics each node will publish to
       number_topics_to_publish: 3
+
+      ## Random seed, used by all nodes
       random_seed: 12345
+
+      ## Metrics logging level
+      # This limits the amount of metrics collect and can be the difference between 100+ MB of json vs 1+ GB
+      # Can be one of:
+      #   + off       - No metrics are collected
+      #   + basic     - Only pubsub and network metrics are collected
+      #   + detailed  - All metrics are collected
       metric_level: basic
 
   kad-base:
     parameters:
       protocol_parameters:
+        ## Size of the K buckets
         kad_k: 20
+        ## How many requests per query are made concurrently
         kad_alpha: 3
+        ## TTL for query cache
+        kad_query_cache_ttl: PT0.5S
+        ## Swarm entry TTL
+        kad_swarm_ttl: PT10M
+        ## Routing table refresh interval
         kad_rt_refresh: PT10S
+        ## Timeout for a WANT message
         kad_pubsub_msg_timeout: PT8S
+        ## Size of the K buckets for the routing tables used for topics
         kad_pubsub_k: 5
+        ## Replication factor for pubsub.
         kad_pubsub_rfac: 1
 
   hyparview-base:
     parameters:
       protocol_parameters:
-        k_active: 3
-        k_passive: 4
-        shuffle_period: 1000
-        arwl: 6
-        prwl: 3
-        passive_view_capacity: 6
-        active_view_capacity: 2
+        hyparview_k_active: 3
+        hyparview_k_passive: 4
+        hyparview_shuffle_period: 2
+        hyparview_arwl: 6
+        hyparview_prwl: 3
+        hyparview_passive_view_capacity: 7
+        hyparview_active_view_capacity: 4
+
+  gossipsub-base:
+    parameters:
+      protocol_parameters:
+        gossipsub_hbinterval: 1
+        gossipsub_hbdelay: 0.1
+        gossipsub_degree: 6
+        gossipsub_degree_low: 4
+        gossipsub_degree_high: 12
+        gossipsub_degree_lazy: 6
+        gossipsub_max_i_have_length: 5000
+        gossipsub_gossip_factor: 0.25
+        gossipsub_prune_peers: 16
+        gossipsub_fanout_ttl: 60
+        gossipsub_history_length: 5
+        gossipsub_history_gossip: 3
+
+  plumtree-base:
+    parameters:
+      protocol_parameters:
+        plumtree_missing_timeout: 1
+        plumtree_missing_timeout_second: 0.5
 
   kadpubsub:
-    derive: [base, kad-base]
+    derive: [kad-base]
     parameters:
       protocol: kadpubsub
 
   gossipsub:
-    derive: [base, kad-base]
+    derive: [kad-base, gossipsub-base]
     parameters:
       protocol: gossipsub
 
   plumtree:
-    derive: [base, hyparview-base]
+    derive: [hyparview-base, plumtree-base]
     parameters:
       protocol: plumtree
-      protocol_parameters:
-        missing_timeout: 1000
-        missing_timeout_second: 500
 
   quick:
     derive: [base]
@@ -63,9 +124,31 @@ templates:
       payload_size: 1024
 
   config1:
+    derive: [base]
+    parameters:
+      number_nodes: 20
+      broadcast_rate: 5
+      payload_size: 1024
+
+  config2:
+    derive: [base]
     parameters:
       number_nodes: 50
       broadcast_rate: 5
+      payload_size: 1024
+
+  config3:
+    derive: [base]
+    parameters:
+      number_nodes: 100
+      broadcast_rate: 1
+      payload_size: 1024
+
+  config4:
+    derive: [base]
+    parameters:
+      number_nodes: 200
+      broadcast_rate: 0.1
       payload_size: 1024
 
 experiments:
@@ -82,3 +165,24 @@ experiments:
     derive: [gossipsub, config1]
   plumtree-config1:
     derive: [plumtree, config1]
+
+  kadpubsub-config2:
+    derive: [kadpubsub, config2]
+  gossipsub-config2:
+    derive: [gossipsub, config2]
+  plumtree-config2:
+    derive: [plumtree, config2]
+
+  kadpubsub-config3:
+    derive: [kadpubsub, config3]
+  gossipsub-config3:
+    derive: [gossipsub, config3]
+  plumtree-config3:
+    derive: [plumtree, config3]
+
+  kadpubsub-config4:
+    derive: [kadpubsub, config4]
+  gossipsub-config4:
+    derive: [gossipsub, config4]
+  plumtree-config4:
+    derive: [plumtree, config4]
