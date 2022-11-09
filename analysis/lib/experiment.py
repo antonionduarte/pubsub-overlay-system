@@ -243,6 +243,8 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
         subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if i == 0:
             time.sleep(2)
+        if experiment.protocol == PROTOCOL_PLUMTREE:
+            time.sleep(0.2)
 
     procs = []
     for i in range(experiment.number_nodes):
