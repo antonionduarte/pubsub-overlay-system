@@ -2,6 +2,7 @@ package asd.metrics;
 
 import com.google.gson.Gson;
 
+import pt.unl.fct.di.novasys.channel.tcp.events.ChannelMetrics;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.*;
@@ -118,6 +119,20 @@ public class Metrics {
 		if (metricsLevel < METRIC_LEVEL_BASIC)
 			return;
 		writeMetric(new Network(in, out), "Network");
+	}
+
+	public static void network(ChannelMetrics event) {
+		long in = 0;
+		long out = 0;
+		var conns = List.of(event.getInConnections(), event.getOldInConnections(), event.getOutConnections(),
+				event.getOldOutConnections());
+		for (var connl : conns) {
+			for (var conn : connl) {
+				in += conn.getReceivedAppBytes();
+				out += conn.getSentAppBytes();
+			}
+		}
+		network(in, out);
 	}
 
 	public record MessageSent(String message_type, String destination, Map<String, Object> properties) {

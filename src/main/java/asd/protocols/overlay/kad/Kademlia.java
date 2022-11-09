@@ -714,18 +714,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 	private void onChannelMetrics(ChannelMetrics event, int channel_id) {
 		assert channel_id == this.channel_id;
-
-		long in = 0;
-		long out = 0;
-		var conns = List.of(event.getInConnections(), event.getOldInConnections(), event.getOutConnections(),
-				event.getOldOutConnections());
-		for (var connl : conns) {
-			for (var conn : connl) {
-				in += conn.getReceivedAppBytes();
-				out += conn.getSentAppBytes();
-			}
-		}
-		Metrics.network(in, out);
+		Metrics.network(event);
 	}
 
 	/*--------------------------------- Timer Handlers ---------------------------------------- */
