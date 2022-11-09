@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.function.Function;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -741,15 +742,22 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		if (rt == null)
 			return;
 
-		this.query_manager.findClosest(timer.rtid, this.self.id, closest -> {
-			closest.stream().map(this.addrbook::getPeerFromID).filter(Objects::nonNull).forEach(rt::add);
+		Function<List<KadID>, Void> refresh = (members) -> {
+			members.stream().map(this.addrbook::getPeerFromID).filter(Objects::nonNull).forEach(rt::add);
 
 			var next_refresh = this.routing_table_refresh.getSeconds() * 1000
 					+ this.routing_table_refresh.getNano() / 1000000;
 			if (rt.size() < this.params.k / 4)
 				next_refresh = Math.min(2000, next_refresh);
+
 			this.setupTimer(new RefreshRoutingTable(timer.rtid), next_refresh);
-		});
+			return null;
+		};
+
+		if (timer.rtid != KadID.DEFAULT_RTID && rt.isEmpty())
+			this.query_manager.findPool(timer.rtid, (closest, members) -> refresh.apply(members));
+		else
+			this.query_manager.findClosest(timer.rtid, this.self.id, closest -> refresh.apply(closest));
 	}
 
 	private void onMetricDebug(MetricDebugTimer timer, long timer_id) {
