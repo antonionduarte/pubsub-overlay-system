@@ -35,7 +35,7 @@ public class Hyparview extends GenericProtocol {
 
 	private final short kActive;
 	private final short kPassive;
-	private final short shufflePeriod;
+	private final short shufflePeriodMs;
 
 	private final Host self;
 
@@ -58,22 +58,29 @@ public class Hyparview extends GenericProtocol {
 
 		/*---------------------- Channel Configuration ---------------------- */
 		Properties channelProps = new Properties();
-		channelProps.setProperty(TCPChannel.ADDRESS_KEY, properties.getProperty("babel_address")); // The address to bind to
+		channelProps.setProperty(TCPChannel.ADDRESS_KEY, properties.getProperty("babel_address")); // The address to
+																									// bind to
 		channelProps.setProperty(TCPChannel.PORT_KEY, properties.getProperty("babel_port")); // The port to bind to
-		channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, channelMetricsInterval); // The interval to receive channel metrics
-		channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, "1000"); // Heartbeats interval for established connections
-		channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); // Time passed without heartbeats until closing a connection
+		channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, channelMetricsInterval); // The interval to receive
+																							// channel metrics
+		channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, "1000"); // Heartbeats interval for established
+																				// connections
+		channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); // Time passed without heartbeats until
+																				// closing a connection
 		channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "1000"); // TCP connect timeout
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
 		/*---------------------- Protocol Configuration ---------------------- */
-		this.kActive = (short) Integer.parseInt(properties.getProperty("k_active", "2"));
-		this.kPassive = (short) Integer.parseInt(properties.getProperty("k_passive", "3"));
-		this.shufflePeriod = (short) Integer.parseInt(properties.getProperty("shuffle_period", "2000"));
-		this.ARWL = Integer.parseInt(properties.getProperty("arwl", "4"));
-		this.PRWL = Integer.parseInt(properties.getProperty("prwl", "2"));
-		short passiveViewCapacity = (short) Integer.parseInt(properties.getProperty("passive_view_capacity", "7"));
-		short activeViewCapacity = (short) Integer.parseInt(properties.getProperty("active_view_capacity", "4"));
+		this.kActive = (short) Integer.parseInt(properties.getProperty("hyparview_k_active"));
+		this.kPassive = (short) Integer.parseInt(properties.getProperty("hyparview_k_passive"));
+		this.shufflePeriodMs = (short) (Double.parseDouble(properties.getProperty("hyparview_shuffle_period"))
+				* 1000.0);
+		this.ARWL = Integer.parseInt(properties.getProperty("hyparview_arwl"));
+		this.PRWL = Integer.parseInt(properties.getProperty("hyparview_prwl"));
+		short passiveViewCapacity = (short) Integer
+				.parseInt(properties.getProperty("hyparview_passive_view_capacity"));
+		short activeViewCapacity = (short) Integer
+				.parseInt(properties.getProperty("hyparview_active_view_capacity"));
 
 		/*---------------------- Register Message Serializers ---------------------- */
 		registerMessageSerializer(this.channelId, Disconnect.MESSAGE_ID, Disconnect.serializer);
@@ -129,7 +136,7 @@ public class Hyparview extends GenericProtocol {
 				sendMessage(new Join(), contactHost);
 			}
 
-			setupPeriodicTimer(new ShuffleTimer(), shufflePeriod, shufflePeriod);
+			setupPeriodicTimer(new ShuffleTimer(), shufflePeriodMs, shufflePeriodMs);
 		} catch (Exception exception) {
 			logger.error("Invalid contact on configuration: '" + properties.getProperty(CONTACT_PROPERTY));
 			exception.printStackTrace();

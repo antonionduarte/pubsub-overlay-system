@@ -31,8 +31,8 @@ public class PlumTree extends GenericProtocol {
 
 	private final Host self;
 
-	private final long missingTimeout;
-	private final long missingTimeoutSecond;
+	private final long missingTimeoutMs;
+	private final long missingTimeoutSecondMs;
 
 	private final Set<Host> eagerPushPeers;
 	private final Set<Host> lazyPushPeers;
@@ -50,8 +50,10 @@ public class PlumTree extends GenericProtocol {
 		logger.info("PlumTree protocol created");
 
 		/*---------------------- Protocol Configuration ---------------------- */
-		this.missingTimeout = Long.parseLong(properties.getProperty("missing_timeout", "1000"));
-		this.missingTimeoutSecond = Long.parseLong(properties.getProperty("missing_timeout_second", "500"));
+		this.missingTimeoutMs = (long) (Double.parseDouble(properties.getProperty("plumtree_missing_timeout"))
+				* 1000.0);
+		this.missingTimeoutSecondMs = (long) (Double
+				.parseDouble(properties.getProperty("plumtree_missing_timeout_second")) * 1000.0);
 
 		/*--------------------- Register Request Handlers ----------------------------- */
 		registerRequestHandler(Broadcast.ID, this::handleBroadcast);
@@ -174,7 +176,7 @@ public class PlumTree extends GenericProtocol {
 
 		if (!receivedMessages.containsKey(msg.getMsgId())) {
 			if (!missingTimers.containsKey(msg.getMsgId())) {
-				this.missingTimers.put(msg.getMsgId(), setupTimer(new IHaveTimer(msg.getMsgId()), missingTimeout));
+				this.missingTimers.put(msg.getMsgId(), setupTimer(new IHaveTimer(msg.getMsgId()), missingTimeoutMs));
 			}
 			this.haveMessage.computeIfAbsent(msg.getMsgId(), k -> {
 				return new LinkedList<>();
@@ -211,7 +213,7 @@ public class PlumTree extends GenericProtocol {
 				if (missingTimers.containsKey(messageId)) {
 					var peer = haveMessage.get(timer.getMsgId()).remove(0);
 					var message = new Graft(messageId);
-					this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), missingTimeoutSecond));
+					this.missingTimers.put(messageId, setupTimer(new IHaveTimer(messageId), missingTimeoutSecondMs));
 					sendMessage(message, peer);
 				}
 			}

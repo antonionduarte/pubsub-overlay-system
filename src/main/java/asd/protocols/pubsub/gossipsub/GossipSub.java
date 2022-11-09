@@ -31,14 +31,14 @@ public class GossipSub extends GenericProtocol {
 	private final Host self;
 	private int channelId = -1;
 
-	private final int heartbeatInterval;
-	private final int heartbeatInitialDelay;
+	private final int heartbeatIntervalMs;
+	private final int heartbeatInitialDelayMs;
 	private final int degree, degreeLow, degreeHigh;
 	private final int degreeLazy;
 	private final int maxIHaveLength;
 	private final float gossipFactor;
 	private final int peersInPrune;
-	private final int fanoutTTL;
+	private final int fanoutTTLMs;
 
 	private final Set<Host> peers; // peers with connection
 	private final Set<Host> direct; // direct peers
@@ -69,17 +69,17 @@ public class GossipSub extends GenericProtocol {
 		// -------------------------Initialize fields--------------------------------
 		this.self = self;
 
-		this.heartbeatInterval = Integer.parseInt(props.getProperty("hbInterval", "1000"));
-		this.heartbeatInitialDelay = Integer.parseInt(props.getProperty("hbDelay", "100"));
+		this.heartbeatIntervalMs = (int) (Double.parseDouble(props.getProperty("gossipsub_hbinterval")) * 1000.0);
+		this.heartbeatInitialDelayMs = (int) (Double.parseDouble(props.getProperty("gossipsub_hbdelay")) * 1000.0);
 
-		this.degree = Integer.parseInt(props.getProperty("D", "6"));
-		this.degreeLow = Integer.parseInt(props.getProperty("Dlo", "4"));
-		this.degreeHigh = Integer.parseInt(props.getProperty("Dhi", "12"));
-		this.degreeLazy = Integer.parseInt(props.getProperty("Dlazy", "6"));
-		this.maxIHaveLength = Integer.parseInt(props.getProperty("MaxIHaveLength", "5000"));
-		this.gossipFactor = Float.parseFloat(props.getProperty("GossipFactor", "0.25"));
-		this.peersInPrune = Integer.parseInt(props.getProperty("PrunePeers", "16"));
-		this.fanoutTTL = Integer.parseInt(props.getProperty("FanoutTTL", "60000"));
+		this.degree = Integer.parseInt(props.getProperty("gossipsub_degree"));
+		this.degreeLow = Integer.parseInt(props.getProperty("gossipsub_degree_low"));
+		this.degreeHigh = Integer.parseInt(props.getProperty("gossipsub_degree_high"));
+		this.degreeLazy = Integer.parseInt(props.getProperty("gossipsub_degree_lazy"));
+		this.maxIHaveLength = Integer.parseInt(props.getProperty("gossipsub_max_i_have_length"));
+		this.gossipFactor = Float.parseFloat(props.getProperty("gossipsub_gossip_factor"));
+		this.peersInPrune = Integer.parseInt(props.getProperty("gossipsub_prune_peers"));
+		this.fanoutTTLMs = (int) (Double.parseDouble(props.getProperty("gossipsub_fanout_ttl")) * 1000.0);
 
 		this.peers = new HashSet<>();
 		this.direct = new HashSet<>();
@@ -91,8 +91,8 @@ public class GossipSub extends GenericProtocol {
 		this.pendingGossip = new HashMap<>();
 		this.pendingPublishes = new HashMap<>();
 
-		int historyLength = Integer.parseInt(props.getProperty("HistoryLength", "5"));
-		int historyGossip = Integer.parseInt(props.getProperty("HistoryGossip", "3"));
+		int historyLength = Integer.parseInt(props.getProperty("gossipsub_history_length"));
+		int historyGossip = Integer.parseInt(props.getProperty("gossipsub_history_gossip"));
 		this.messageCache = new MessageCache(historyGossip, historyLength);
 		this.seenMessages = new HashSet<>();
 
@@ -157,7 +157,7 @@ public class GossipSub extends GenericProtocol {
 			this.direct.addAll(ASDUtils.hostsFromProp(properties.getProperty("direct")));
 		}
 
-		setupPeriodicTimer(new HeartbeatTimer(), heartbeatInitialDelay, heartbeatInterval);
+		setupPeriodicTimer(new HeartbeatTimer(), heartbeatInitialDelayMs, heartbeatIntervalMs);
 		setupPeriodicTimer(new InfoTimer(), 5000, 5000);
 	}
 
@@ -326,7 +326,7 @@ public class GossipSub extends GenericProtocol {
 		fanoutLastPub.entrySet().removeIf((entry) -> {
 			var topic = entry.getKey();
 			var lastPubTime = entry.getValue();
-			if (lastPubTime + fanoutTTL < getMillisSinceBabelStart()) {
+			if (lastPubTime + fanoutTTLMs < getMillisSinceBabelStart()) {
 				fanout.remove(topic);
 				return true;
 			} else

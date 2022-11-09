@@ -107,11 +107,11 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 																				// closing a connection
 		channel_props.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "1000"); // TCP connect timeout
 
-		var k = Integer.parseInt(props.getProperty("kad_k", "20"));
-		var alpha = Integer.parseInt(props.getProperty("kad_alpha", "3"));
+		var k = Integer.parseInt(props.getProperty("kad_k"));
+		var alpha = Integer.parseInt(props.getProperty("kad_alpha"));
 		var routing_table_refresh = Duration.parse(props.getProperty("kad_rt_refresh"));
-		var query_cache_ttl = Duration.parse(props.getProperty("kad_query_cache_ttl", "PT0.5S"));
-		var swarmttl = Duration.parse(props.getProperty("kad_swarm_ttl", "PT10M"));
+		var query_cache_ttl = Duration.parse(props.getProperty("kad_query_cache_ttl"));
+		var swarmttl = Duration.parse(props.getProperty("kad_swarm_ttl"));
 		var pubsub_msg_timeout = Duration.parse(props.getProperty("kad_pubsub_msg_timeout"));
 		var pubsub_k = Integer.parseInt(props.getProperty("kad_pubsub_k"));
 		var pubsub_rfac = Integer.parseInt(props.getProperty("kad_pubsub_rfac"));
