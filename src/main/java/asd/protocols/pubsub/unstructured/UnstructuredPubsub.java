@@ -61,12 +61,12 @@ public class UnstructuredPubsub extends GenericProtocol {
 						deliverBroadcast.getMsg());
 				triggerNotification(deliver);
 
-				Metrics.pubMessageReceived(deliverBroadcast.getSender(), msgId, topic, hopCount, true);
+				Metrics.pubMessageReceived(deliverBroadcast.getReceivedFrom(), msgId, topic, hopCount, true);
 			} else {
-				Metrics.pubMessageReceived(deliverBroadcast.getSender(), msgId, topic, hopCount, false);
+				Metrics.pubMessageReceived(deliverBroadcast.getReceivedFrom(), msgId, topic, hopCount, false);
 			}
 		} else {
-			Metrics.pubMessageReceived(deliverBroadcast.getSender(), msgId, topic, hopCount, false);
+			Metrics.pubMessageReceived(deliverBroadcast.getReceivedFrom(), msgId, topic, hopCount, false);
 		}
 	}
 

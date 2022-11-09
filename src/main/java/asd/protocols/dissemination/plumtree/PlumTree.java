@@ -136,7 +136,8 @@ public class PlumTree extends GenericProtocol {
 				msg.getTopic(),
 				msg.getMsgId(),
 				msg.getSender(),
-				msg.getHopCount());
+				msg.getHopCount(),
+				from);
 
 		triggerNotification(deliver);
 
@@ -147,7 +148,8 @@ public class PlumTree extends GenericProtocol {
 			sendMessage(new Prune(), from);
 		} else {
 			var timerId = missingTimers.remove(msg.getMsgId());
-			var gossip = new Gossip(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender(), msg.getHopCount() + 1);
+			var gossip = new Gossip(msg.getMsg(), msg.getTopic(), msg.getMsgId(), msg.getSender(),
+					msg.getHopCount() + 1);
 
 			if (timerId != null) {
 				cancelTimer(timerId);
