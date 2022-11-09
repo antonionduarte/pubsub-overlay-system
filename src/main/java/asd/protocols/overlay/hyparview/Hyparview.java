@@ -1,5 +1,6 @@
 package asd.protocols.overlay.hyparview;
 
+import asd.metrics.Metrics;
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
@@ -102,6 +103,7 @@ public class Hyparview extends GenericProtocol {
 		registerChannelEventHandler(channelId, OutConnectionUp.EVENT_ID, this::uponOutConnectionUp);
 		registerChannelEventHandler(channelId, InConnectionUp.EVENT_ID, this::uponInConnectionUp);
 		registerChannelEventHandler(channelId, InConnectionDown.EVENT_ID, this::uponInConnectionDown);
+		registerChannelEventHandler(channelId, ChannelMetrics.EVENT_ID, this::uponChannelMetrics);
 
 		/*-------------------- Register Timer Handler ------------------------------- */
 		registerTimerHandler(ShuffleTimer.TIMER_ID, this::uponShuffleTimer);
@@ -286,6 +288,10 @@ public class Hyparview extends GenericProtocol {
 
 	private void uponInConnectionDown(InConnectionDown event, int channelId) {
 		// nothing;
+	}
+
+	private void uponChannelMetrics(ChannelMetrics event, int channelId) {
+		Metrics.network(event);
 	}
 
 	/*--------------------------------- Timers ---------------------------- */
