@@ -88,6 +88,8 @@ public class StructuredMain {
 		// Start babel and protocol threads
 		babel.start();
 
+		Metrics.boot();
+
 		Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.info("Goodbye")));
 
 	}

@@ -66,6 +66,14 @@ public class Metrics {
 		}
 	}
 
+	public record Boot() {
+	}
+
+	public static void boot() {
+		if (metricsLevel >= METRIC_LEVEL_BASIC)
+			writeMetric(new Boot(), "Boot");
+	}
+
 	public record PubMessageSent(String source, String message_id, String topic, boolean delivered) {
 	}
 

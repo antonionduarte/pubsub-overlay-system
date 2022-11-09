@@ -4,7 +4,7 @@ import graphviz
 
 import pandas as pd
 
-from typing import Callable, Dict, Set, Tuple
+from typing import Callable, Dict, Set, Tuple, Union
 
 from lib.experiment import PubSubExperiment, PubSubExperimentResults
 from lib.message import (
@@ -35,6 +35,7 @@ class PubSubAnalyzer:
     def __init__(self, experiment: PubSubExperiment, metrics: list[Metric]):
         self._experiment = experiment
         self._metrics = metrics
+        self._metrics_per_type = _compute_metrics_per_type(self._metrics)
         self._message_id_to_topic = _compute_message_id_to_topic(self._metrics)
         self._topic_to_subscribers = self._compute_topic_to_subscribers()
         self._messages_reliability = self._compute_messages_reliability()
@@ -43,17 +44,35 @@ class PubSubAnalyzer:
     def experiment(self) -> PubSubExperiment:
         return self._experiment
 
-    def metrics(self, type: type = None, filter: Callable = None) -> list[Metric]:
-        m = []
-        for metric in self._metrics:
-            if type is not None:
-                if not isinstance(metric, type):
-                    continue
+    def metrics(
+        self, ty: Union[type, tuple] = None, filter: Callable = None
+    ) -> list[Metric]:
+        type_filter = None
+        if ty is None:
+            type_filter = lambda t: True
+        elif isinstance(ty, type):
+            type_filter = lambda t: t == ty
+        elif isinstance(ty, tuple):
+            type_list = list(ty)
+            type_filter = lambda t: t in type_list
+        elif ty is not None:
+            raise ValueError("Invalid ty parameter")
+
+        accessed_metric_types = 0
+        filtered_metrics = []
+        for t, metrics in self._metrics_per_type.items():
+            if not type_filter(t):
+                continue
+            accessed_metric_types += 1
             if filter is not None:
-                if not filter(metric):
-                    continue
-            m.append(metric)
-        return m
+                filtered_metrics.extend([m for m in metrics if filter(m)])
+            else:
+                filtered_metrics.extend(metrics)
+
+        if accessed_metric_types > 1:
+            filtered_metrics.sort(key=lambda m: m.timestamp)
+
+        return filtered_metrics
 
     def metrics_with(self, *args) -> list[Metric]:
         m = []
@@ -63,14 +82,11 @@ class PubSubAnalyzer:
                     m.append(metric)
         return m
 
-    def metrics_of_type(self, t) -> list[Metric]:
-        return self.metrics_with(lambda m: isinstance(m, t))
-
     def topics(self) -> Set[str]:
         """
         Compute the set of all known topics.
         """
-        return set([m.topic for m in self.metrics_of_type(PubSubSubscribe)])
+        return set([m.topic for m in self.metrics(ty=PubSubSubscribe)])
 
     def nodes(self) -> Set[str]:
         """
@@ -101,7 +117,7 @@ class PubSubAnalyzer:
 
     def hops(self) -> pd.Series:
         return pd.Series(
-            map(lambda m: m.hop_count, self.metrics_of_type(PubSubMessageReceived))
+            map(lambda m: m.hop_count, self.metrics(ty=PubSubMessageReceived))
         )
 
     def topic_subscribers(self, topic: str) -> Set[str]:
@@ -117,12 +133,12 @@ class PubSubAnalyzer:
         """
         return self._message_id_to_topic[message]
 
-    def timestamp_of_message(self, message: str) -> int:
+    def timestamp_of_message(self, message: str) -> pd.Timestamp:
         """
         Get the timestamp of a given message.
         """
         return self.metrics(
-            type=PubSubMessageSent, filter=lambda m: m.message_id == message
+            ty=PubSubMessageSent, filter=lambda m: m.message_id == message
         )[0].timestamp
 
     def messages_reliability(self) -> Dict[str, float]:
@@ -163,18 +179,24 @@ class PubSubAnalyzer:
 
         return dot
 
+    def boottimes(self) -> pd.Series:
+        node_boottimes = {}
+        for metric in self.metrics(ty=Boot):
+            node_boottimes[metric.node] = metric.timestamp
+        return pd.Series(
+            [1 for _ in range(len(node_boottimes))], index=list(node_boottimes.values())
+        )
+
     def message_publish_latency(self, message: str) -> pd.DataFrame:
         receives = self.metrics(
-            type=PubSubMessageReceived,
+            ty=PubSubMessageReceived,
             filter=lambda m: m.message_id == message and m.delivered,
         )
         hops = pd.Series(map(lambda m: m.hop_count, receives))
         return pd.DataFrame({"latency": hops})
 
     def publish_latency(self) -> pd.DataFrame:
-        receives = self.metrics(
-            type=PubSubMessageReceived, filter=lambda m: m.delivered
-        )
+        receives = self.metrics(ty=PubSubMessageReceived, filter=lambda m: m.delivered)
         hops = pd.Series(map(lambda m: m.hop_count, receives))
         return pd.DataFrame({"latency": hops})
 
@@ -188,7 +210,7 @@ class PubSubAnalyzer:
     def network_usage_usefullness_fraction(self) -> float:
         total_network_usage = self.network_usage()
         delivered_messages = len(
-            self.metrics(type=PubSubMessageReceived, filter=lambda m: m.delivered)
+            self.metrics(ty=PubSubMessageReceived, filter=lambda m: m.delivered)
         )
         total_payload_size = delivered_messages * self.experiment.payload_size
         if total_network_usage == 0:
@@ -223,7 +245,7 @@ class PubSubAnalyzer:
         Compute the redundancy of the experiment.
         The redundancy is the fraction of messages that were received more than once.
         """
-        received_messages = self.metrics(type=PubSubMessageReceived)
+        received_messages = self.metrics(ty=PubSubMessageReceived)
         delivered = len(list(filter(lambda m: m.delivered, received_messages)))
         total = len(received_messages)
         if total == 0:
@@ -231,7 +253,7 @@ class PubSubAnalyzer:
         return (total - delivered) / total
 
     def _last_network_metrics_per_node(self) -> Dict[str, Network]:
-        network_metrics = self.metrics(type=Network)
+        network_metrics = self.metrics(ty=Network)
         last_network_metrics_per_node = {}
         for metric in network_metrics:
             last_network_metrics_per_node[metric.node] = metric
@@ -245,7 +267,7 @@ class PubSubAnalyzer:
         expected_per_topic = {
             topic: len(self.topic_subscribers(topic)) for topic in self.topics()
         }
-        for m in self.metrics_of_type(PubSubMessageReceived):
+        for m in self.metrics(ty=PubSubMessageReceived):
             if m.delivered:
                 messages_reliability[m.message_id] += 1.0
         for m in messages_reliability.keys():
@@ -254,7 +276,7 @@ class PubSubAnalyzer:
                 del messages_reliability[m]
             else:
                 messages_reliability[m] /= expected_per_topic[message_topic]
-        return messages_reliability
+        return dict(messages_reliability)
 
     def _compute_topic_to_subscribers(self) -> Dict[str, Set[str]]:
         topic_to_subs = defaultdict(lambda: set())
@@ -292,21 +314,43 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
         super().__init__(experiment, metrics)
 
     def routing_table_snapshot(
-        self, node: str, topic: str, timestamp: int
-    ) -> list[str]:
+        self, node: Union[str, list[str], set[str]], topic: str, timestamp: pd.Timestamp
+    ) -> Union[RoutingTableSnapshot, dict[str, RoutingTableSnapshot]]:
         """
         Obtain the routing table of a given node at a given timestamp.
         This will get the latest routing table snapshot before the given timestamp.
+
+        :param node: The node to get the routing table of. This can be a single node or a list of nodes.
+        :param topic: The topic to get the routing table of.
+        :param timestamp: The timestamp to get the routing table at.
+        :return: The routing table snapshot or a dictionary of routing table snapshots if multiple nodes were given.
         """
-        rts = self.metrics(
-            type=RoutingTableSnapshot,
-            filter=lambda m: m.node == node
-            and m.topic == topic
-            and m.timestamp <= timestamp,
-        )
-        return rts[-1]
+        if isinstance(node, str):
+            return self.metrics(
+                ty=RoutingTableSnapshot,
+                filter=lambda m: m.topic == topic
+                and m.node == node
+                and m.timestamp <= timestamp,
+            )[-1]
+        else:
+            snapshots = self.metrics(
+                ty=RoutingTableSnapshot,
+                filter=lambda m: m.topic == topic and m.timestamp <= timestamp,
+            )
+            node_snapshots = {}
+            for snapshot in snapshots:
+                if (
+                    snapshot.node not in node_snapshots
+                    or snapshot.timestamp > node_snapshots[snapshot.node].timestamp
+                ):
+                    node_snapshots[snapshot.node] = snapshot
+            return {n: node_snapshots[n] for n in node}
 
     def message_graph(self, message: str) -> graphviz.Digraph:
+        # Check if this type of metrics were captured, if not default to the PubSubAnalyzer method
+        if not any(map(lambda m: isinstance(m, MessageSent), self._metrics)):
+            return super().message_graph(message)
+
         topic = self.topic_of_message(message)
         subscribers = self.topic_subscribers(topic)
         broadcasts = self.metrics_with(
@@ -327,11 +371,21 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
             and m.message.topic == topic
             and m.message.message_id == message
         )
+        delivers = set(
+            map(
+                lambda m: m.node,
+                self.metrics(
+                    ty=PubSubMessageReceived,
+                    filter=lambda m: m.message_id == message and m.delivered,
+                ),
+            )
+        )
 
         dot = graphviz.Digraph("Message Broadcast Tree")
         dot.node(broadcasts[0].node)
         for sub in subscribers:
-            dot.node(sub)
+            node_color = "green" if sub in delivers else "red"
+            dot.node(sub, color=node_color)
         for bcast in broadcasts:
             dot.edge(
                 bcast.node,
@@ -343,6 +397,25 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
             dot.edge(have.node, have.destination, color="blue")
         for wanthave in wanthaves:
             dot.edge(wanthave.node, wanthave.destination, color="red")
+
+        return dot
+
+    def topic_connectivity_graph_at(
+        self, topic: str, timestamp: pd.Timestamp
+    ) -> graphviz.Digraph:
+        subscribers = self.topic_subscribers(topic)
+        snapshots = {
+            n: self.routing_table_snapshot(n, topic, timestamp) for n in subscribers
+        }
+
+        dot = graphviz.Digraph("Topic Connectivity Graph")
+        for node in subscribers:
+            dot.node(node)
+
+        for node, snapshot in snapshots.items():
+            for bucket_index, bucket in enumerate(snapshot.buckets):
+                for peer in bucket:
+                    dot.edge(node, peer, label=bucket_index)
 
         return dot
 
@@ -390,6 +463,7 @@ def _parse_node_metrics(
     node_id: str, metrics: list[dict], ignore_unknown_metrics: bool
 ) -> list[Metric]:
     parsers = {
+        "Boot": _parse_metric_boot,
         "PubSubMessageSent": _parse_metric_pubsub_message_sent,
         "PubSubMessageReceived": _parse_metric_pubsub_message_received,
         "PubSubSubscription": _parse_metric_pubsub_subscribe,
@@ -413,6 +487,10 @@ def _parse_node_metrics(
             raise Exception(f"Unknown metric type: {metric_type}")
 
     return parsed_metrics
+
+
+def _parse_metric_boot(node_id: str, timestamp: int, metric: dict) -> Metric:
+    return Boot(node_id, timestamp)
 
 
 def _parse_metric_pubsub_message_sent(
@@ -497,6 +575,16 @@ def _parse_metric_routing_table(node_id: str, timestamp: int, metric: dict) -> M
 
 def _node_ipaddr_to_node_id(ipaddr: str) -> str:
     return ipaddr.split(":")[1]
+
+
+def _compute_metrics_per_type(metrics: list[Metric]) -> dict[type, list[Metric]]:
+    metrics_per_type = {}
+    for metric in metrics:
+        metric_type = type(metric)
+        if metric_type not in metrics_per_type:
+            metrics_per_type[metric_type] = []
+        metrics_per_type[type(metric)].append(metric)
+    return metrics_per_type
 
 
 def _compute_message_id_to_topic(metrics: list[Metric]) -> dict[str, str]:

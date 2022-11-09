@@ -11,6 +11,11 @@ class Metric:
 
 
 @dataclasses.dataclass
+class Boot(Metric):
+    pass
+
+
+@dataclasses.dataclass
 class PubSubMessageSent(Metric):
     topic: str
     message_id: str
@@ -70,3 +75,9 @@ class MessageReceived(Metric):
 class RoutingTableSnapshot(Metric):
     topic: str
     buckets: list[list[str]]
+
+    def __repr__(self):
+        repr = f"RoutingTableSnapshot({self.node}, {self.timestamp}, {self.topic})"
+        for bucket in self.buckets:
+            repr += f"\n\t{bucket}"
+        return repr
