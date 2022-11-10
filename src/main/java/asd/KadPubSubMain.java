@@ -89,7 +89,10 @@ public class KadPubSubMain {
 
 		Metrics.boot();
 
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.info("Goodbye")));
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			Metrics.shutdown();
+			logger.info("Goodbye");
+		}));
 
 	}
 

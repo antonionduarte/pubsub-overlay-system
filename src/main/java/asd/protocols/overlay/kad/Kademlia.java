@@ -138,6 +138,8 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		this.have_tracker = new HaveTracker(pubsub_have_ttl);
 		this.routing_table_refresh = routing_table_refresh;
 
+		Metrics.kademliaIdentifier(this.self.id);
+
 		/*---------------------- Register Message Serializers ---------------------- */
 		this.registerMessageSerializer(this.channel_id, BroadcastHave.ID, BroadcastHave.serializer);
 		this.registerMessageSerializer(this.channel_id, BroadcastMessage.ID, BroadcastMessage.serializer);
@@ -784,10 +786,13 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	}
 
 	private void onMetricDebug(MetricDebugTimer timer, long timer_id) {
-		Metrics.routingTable("", this.rts.main().dumpForMetrics());
-		for (var rt : this.rts.allButTheMainOne())
-			Metrics.routingTable(TopicRegistry.lookup(rt.getKey()), rt.getValue().dumpForMetrics());
-		System.out.println("Outputing routing tables, there are " + this.rts.allButTheMainOne().size() + " of them");
+		if (Metrics.level() >= Metrics.METRIC_LEVEL_DETAILED) {
+			Metrics.routingTable("", this.rts.main().dumpForMetrics());
+			for (var rt : this.rts.allButTheMainOne())
+				Metrics.routingTable(TopicRegistry.lookup(rt.getKey()), rt.getValue().dumpForMetrics());
+			System.out
+					.println("Outputing routing tables, there are " + this.rts.allButTheMainOne().size() + " of them");
+		}
 	}
 
 	/*--------------------------------- QueryManagerIO ---------------------------------------- */

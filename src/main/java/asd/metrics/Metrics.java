@@ -2,21 +2,23 @@ package asd.metrics;
 
 import com.google.gson.Gson;
 
+import asd.protocols.overlay.kad.KadID;
 import pt.unl.fct.di.novasys.channel.tcp.events.ChannelMetrics;
 import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
 public class Metrics {
-	private static final int METRIC_LEVEL_OFF = 0;
-	private static final int METRIC_LEVEL_BASIC = 1;
-	private static final int METRIC_LEVEL_DETAILED = 2;
+	public static final int METRIC_LEVEL_OFF = 0;
+	public static final int METRIC_LEVEL_BASIC = 1;
+	public static final int METRIC_LEVEL_DETAILED = 2;
 
 	private static String FOLDER = "metrics/";
 	private static final String FILE_PATH_MASK = "%s%d.json";
@@ -24,7 +26,7 @@ public class Metrics {
 	private static File metricsFile = null;
 	private static int metricsLevel = 0;
 
-	private static final long startTime = System.nanoTime();
+	private static final Clock clock = Clock.systemUTC();
 	private static final Gson gson = new Gson();
 
 	public static void initMetrics(Properties props) {
@@ -49,6 +51,10 @@ public class Metrics {
 		}
 	}
 
+	public static int level() {
+		return metricsLevel;
+	}
+
 	public record Metric(long timestamp, String metric_type, Object metric) {
 	}
 
@@ -56,7 +62,9 @@ public class Metrics {
 		if (fileOutputStream == null)
 			return;
 
-		var metric = new Metric(System.nanoTime() - startTime, message_type, message);
+		var now = clock.instant();
+		var nano_now = now.getEpochSecond() * 1_000_000_000 + ((long) now.getNano());
+		var metric = new Metric(nano_now, message_type, message);
 		var json = gson.toJson(metric) + "\n";
 
 		try {
@@ -72,6 +80,14 @@ public class Metrics {
 	public static void boot() {
 		if (metricsLevel >= METRIC_LEVEL_BASIC)
 			writeMetric(new Boot(), "Boot");
+	}
+
+	public record Shutdown() {
+	}
+
+	public static void shutdown() {
+		if (metricsLevel >= METRIC_LEVEL_BASIC)
+			writeMetric(new Shutdown(), "Shutdown");
 	}
 
 	public record PubMessageSent(String source, String message_id, String topic, boolean delivered) {
@@ -172,6 +188,15 @@ public class Metrics {
 
 	public static void messageReceived(Host source, MetricsProtoMessage msg) {
 		messageReceived(source, msg.serializeToMetric());
+	}
+
+	public record KademliaIdentifier(String identifier) {
+	}
+
+	public static void kademliaIdentifier(KadID id) {
+		if (metricsLevel < METRIC_LEVEL_BASIC)
+			return;
+		writeMetric(new KademliaIdentifier(id.toString()), "KademliaIdentifier");
 	}
 
 	public record RoutingTable(String topic, List<List<String>> buckets) {

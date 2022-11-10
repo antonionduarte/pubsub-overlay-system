@@ -91,6 +91,10 @@ public class UnstructuredMain {
 
 		Metrics.boot();
 
-		Runtime.getRuntime().addShutdownHook(new Thread(() -> logger.error("Goodbye")));
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			Metrics.shutdown();
+			logger.info("Goodbye");
+		}));
+
 	}
 }
