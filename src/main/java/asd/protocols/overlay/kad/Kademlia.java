@@ -392,6 +392,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		try (var __ = Profiling.span("onFindNodeResponse")) {
 			this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
+			msg.peers.removeIf(p -> p.id.equals(this.self.id));
 			msg.peers.forEach(p -> this.addrbook.add(p));
 
 			var peer = this.addrbook.getPeerFromHost(from);
@@ -419,6 +420,9 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		try (var __ = Profiling.span("onFindPoolResponse")) {
 			this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 			logger.debug("Received FindPoolResponse from " + from + " I am " + this.self.host);
+
+			msg.peers.removeIf(p -> p.id.equals(this.self.id));
+			msg.members.removeIf(p -> p.id.equals(this.self.id));
 
 			msg.peers.forEach(p -> this.addrbook.add(p));
 			msg.members.forEach(p -> this.addrbook.add(p));
@@ -449,6 +453,9 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 		try (var __ = Profiling.span("onFindSwarmResponse")) {
 			this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
+
+			msg.peers.removeIf(p -> p.id.equals(this.self.id));
+			msg.members.removeIf(p -> p.id.equals(this.self.id));
 
 			msg.peers.forEach(p -> this.addrbook.add(p));
 			msg.members.forEach(p -> this.addrbook.add(p));
