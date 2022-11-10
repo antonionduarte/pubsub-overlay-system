@@ -63,6 +63,10 @@ public class Bucket implements Iterable<KadPeer> {
 		return this.size;
 	}
 
+	public boolean isEmpty() {
+		return this.size == 0;
+	}
+
 	public boolean isFull() {
 		return this.size == this.peers.length;
 	}

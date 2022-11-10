@@ -17,6 +17,7 @@ import asd.metrics.Profiling;
 import asd.protocols.overlay.common.notifications.ChannelCreatedNotification;
 import asd.protocols.overlay.common.notifications.NeighbourDown;
 import asd.protocols.overlay.common.notifications.NeighbourUp;
+import asd.protocols.overlay.kad.bcast.HaveTracker;
 import asd.protocols.overlay.kad.bcast.Message;
 import asd.protocols.overlay.kad.bcast.MessageCache;
 import asd.protocols.overlay.kad.bcast.RequestTracker;
@@ -91,6 +92,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 	private final ConnectionFlags conn_flags;
 	private final MessageCache msg_cache;
 	private final RequestTracker msg_tracker;
+	private final HaveTracker have_tracker;
 	private final Duration routing_table_refresh;
 
 	public Kademlia(Properties props, Host self) throws IOException, HandlerRegistrationException {
@@ -116,6 +118,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		var pubsub_msg_timeout = Duration.parse(props.getProperty("kad_pubsub_msg_timeout"));
 		var pubsub_k = Integer.parseInt(props.getProperty("kad_pubsub_k"));
 		var pubsub_rfac = Integer.parseInt(props.getProperty("kad_pubsub_rfac"));
+		var pubsub_have_ttl = Duration.parse(props.getProperty("kad_pubsub_have_ttl"));
 		var params = new KadParams(k, alpha, swarmttl, pubsub_msg_timeout, pubsub_k, pubsub_rfac);
 
 		this.channel_id = createChannel(TCPChannel.NAME, channel_props); // Create the channel with the given properties
@@ -132,6 +135,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 				query_cache_ttl);
 		this.msg_cache = new MessageCache();
 		this.msg_tracker = new RequestTracker();
+		this.have_tracker = new HaveTracker(pubsub_have_ttl);
 		this.routing_table_refresh = routing_table_refresh;
 
 		/*---------------------- Register Message Serializers ---------------------- */
@@ -289,10 +293,12 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 			if (!this.rts.contains(msg.rtid))
 				return;
 
+			var peer = this.addrbook.getPeerFromHost(from);
+			this.have_tracker.add(msg.uuid, peer.id);
+
 			if (this.msg_cache.contains(msg.uuid))
 				return;
 
-			var peer = this.addrbook.getPeerFromHost(from);
 			if (!this.msg_tracker.isTracking(msg.uuid))
 				this.msg_tracker.startTracking(msg.rtid, msg.uuid);
 
@@ -535,26 +541,40 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		var rt = this.rts.get(message.rtid);
 		var redundancy = apply_redundancy ? this.params.pubsub_rfac : 1;
 		var rbucket_index = rt.buckets() - 1;
-		var rbucket = rt.bucket(rbucket_index);
-		var rbucket_size = rbucket.size();
 
 		// Only broadcast the full message if ceil == 0, that means we are the source of
 		// the message and no one else has broadcasted it yet.
-
-		for (int i = ceil; i <= rbucket_index; ++i) {
+		var unconditional_send = this.params.pubsub_k;
+		for (int i = rbucket_index; i >= ceil; --i) {
 			var bucket = rt.bucket(i);
 			var bucket_size = bucket.size();
-			var bucket_n = i == rbucket_index ? rbucket_size : Math.min(bucket_size, redundancy);
+			var bucket_n = Math.max(Math.min(bucket_size, unconditional_send), Math.min(bucket_size, redundancy));
+			unconditional_send = Math.max(0, unconditional_send - bucket_n);
 
-			for (int j = 0; j < bucket_n; ++j) {
-				var peer = bucket.get(j);
-				MetricsProtoMessage bmessage = null;
-				if (ceil == 0)
-					bmessage = new BroadcastMessage(message.rtid, message.uuid, message.origin, message.hop_count,
-							i + 1, false, message.payload);
-				else
-					bmessage = new BroadcastHave(message.rtid, message.uuid);
-				this.kadSendMessage(bmessage, peer.host);
+			var broadcast_ceil = i + 1;
+			Runnable broadcast = () -> {
+				for (int j = 0; j < bucket_n; ++j) {
+					var peer = bucket.get(j);
+
+					MetricsProtoMessage bmessage = null;
+					if (ceil == 0)
+						bmessage = new BroadcastMessage(message.rtid, message.uuid, message.origin, message.hop_count,
+								broadcast_ceil, false, message.payload);
+					else
+						bmessage = new BroadcastHave(message.rtid, message.uuid);
+
+					if (!this.have_tracker.contains(message.uuid, peer.id))
+						this.kadSendMessage(bmessage, peer.host);
+				}
+			};
+
+			if (bucket.isEmpty()) {
+				this.query_manager.findClosest(message.rtid, KadID.randomWithCpl(this.self.id, i), (closest) -> {
+					closest.stream().map(this.addrbook::getPeerFromID).filter(Objects::nonNull).forEach(rt::add);
+					broadcast.run();
+				});
+			} else {
+				broadcast.run();
 			}
 		}
 	}
@@ -734,6 +754,9 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 	private void onCheckQueryTimeouts(CheckQueryTimeoutsTimer timer, long timer_id) {
 		this.query_manager.checkTimeouts();
+
+		// This could probably go somewhere else
+		this.have_tracker.checkTimeouts();
 	}
 
 	private void onRefreshRoutingTable(RefreshRoutingTable timer, long timer_id) {
