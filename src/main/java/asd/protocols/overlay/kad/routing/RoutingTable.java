@@ -144,12 +144,16 @@ public class RoutingTable {
 			return this.buckets.get(cpl);
 		}
 
-		var last = this.buckets.get(this.buckets.size() - 1);
-		if (!last.isFull())
-			return last;
+		while (true) {
+			var last = this.buckets.get(this.buckets.size() - 1);
+			if (!last.isFull())
+				break;
 
-		this.unfoldLastBucket();
-		return this.buckets.get(this.buckets.size() - 1);
+			this.unfoldLastBucket();
+		}
+
+		var bucket_index = Math.min(cpl, this.buckets.size() - 1);
+		return this.buckets.get(bucket_index);
 	}
 
 	private void unfoldLastBucket() {
