@@ -780,10 +780,23 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 			return null;
 		};
 
-		if (timer.rtid != KadID.DEFAULT_RTID && rt.isEmpty())
-			this.query_manager.findPool(timer.rtid, (closest, members) -> refresh.apply(members));
-		else
+		if (timer.rtid != KadID.DEFAULT_RTID) {
+			if (rt.isEmpty()) {
+				this.query_manager.findPool(timer.rtid, (closest, members) -> refresh.apply(members));
+			} else {
+				for (int i = 0; i < rt.buckets(); ++i) {
+					var bucket = rt.bucket(i);
+					if (!bucket.isEmpty())
+						continue;
+					this.query_manager.findClosest(KadID.randomWithCpl(this.self.id, i),
+							(closest) -> closest.stream().map(this.addrbook::getPeerFromID).filter(Objects::nonNull)
+									.forEach(rt::add));
+				}
+				this.query_manager.findClosest(timer.rtid, this.self.id, closest -> refresh.apply(closest));
+			}
+		} else {
 			this.query_manager.findClosest(timer.rtid, this.self.id, closest -> refresh.apply(closest));
+		}
 	}
 
 	private void onMetricDebug(MetricDebugTimer timer, long timer_id) {
