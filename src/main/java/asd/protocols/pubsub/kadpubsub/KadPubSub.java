@@ -1,11 +1,8 @@
 package asd.protocols.pubsub.kadpubsub;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Properties;
 
-import asd.metrics.Metrics;
-import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.Kademlia;
 import asd.protocols.overlay.kad.ipc.Broadcast;
 import asd.protocols.overlay.kad.ipc.JoinPool;
