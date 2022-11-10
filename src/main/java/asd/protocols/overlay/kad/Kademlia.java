@@ -214,7 +214,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 		this.setupPeriodicTimer(new CheckQueryTimeoutsTimer(), 1 * 1000, 1 * 1000);
 		this.setupTimer(new RefreshRoutingTable(), (5 + (long) (Math.random() * 30)) * 1000);
-		this.setupPeriodicTimer(new MetricDebugTimer(), 0, 10 * 1000);
+		this.setupPeriodicTimer(new MetricDebugTimer(), 0, 2 * 1000);
 	}
 
 	/*--------------------------------- Public Helpers ---------------------------------------- */
