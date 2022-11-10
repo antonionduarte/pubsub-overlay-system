@@ -68,6 +68,20 @@ public class RoutingTables {
         return this.closest(KadID.DEFAULT_RTID, target);
     }
 
+    public List<KadPeer> closestWithIgnore(KadID rtid, KadID target, KadID ignore) {
+        RoutingTable rt = this.tables.get(rtid);
+        if (rt == null)
+            return new ArrayList<>();
+        return rt.closest(target, ignore);
+    }
+
+    public List<KadPeer> closestWithIgnore(KadID target, KadID ignore) {
+        RoutingTable rt = this.tables.get(KadID.DEFAULT_RTID);
+        if (rt == null)
+            return new ArrayList<>();
+        return rt.closest(target, ignore);
+    }
+
     // Metrics helping crap
     public List<Map.Entry<KadID, RoutingTable>> allButTheMainOne() {
         List<Map.Entry<KadID, RoutingTable>> allButTheMainOne = new ArrayList<>();

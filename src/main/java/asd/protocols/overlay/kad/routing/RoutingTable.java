@@ -55,7 +55,7 @@ public class RoutingTable {
 		return peers;
 	}
 
-	public List<KadPeer> closest(KadID id) {
+	public List<KadPeer> closest(KadID id, KadID ignore) {
 		var peers = new ArrayList<KadPeer>(this.k);
 		var bucket_idx = Math.min(this.self.cpl(id), this.bucketsSize() - 1);
 		var iter_count = this.buckets.size();
@@ -63,12 +63,17 @@ public class RoutingTable {
 			var idx = Math.floorMod(bucket_idx - i, iter_count);
 			var bucket = this.buckets.get(idx);
 			for (var peer : bucket)
-				peers.add(peer);
+				if (!peer.id.equals(ignore))
+					peers.add(peer);
 		}
 		Collections.sort(peers, new PeerDistanceComparator(id));
 		while (peers.size() > this.k)
 			peers.remove(peers.size() - 1);
 		return peers;
+	}
+
+	public List<KadPeer> closest(KadID id) {
+		return this.closest(id, null);
 	}
 
 	public boolean contains(KadID id) {

@@ -373,7 +373,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 			this.ensureConnectionInEstablished(msg, from, source_proto, channel_id);
 
 			var rt = this.rts.get(msg.rtid);
-			var closest = rt == null ? List.<KadPeer>of() : rt.closest(msg.target);
+			var closest = rt == null ? List.<KadPeer>of() : rt.closest(msg.target, this.addrbook.getIdFromHost(from));
 			logger.debug(
 					"Received FindNodeRequest from " + from + " I am " + this.self.host + " with target " + msg.target
 							+ " and rtid " + msg.rtid + ". closest = " + closest);
@@ -408,7 +408,7 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 			logger.debug("Received FindPoolRequest from " + from + " I am " + this.self.host + " with pool " + msg.pool
 					+ " and context " + msg.context);
 
-			var closest = this.rts.closest(msg.pool);
+			var closest = this.rts.closestWithIgnore(msg.pool, this.addrbook.getIdFromHost(from));
 			var members = this.addrbook.idsToPeers(this.pool_tracker.getSwarmSample(msg.pool));
 			this.kadSendMessage(new FindPoolResponse(msg.context, closest, members), from);
 		}
