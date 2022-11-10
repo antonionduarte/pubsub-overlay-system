@@ -548,15 +548,14 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 
 		// Only broadcast the full message if ceil == 0, that means we are the source of
 		// the message and no one else has broadcasted it yet.
-		var unconditional_send = this.params.pubsub_k;
 		for (int i = rbucket_index; i >= ceil; --i) {
-			var bucket = rt.bucket(i);
-			var bucket_size = bucket.size();
-			var bucket_n = Math.max(Math.min(bucket_size, unconditional_send), Math.min(bucket_size, redundancy));
-			unconditional_send = Math.max(0, unconditional_send - bucket_n);
+			var bucket_index = i;
+			var bucket = rt.bucket(bucket_index);
+			var broadcast_ceil = bucket_index + 1;
 
-			var broadcast_ceil = i + 1;
 			Runnable broadcast = () -> {
+				var bucket_size = bucket.size();
+				var bucket_n = bucket_index == rbucket_index ? bucket_size : Math.min(bucket_size, redundancy);
 				for (int j = 0; j < bucket_n; ++j) {
 					var peer = bucket.get(j);
 
