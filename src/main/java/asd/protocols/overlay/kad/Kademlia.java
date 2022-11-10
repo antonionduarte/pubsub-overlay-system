@@ -113,13 +113,15 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		var k = Integer.parseInt(props.getProperty("kad_k"));
 		var alpha = Integer.parseInt(props.getProperty("kad_alpha"));
 		var routing_table_refresh = Duration.parse(props.getProperty("kad_rt_refresh"));
+		var query_request_timeout = Duration.parse(props.getProperty("kad_query_request_timeout"));
 		var query_cache_ttl = Duration.parse(props.getProperty("kad_query_cache_ttl"));
 		var swarmttl = Duration.parse(props.getProperty("kad_swarm_ttl"));
 		var pubsub_msg_timeout = Duration.parse(props.getProperty("kad_pubsub_msg_timeout"));
 		var pubsub_k = Integer.parseInt(props.getProperty("kad_pubsub_k"));
 		var pubsub_rfac = Integer.parseInt(props.getProperty("kad_pubsub_rfac"));
 		var pubsub_have_ttl = Duration.parse(props.getProperty("kad_pubsub_have_ttl"));
-		var params = new KadParams(k, alpha, swarmttl, pubsub_msg_timeout, pubsub_k, pubsub_rfac);
+		var params = new KadParams(k, alpha, query_request_timeout, swarmttl, pubsub_msg_timeout, pubsub_k,
+				pubsub_rfac);
 
 		this.channel_id = createChannel(TCPChannel.NAME, channel_props); // Create the channel with the given properties
 		this.self = new KadPeer(KadID.random(), self);

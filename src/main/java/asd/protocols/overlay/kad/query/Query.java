@@ -139,8 +139,7 @@ abstract class Query {
         var now = Instant.now();
 
         for (var req : this.active_requests) {
-            var elapsed = now.toEpochMilli() - req.start.toEpochMilli();
-            if (elapsed > 3000)
+            if (req.start.plus(this.kadparams.query_request_timeout).isBefore(now))
                 timedout.add(req.peer);
         }
 
