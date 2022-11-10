@@ -23,6 +23,9 @@ templates:
       ## How long each will stay active after stopping to send messages
       cooldown_time: 30
 
+      ## How large is the payload in each message
+      payload_size: 1024
+
       ## How many topics to generate
       number_topics: 6
 
@@ -39,7 +42,7 @@ templates:
       # This limits the amount of metrics collect and can be the difference between 100+ MB of json vs 1+ GB
       # Can be one of:
       #   + off       - No metrics are collected
-      #   + basic     - Only pubsub and network metrics are collected
+      #   + basic     - Only pubsub, network metrics and boot are collected
       #   + detailed  - All metrics are collected
       metric_level: basic
 
@@ -51,17 +54,19 @@ templates:
         ## How many requests per query are made concurrently
         kad_alpha: 3
         ## TTL for query cache
-        kad_query_cache_ttl: PT0.5S
+        kad_query_cache_ttl: PT1.0S
         ## Swarm entry TTL
         kad_swarm_ttl: PT10M
         ## Routing table refresh interval
         kad_rt_refresh: PT10S
         ## Timeout for a WANT message
-        kad_pubsub_msg_timeout: PT8S
+        kad_pubsub_msg_timeout: PT12S
         ## Size of the K buckets for the routing tables used for topics
         kad_pubsub_k: 5
         ## Replication factor for pubsub.
         kad_pubsub_rfac: 1
+        ## How long should we remember received HAVE messages
+        kad_pubsub_have_ttl: PT60S
 
   hyparview-base:
     parameters:
@@ -147,9 +152,11 @@ templates:
   config4:
     derive: [base]
     parameters:
-      number_nodes: 200
-      broadcast_rate: 0.1
+      number_nodes: 150
+      broadcast_rate: 1
       payload_size: 1024
+      prepare_time: 60
+      cooldown_time: 120
 
 experiments:
   kadpubsub-quick:
@@ -161,6 +168,11 @@ experiments:
 
   kadpubsub-config1:
     derive: [kadpubsub, config1]
+  kadpubsub-rfac2-config1:
+    derive: [kadpubsub, config1]
+    parameters:
+      protocol_parameters:
+        kad_pubsub_rfac: 2
   gossipsub-config1:
     derive: [gossipsub, config1]
   plumtree-config1:
@@ -168,6 +180,11 @@ experiments:
 
   kadpubsub-config2:
     derive: [kadpubsub, config2]
+  kadpubsub-rfac2-config2:
+    derive: [kadpubsub, config2]
+    parameters:
+      protocol_parameters:
+        kad_pubsub_rfac: 2
   gossipsub-config2:
     derive: [gossipsub, config2]
   plumtree-config2:
@@ -175,6 +192,11 @@ experiments:
 
   kadpubsub-config3:
     derive: [kadpubsub, config3]
+  kadpubsub-rfac2-config3:
+    derive: [kadpubsub, config3]
+    parameters:
+      protocol_parameters:
+        kad_pubsub_rfac: 2
   gossipsub-config3:
     derive: [gossipsub, config3]
   plumtree-config3:
@@ -182,7 +204,23 @@ experiments:
 
   kadpubsub-config4:
     derive: [kadpubsub, config4]
+  kadpubsub-rfac2-config4:
+    derive: [kadpubsub, config3]
+    parameters:
+      protocol_parameters:
+        kad_pubsub_rfac: 2
   gossipsub-config4:
     derive: [gossipsub, config4]
   plumtree-config4:
     derive: [plumtree, config4]
+
+  kadpubsub-debug:
+    derive: [base, kadpubsub]
+    parameters:
+      broadcast_rate: 0.1
+      number_nodes: 135
+      bootstrap_time: 20
+      prepare_time: 20
+      run_time: 60
+      cooldown_time: 30
+      metric_level: detailed

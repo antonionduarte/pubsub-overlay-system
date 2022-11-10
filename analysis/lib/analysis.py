@@ -6,14 +6,16 @@ import pandas as pd
 
 from typing import Callable, Dict, Set, Tuple, Union
 
-from lib.experiment import PubSubExperiment, PubSubExperimentResults
-from lib.message import (
+from lib.kademlia import KadID
+
+from .experiment import PubSubExperiment, PubSubExperimentResults
+from .message import (
     BroadcastHave,
     BroadcastMessage,
     BroadcastWant,
     from_dict as message_from_dict,
 )
-from lib.metrics import *
+from .metrics import *
 
 
 class TimeStampedMessageID:
@@ -35,6 +37,7 @@ class PubSubAnalyzer:
     def __init__(self, experiment: PubSubExperiment, metrics: list[Metric]):
         self._experiment = experiment
         self._metrics = metrics
+        self._nodes = frozenset([m.node for m in self._metrics])
         self._metrics_per_type = _compute_metrics_per_type(self._metrics)
         self._message_id_to_topic = _compute_message_id_to_topic(self._metrics)
         self._topic_to_subscribers = self._compute_topic_to_subscribers()
@@ -88,11 +91,11 @@ class PubSubAnalyzer:
         """
         return set([m.topic for m in self.metrics(ty=PubSubSubscribe)])
 
-    def nodes(self) -> Set[str]:
+    def nodes(self) -> frozenset[str]:
         """
         Compute the set of all known nodes.
         """
-        return set([m.node for m in self.metrics])
+        return self._nodes
 
     def messages(self) -> Set[str]:
         """
@@ -133,7 +136,7 @@ class PubSubAnalyzer:
         """
         return self._message_id_to_topic[message]
 
-    def timestamp_of_message(self, message: str) -> pd.Timestamp:
+    def timestamp_of_message(self, message: str) -> pd.Timedelta:
         """
         Get the timestamp of a given message.
         """
@@ -151,7 +154,9 @@ class PubSubAnalyzer:
         """
         Get the reliability of a given message.
         """
-        return self._messages_reliability[message]
+        # If the message is not present in the map that means either it
+        # doesnt exist or there was no one subscribed to its topic, in that case we return 1.
+        return self._messages_reliability.get(message, 1)
 
     def message_graph(self, message: str) -> graphviz.Digraph:
         """
@@ -312,9 +317,13 @@ class PubSubAnalyzer:
 class KadPubSubAnalyzer(PubSubAnalyzer):
     def __init__(self, experiment: PubSubExperiment, metrics: list[Metric]):
         super().__init__(experiment, metrics)
+        self._kadids = self._compute_kadids()
+
+    def kadid(self, node: str) -> KadID:
+        return self._kadids[node]
 
     def routing_table_snapshot(
-        self, node: Union[str, list[str], set[str]], topic: str, timestamp: pd.Timestamp
+        self, node: Union[str, list[str], set[str]], topic: str, timestamp: pd.Timedelta
     ) -> Union[RoutingTableSnapshot, dict[str, RoutingTableSnapshot]]:
         """
         Obtain the routing table of a given node at a given timestamp.
@@ -419,6 +428,12 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
 
         return dot
 
+    def _compute_kadids(self) -> Dict[str, KadID]:
+        kadids = {}
+        for metric in self.metrics(ty=KadIdentifier):
+            kadids[metric.node] = KadID.from_hex(metric.identifier)
+        return kadids
+
     @staticmethod
     def from_experiment_results(
         results: PubSubExperimentResults, ignore_unknown_metrics=True
@@ -464,6 +479,7 @@ def _parse_node_metrics(
 ) -> list[Metric]:
     parsers = {
         "Boot": _parse_metric_boot,
+        "Shutdown": _parse_metric_shutdown,
         "PubSubMessageSent": _parse_metric_pubsub_message_sent,
         "PubSubMessageReceived": _parse_metric_pubsub_message_received,
         "PubSubSubscription": _parse_metric_pubsub_subscribe,
@@ -472,6 +488,7 @@ def _parse_node_metrics(
         "Network": _parse_metric_network,
         "MessageSent": _parse_metric_message_sent,
         "MessageReceived": _parse_metric_message_received,
+        "KademliaIdentifier": _parse_metric_kad_identifier,
         "RoutingTable": _parse_metric_routing_table,
     }
 
@@ -491,6 +508,10 @@ def _parse_node_metrics(
 
 def _parse_metric_boot(node_id: str, timestamp: int, metric: dict) -> Metric:
     return Boot(node_id, timestamp)
+
+
+def _parse_metric_shutdown(node_id: str, timestamp: int, metric: dict) -> Metric:
+    return Shutdown(node_id, timestamp)
 
 
 def _parse_metric_pubsub_message_sent(
@@ -567,6 +588,10 @@ def _parse_metric_message_received(
         _node_ipaddr_to_node_id(source),
         message,
     )
+
+
+def _parse_metric_kad_identifier(node_id: str, timestamp: int, metric: dict) -> Metric:
+    return KadIdentifier(node_id, timestamp, metric["identifier"])
 
 
 def _parse_metric_routing_table(node_id: str, timestamp: int, metric: dict) -> Metric:

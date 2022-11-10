@@ -7,11 +7,16 @@ from typing import Any
 @dataclasses.dataclass
 class Metric:
     node: str
-    timestamp: pd.Timestamp
+    timestamp: pd.Timedelta
 
 
 @dataclasses.dataclass
 class Boot(Metric):
+    pass
+
+
+@dataclasses.dataclass
+class Shutdown(Metric):
     pass
 
 
@@ -69,6 +74,11 @@ class MessageReceived(Metric):
     # Node Identifier of the source
     source: str
     message: Any
+
+
+@dataclasses.dataclass
+class KadIdentifier(Metric):
+    identifier: str
 
 
 @dataclasses.dataclass
