@@ -1,0 +1,356 @@
+%%
+%% This is file `sample-sigconf.tex',
+%% generated with the docstrip utility.
+%%
+%% The original source files were:
+%%
+%% samples.dtx  (with options: `sigconf')
+%% 
+%% IMPORTANT NOTICE:
+%% 
+%% For the copyright see the source file.
+%% 
+%% Any modified versions of this file must be renamed
+%% with new filenames distinct from sample-sigconf.tex.
+%% 
+%% For distribution of the original source see the terms
+%% for copying and modification in the file samples.dtx.
+%% 
+%% This generated file may be distributed as long as the
+%% original source files, as listed above, are part of the
+%% same distribution. (The sources need not necessarily be
+%% in the same archive or directory.)
+%%
+%% The first command in your LaTeX source must be the \documentclass command.
+\documentclass[sigconf]{acmart}
+
+\usepackage[ruled, vlined]{algorithm2e}
+% \usepackage{algorithm}
+% \usepackage{algpseudocode}
+
+\SetKwBlock{Interface}{Interface:}{}
+\SetKwBlock{State}{State:}{}
+\SetKwBlock{Requests}{Requests:}{}
+\SetKwBlock{Indications}{Indications:}{}
+
+\SetKwProg{UponTimer}{Upon Timer}{ do}{}
+\SetKwProg{Procedure}{Procedure}{ do}{}
+\SetKwProg{Upon}{Upon}{ do}{}
+\SetKwProg{If}{If}{ do}{}
+
+\SetKwComment{Comment}{/* }{ */}
+\SetKw{Trigger}{Trigger}
+\SetKw{Call}{Call}
+\SetKw{CancelTimer}{Cancel Timer}
+\SetKw{SetupTimer}{Setup Timer}
+\SetKw{SetupPeriodicTimer}{Setup Periodic Timer}
+
+%%
+%% \BibTeX command to typeset BibTeX logo in the docs
+\AtBeginDocument{%
+  \providecommand\BibTeX{{%
+    \normalfont B\kern-0.5em{\scshape i\kern-0.25em b}\kern-0.8em\TeX}}}
+
+%% Rights management information.  This information is sent to you
+%% when you complete the rights form.  These commands have SAMPLE
+%% values in them; it is your responsibility as an author to replace
+%% the commands and values with those provided to you when you
+%% complete the rights form.
+\setcopyright{acmcopyright}
+\copyrightyear{2022}
+\acmYear{2022}
+%\acmDOI{10.1145/1122445.1122456}
+
+%% These commands are for a PROCEEDINGS abstract or paper.
+\acmConference[ASD22/23]{The first project delivery of ASD2223}{2022}{Faculdade de Ciências e Tecnologia, NOVA University of Lisbon, Portugal}
+\acmBooktitle{The Projects of ASD - first delivery, 2021, Faculdade de Ciências e Tecnologia, NOVA University of Lisbon, Portugal}
+%\acmPrice{15.00}
+%\acmISBN{978-1-4503-XXXX-X/18/06}
+
+
+%%
+%% Submission ID.
+%% Use this when submitting an article to a sponsored event. You'll
+%% receive a unique submission ID from the organizers
+%% of the event, and this ID should be used as the parameter to this command.
+%%\acmSubmissionID{123-A56-BU3}
+
+%%
+%% The majority of ACM publications use numbered citations and
+%% references.  The command \citestyle{authoryear} switches to the
+%% "author year" style.
+%%
+%% If you are preparing content for an event
+%% sponsored by ACM SIGGRAPH, you must use the "author year" style of
+%% citations and references.
+%% Uncommenting
+%% the next command will enable that style.
+%%\citestyle{acmauthoryear}
+
+%%
+%% end of the preamble, start of the body of the document source.
+\begin{document}
+
+%%
+%% The "title" command has an optional parameter,
+%% allowing the author to define a "short title" to be used in page headers.
+\title{A Study on Publish-Subscribe Systems over Overlay Networks}
+
+%%
+%% The "author" command and its associated commands are used to define
+%% the authors and their affiliations.
+%% Of note is the shared affiliation of the first two authors, and the
+%% "authornote" and "authornotemark" commands
+%% used to denote shared contribution to the research.
+\author{António Duarte}
+\authornote{Student number 58278. %responsibility?
+}
+\email{an.duarte@campus.fct.unl.pt}
+\affiliation{%
+  \institution{MIEI, DI, FCT, UNL}
+}
+
+\author{Diogo Almeida}
+\authornote{Student number 58369. %responsibility?
+}
+\email{daro.almeida@campus.fct.unl.pt}
+\affiliation{%
+  \institution{MIEI, DI, FCT, UNL}
+}
+
+\author{Diogo Fona}
+\authornote{Student number 57940. %responsibility?
+}
+\email{d.fona@campus.fct.unl.pt}
+\affiliation{%
+  \institution{MIEI, DI, FCT, UNL}
+}
+
+%%
+%% By default, the full list of authors will be used in the page
+%% headers. Often, this list is too long, and will overlap
+%% other information printed in the page headers. This command allows
+%% the author to define a more concise list
+%% of authors' names for this purpose.
+\renewcommand{\shortauthors}{Duarte, Almeida, and Fona.}
+
+%%
+%% The abstract is a short summary of the work to be presented in the
+%% article.
+\begin{abstract}
+A peer-to-peer topic based publish-subscribe system is one in which participants can exchange information in a way where processes that share information do not need to know who are its receivers, and processes that receive information do not need to know who are the senders. This can be achieved by having processes that can be subscribers, receiving messages of topics they subscribe to, and publishers, that disseminate messages tagged with a topic.
+This work proposes two publish-subscribe systems, one operating on top of an unstructured overlay network, using an epidemic broadcast protocol, and the other using a pubsub protocol on top of a structured one. We evaluate the performance of these proposals, explaining their trade-offs and possible applications.
+\end{abstract} 
+
+%% This command processes the author and affiliation and title
+%% information and builds the first part of the formatted document.
+\maketitle
+
+\section{Introduction}
+
+Publish-Subscribe systems are a message exchange pattern between processes in a system. Processes can subscribe to topics (thus being subscribers to a certain topic), or publish messages to topics (thus being publishers). It is important to note that processes can be both publishers and subscribers at the same time, to one or more topics. The subscribers of a topic should receive all the messages that were published to that topic.
+
+Although the concept may seem simple, there are challenges related to the implementation of such systems. A naive approach would assume a global known membership, making the system easy to reason about and implement:
+Whenever a node subscribes to a topic, it broadcasts the subscription to all nodes in the system. Each node would keep track of all the topics subscribed by each node, and whenever it publishes a message to a topic, it broadcasts the messages to all the known nodes subscribed to that topic. 
+
+The challenge arises when we decide to tackle the issue of scalability, given that the bookkeeping necessary to maintain a system consisting of tens of thousands of nodes would be excessively expensive.
+
+To solve that issue, we need to implement solutions that rely on membership protocols built to be scalable, this is done by guaranteeing that each node only has a partial view of the system. These systems then require some form of dissemination protocol, to (generally) probabilistically disseminate a message through all the nodes in the system. 
+These solutions are typically called overlay protocols which can be structured, where the nodes organize into specific topologies according to characteristics of the nodes such as a logical identifier, or unstructured, where nodes organize in a non-predictable manner.
+
+The above-mentioned implementations, however, impose challenges. Imagining a distributed system in which we represent processes as vertices of a graph, and connections between those processes as edges, the first challenge would be to guarantee that the resulting graph is strongly connected, specially in the case of churn or node failure. Another important detail is the network load imposed by the system, given that under specific solutions the redundancy (an undesired or repeated message being sent to a process in the system) of the messages being propagated throughout the system could be excessively high. 
+
+In this work, we evaluate two possible solutions to implement a Publish-Subscribe system: The first on top of a Structured Overlay (Kademlia), using GossipSup as the Publish-Subscribe protocol that is responsible for disseminating messages to subscribers of a topic.
+The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we’ll explain later, helps reduce redundancy in the message dissemination process.
+
+The remainder of this document is organized as follows:
+In the following Section we will be going over the Related Work, approaching in detail some already introduced methodologies, as well as some other possibilities that we could’ve chosen; In Section 3 we will go over the Implementation details of both our chosen protocols, and the way we decided to use them in conjunction with each other. In Section 4 we will present the results of our experimental evaluation, testing both of the systems against different loads, both in terms of the rate in which messages are propagated and their size. In Section 5 we will summarize the applicability of our solutions given the results obtained.
+
+\section{Related Work}
+
+\subsection{Membership Protocols}
+
+Membership protocol are the ones that are used to ensure the scalability of the system, by ensuring that each node doesn't need to maintain a global knowledge of all the nodes that join the system. 
+
+\subsubsection{HyParView}
+
+HyParView is a Membership Management protocol that forms an Unstructured Overlay network amongst the peers that are part of it. 
+This protocol is highly resistant to the failure of even a high percentage of nodes in the system. As already stated, in a Membership Protocol it’s important for a node to not be dependent on a Global View of the system, since the bookkeeping would be excessively expensive. HyParView keeps two sets of nodes, called views, on each node. The active view, which keeps open TCP connections with the nodes in it, should have a size of $ln(n)$, where $n$ is the number of nodes in the system, and is relatively stable, only changing when a connection is dropped. The passive view, larger than the active view, is shuffled regularly with nodes selected through random walks through the network, and is used to replace the nodes in the active view in case of their failure. 
+The protocol also ensures that the active views are always symmetric, which is essential for the usage of some dissemination protocols.
+
+\subsubsection{Kademlia} % TODO: Fona
+
+% não te esqueças de explicar oq é uma DHT e isso tudo :)
+
+\subsection{Dissemination Protocols}
+
+An essential part of building a pub-sub system, is to think about in which way we will propagate messages throughout the underlying logical network (the membership protocol), to achieve this, we studied two of the possible dissemination protocols:
+
+\subsubsection{Flood} 
+
+A simple way to propagate messages in a system composed of many interconnected nodes, would be to flood the links between them. In a flood protocol, when a node decides to broadcast a message, it sends the message to all of its neighbors (the nodes that it is connected to). When a node receives a message that is being flooded throughout the system for the first time, it forwards the message to all of its neighboring nodes, except the one that it received the message from.
+If we’re using a membership protocol that ensures a strongly connected graph, with an adequate fanout, this dissemination strategy guarantees with probabilistic certainty that a message will reach every node in the system. 
+This protocol, however, causes a large strain on the network, given that many nodes in the system will receive the same message multiple times. Although some level of redundancy is what ensures that a message will reach every node in the system, specially in the event of node failure, lower levels of redundancy can be achieved by employing other dissemination strategies.
+
+\subsubsection{Plumtree}
+
+In order to solve the excessive redundancy that comes from employing a flooding strategy to broadcast messages, a possible solution is the usage of Epidemic Broadcast Trees.
+In order to understand the functioning of this protocol, we need to first go over two of the possible mechanisms for two nodes to exchange a message, which we refer to as gossip mechanisms:
+Eager push gossip, where a node sends a message directly to another node, and lazy push gossip, where a node first sends an identifier of the message, and the node on the receiving end can then ask the sending node for the full message.
+A process in Plumtree keeps two sets, eager push peers, and lazy push peers.
+In Plumtree, at an initial moment, all the neighbors of a node are considered eager push peers. When a node receives a message from another node, it forwards it to its eager push peers using the eager push gossip strategy, and sends an identifier of the message to all of its lazy push peers. When it receives the same message twice, it moves the node that it received it from to its lazy push peers set. It also sends a Prune message to the node it received the message from. Upon receiving a Prune message, a process moves the node it received the message from to its lazy push peers set.
+When a node receives a message identifier from one of its lazy push peers, it starts a timer. The timer is canceled upon receiving the full message that corresponds to the identifier of the message. If the timer runs out, the process assumes that one of its existing eager push links failed. In order to recover from the failure, and receive the message that is now missing, it sends a Graft message to the peer that it received the identifier from, and moves it to its eager push set. Upon receiving the graft message, the node forwards the message to the node it received it from, and places the node on its eager push peers set.    
+This strategy guarantees that in the end of the first broadcast, which works as a Flood, all the nodes in the system that are used to eagerly disseminate the following messages, form a tree structure, which diminishes the stress on the network by reducing the redundancy.
+The fact that it uses both eager push and lazy push strategies, in conjunction with prune and graft messages, also makes this strategy resilient to node failures.
+
+% \begin{algorithm}
+%    \Upon{Receive(GossipMessage, sender, message, messageId, round)} {
+%        \If{$messageId \notin receivedMsgs$} {
+%            $receivedMsgs[messageId] \leftarrow message$\;
+%            \Trigger deliverNotification(message)\;
+%        }
+%    }
+%\caption{PlumTree Dissemination}
+%\end{algorithm}
+
+\subsection{Pubsub Protocols}
+
+\subsubsection{GossipSub} % TODO: Almeida
+
+Gossip-based pubsub protocols have been introduced in the past as a way to limit the number of messages propagated between processes in pub/sub systems. In most of these approaches, processes forward metadata related to messages they have previously received without forwarding the messages themselves, a method generally called \textit{pull}. 
+GossibSub, a gossip-based pubsub protocol, was designed to deal with both fast and resilient message propagation in \textit{permissionless} networks, e.g., open blockchain networks such as Ethereum \cite{dannen2017introducing}. 
+GossipSub assures its fast message propagation with its \textit{Mesh Construction}, where a connected mesh is created for each topic. A mesh of a topic in this context is a sub-network of peers, not necessarily forming a clique, that are subscribed to that topic. Each node is connected to a limited number of other peers, forming its local (view of the) mesh. Mesh-connected nodes directly share messages with one another, realizing an \textit{eager push} communication model. Nodes join and leave the mesh as they subscribe and unsubscribe to topics. Those nodes that are not part of the mesh communicate with mesh-connected nodes through gossip (\textit{lazy push}).
+The resilient message propagation is accomplished with GossipSub's \textit{Score Function}, where every node participating in the network is observed by every other one in a reputation system where its actions are evaluated, and \textit{Mitigation Strategies}, such as mesh maintenance using the Score Function or the isolation of malicious nodes for example.
+
+\section{Implementation}
+
+This section presents the implemented variants of our Publish-Subscribe systems. These are assumed to execute above asynchronous systems using the crash fault model. 
+
+\subsection{Unstructured Variant}
+
+\subsubsection{Plumtree + HyParView} % TODO: António
+
+Our Publish-Subscribe system for Unstructured Overlays uses a filtering based solution, using HyParView as the Membership protocol and Plumtree to disseminate messages in the network.
+
+Subscribe operations are completely local to each node, the Publish-Subscribe protocol keeps track of all the topics that the node is subscribed to.
+Whenever a publish is made, the message and its topic are disseminated to the entire system, using Plumtree as previously explained. When a node receives the published message, it simply filters the message, only delivering it to the Application Layer if the message’s topic is contained in the set of currently subscribed topics.
+
+\begin{algorithm}
+    % TODO: Write the Pseudocode to how the PubSub interacts with PlumTree
+    \Interface{
+        \Requests{
+            Subscribe(topic)\;
+            Unsubscribe(topic)\;
+            Publish(msg, topic)\;
+        }
+        
+        \Indications{
+            PubsubDeliver(msg)\;
+            SubscriptionReply(topic)\;
+            UnsubscriptionReply(topic)\;
+        }
+    }
+    
+    \texttt{\\}
+    
+    \State{
+        $seenMessages$\;
+        $subscribedTopics$\;
+    }
+    
+    \texttt{\\}
+    
+    \Upon{PlumtreeDeliver(sender, \{\textbf{GOSSIP}, msg, topic)\}} {
+        \If{$topic \in subscribedTopics \land msg \notin seenMessages$} {
+            $seenMessages \leftarrow seenMessages \cup \{message\}$\;
+            \Trigger PubsubDeliver(msg)\;
+        }
+    }
+    
+    \texttt{\\}
+    
+    \Upon{Subscribe(topic)} {
+        $subscribedTopics \leftarrow subscribedTopics \cup \{topic\}$\;
+        \Trigger{SubscriptionReply(topic)}\;
+    }
+    
+    \texttt{\\}
+    
+    \Upon{Unsubscribe(topic)} {
+        $subscribedTopics \leftarrow subscribedTopics \setminus \{topic\}$\;
+        \Trigger{UnsubscriptionReply(topic)}\;
+    }
+    
+    \texttt{\\}
+
+    \Upon{Publish(message, topic)} {
+        \Trigger PlumtreeBroadcast(message, topic)\;
+        
+        \If{$topic \in subscribedTopics$} {
+            \Trigger PubsubDeliver(msg)\;
+        }
+    }
+\caption{Unstructured Publish-Subscribe}
+\end{algorithm}
+
+% Maybe write the PseudoCode to how HyParView interacts with PlumTree
+
+\subsection{Structured Variant}
+
+\subsubsection{GossipSub + Kademlia}
+
+For the structured variant of the Publish-Subscribe system, we use the Kademlia DHT in conjuntion with GossipSub pubsub protocol. 
+
+Since we are only addressing systems with the crash fault model in this work, our implementation of GossipSub is modified, stripped away of all its resilient inducing components, namely the \textit{Score Function} and \textit{Mitigation Strategies}, leaving only the \textit{Mesh Construction} details.
+
+
+
+% possible optimizations/variants
+% 
+
+% TODO: Fona say any modification you did to Kademlia?
+
+% Interacao e utilidade entre o GossipSub e Kademlia
+
+% 
+
+\subsubsection{KadPubSub + Kademlia} % ?
+
+\section{Experimental Evaluation}
+
+
+
+% Methodology
+% Setting
+
+\subsection{Reliability}
+
+% plumtree-hyparview, gossipsub-kademlia 4 configs each 
+
+%explain graphs
+
+\subsection{Redundancy}
+
+\subsection{Latency}
+
+\section{Conclusions}
+
+%%
+%% The acknowledgments section is defined using the "acks" environment
+%% (and NOT an unnumbered section). This ensures the proper
+%% identification of the section in the article metadata, and the
+%% consistent spelling of the heading.
+\begin{acks}
+To João Leitão, for teaching us how to implement protocols and write good reports.
+\end{acks}
+
+%%
+%% The next two lines define the bibliography style to be used, and
+%% the bibliography file.
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{acmart}
+
+\end{document}
+\endinput
+%%
+%% End of file `sample-sigconf.tex'
