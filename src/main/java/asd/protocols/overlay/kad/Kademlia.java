@@ -666,10 +666,8 @@ public class Kademlia extends GenericProtocol implements QueryManagerIO {
 		var deliver = rt != null; // Are we subscribed to this topic
 
 		this.msg_cache.add(message);
-		if (deliver) {
-			Metrics.pubMessageReceived(this.self.host, message.uuid, msg.topic, 0, true);
+		if (deliver)
 			this.triggerNotification(new BroadcastReceived(msg.topic, msg.uuid, message.origin, msg.payload));
-		}
 
 		Metrics.pubMessageSent(this.self.host, msg.uuid, msg.topic, deliver);
 		this.broadcastMessage(message);
