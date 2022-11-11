@@ -96,14 +96,14 @@ public class CachedQueryManager extends QueryManager {
 
         if (!entry.in_progress) {
             entry.in_progress = true;
-            this.inner.findPool(rtid, (closest, members) -> {
+            this.inner.findPool(rtid, result -> {
                 entry.timestamp = Instant.now();
                 entry.executor = (queue) -> {
                     @SuppressWarnings("unchecked")
                     var q = (Queue<FindPoolQueryCallbacks>) queue;
                     while (!q.isEmpty()) {
                         var cb = q.poll();
-                        cb.onQueryResult(closest, members);
+                        cb.onQueryResult(result);
                     }
                 };
                 entry.executor.accept(entry.callbacks);
@@ -125,14 +125,14 @@ public class CachedQueryManager extends QueryManager {
 
         if (!entry.in_progress) {
             entry.in_progress = true;
-            this.inner.findSwarm(swarm_id, sample_size, (closest, members) -> {
+            this.inner.findSwarm(swarm_id, sample_size, result -> {
                 entry.timestamp = Instant.now();
                 entry.executor = (queue) -> {
                     @SuppressWarnings("unchecked")
                     var q = (Queue<FindSwarmQueryCallbacks>) queue;
                     while (!q.isEmpty()) {
                         var cb = q.poll();
-                        cb.onQueryResult(closest, members);
+                        cb.onQueryResult(result);
                     }
                 };
                 entry.executor.accept(entry.callbacks);
@@ -155,14 +155,14 @@ public class CachedQueryManager extends QueryManager {
 
         if (!entry.in_progress) {
             entry.in_progress = true;
-            this.inner.findValue(key, (closest, value) -> {
+            this.inner.findValue(key, result -> {
                 entry.timestamp = Instant.now();
                 entry.executor = (queue) -> {
                     @SuppressWarnings("unchecked")
                     var q = (Queue<FindValueQueryCallbacks>) queue;
                     while (!q.isEmpty()) {
                         var cb = q.poll();
-                        cb.onQueryResult(closest, value);
+                        cb.onQueryResult(result);
                     }
                 };
                 entry.executor.accept(entry.callbacks);

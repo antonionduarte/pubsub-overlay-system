@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.stream.Stream;
 
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
@@ -45,6 +46,10 @@ public class RoutingTable {
 
 	public Bucket bucket(int index) {
 		return this.buckets.get(index);
+	}
+
+	public Bucket lastBucket() {
+		return this.buckets.get(this.buckets.size() - 1);
 	}
 
 	public List<KadPeer> getPeersFromBucket(int index) {
@@ -132,6 +137,10 @@ public class RoutingTable {
 
 	public boolean isEmpty() {
 		return this.size() == 0;
+	}
+
+	public Stream<KadPeer> stream() {
+		return this.buckets.stream().flatMap(Bucket::stream);
 	}
 
 	private Bucket getBucketForCpl(int cpl) {
