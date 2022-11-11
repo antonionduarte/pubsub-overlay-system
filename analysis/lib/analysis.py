@@ -441,7 +441,7 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
             map(
                 lambda m: m.node,
                 self.metrics(
-                    ty=PubSubMessageReceived,
+                    ty=(PubSubMessageSent, PubSubMessageReceived),
                     filter=lambda m: m.message_id == message and m.delivered,
                 ),
             )
