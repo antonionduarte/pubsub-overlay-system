@@ -10,10 +10,23 @@
 
 # Python
 __pycache__/
+.ipynb_checkpoints
 
 # Intellij
 .idea
 asd.iml
+
+# Report
+*.aux
+*.bbl
+*.blg
+main.fdb_latexmk
+main.files
+*.files
+*.cut
+*.out
+*.fls
+*.synctex.gz
 
 # Compiled class file
 /target/
