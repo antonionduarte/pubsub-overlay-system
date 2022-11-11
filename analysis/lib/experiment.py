@@ -50,10 +50,12 @@ class PubSubExperiment:
     # Protocol specific properties
     protocol_parameters: Dict[str, Any]
 
-    def is_equivalent(self, other: PubSubExperiment) -> bool:
-        filds_to_skip = ["protocol", "metric_level"]
+    def is_equivalent(
+        self, other: PubSubExperiment, compare_protocol_parameters=True
+    ) -> bool:
+        fields_to_skip = ["protocol", "metric_level"]
         for field in dataclasses.fields(self):
-            if field.name in filds_to_skip:
+            if field.name in fields_to_skip:
                 continue
             if field.name == "protocol_parameters":
                 for k, v in self.protocol_parameters.items():
@@ -109,7 +111,7 @@ def load_experiments(path: str) -> Dict[str, PubSubExperiment]:
             mpp = config.get("protocol_parameters", {})
             cpp = merged.get("protocol_parameters", {})
             merged = merged | config
-            merged["protocol_parameters"] = mpp | cpp
+            merged["protocol_parameters"] = cpp | mpp
         return merged
 
     def _load_template(name, templates, visited=set()):
@@ -152,7 +154,7 @@ def load_experiment_results(path: str) -> PubSubExperimentResults:
 
 
 def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
-    logging.info("Running experiment")
+    logging.info(f"Running experiment {name}")
     logging.info(json.dumps(dataclasses.asdict(experiment), indent=4))
 
     logging.info("Creating metrics directory")

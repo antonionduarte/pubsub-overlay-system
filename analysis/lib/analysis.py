@@ -144,6 +144,17 @@ class PubSubAnalyzer:
             ty=PubSubMessageSent, filter=lambda m: m.message_id == message
         )[0].timestamp
 
+    def message_sender(self, message: str) -> str:
+        """
+        Get the node id of the sender of a given message.
+
+        :param message: the message id
+        :return: the node id of the sender
+        """
+        return self.metrics(
+            ty=PubSubMessageSent, filter=lambda m: m.message_id == message
+        )[0].node
+
     def messages_reliability(self) -> Dict[str, float]:
         """
         Get the reliability of each message.
@@ -257,10 +268,53 @@ class PubSubAnalyzer:
             return 0
         return (total - delivered) / total
 
+    def check_preconditions(self):
+        """
+        Check that the experiment has the preconditions to be analyzed.
+        """
+        # Check that all nodes have booted
+        booted_nodes = set(map(lambda m: m.node, self.metrics(ty=Boot)))
+        assert len(booted_nodes) == self.experiment.number_nodes
+
+        # Check that all nodes have subscribed to the topics
+        subscribed_nodes = set(map(lambda m: m.node, self.metrics(ty=PubSubSubscribe)))
+        assert len(subscribed_nodes) == self.experiment.number_nodes
+
+        # Check that all nodes have published the messages
+        published_nodes = set(map(lambda m: m.node, self.metrics(ty=PubSubMessageSent)))
+        assert len(published_nodes) == self.experiment.number_nodes
+
+        self._check_first_message_after_last_subscription()
+
+    def _check_first_message_after_last_subscription(self):
+        metrics = self.metrics(ty=(PubSubMessageSent, PubSubSubscribe))
+        last_subscribe = {}
+        first_send = {}
+        for metric in metrics:
+            if isinstance(metric, PubSubSubscribe):
+                last_subscribe[metric.topic] = metric.timestamp
+            elif isinstance(metric, PubSubMessageSent):
+                if metric.topic not in first_send:
+                    first_send[metric.topic] = metric.timestamp
+
+        for topic, timestamp in first_send.items():
+            if topic not in last_subscribe:
+                print(f"Topic {topic} was never subscribed to")
+                continue
+            assert (
+                timestamp > last_subscribe[topic]
+            ), f"Topic {topic} was subscribed to after the first message was sent"
+
     def _last_network_metrics_per_node(self) -> Dict[str, Network]:
         network_metrics = self.metrics(ty=Network)
         last_network_metrics_per_node = {}
         for metric in network_metrics:
+            if metric.node in last_network_metrics_per_node:
+                if (
+                    metric.timestamp
+                    < last_network_metrics_per_node[metric.node].timestamp
+                ):
+                    raise ValueError("Metrics are not sorted by timestamp")
             last_network_metrics_per_node[metric.node] = metric
         return last_network_metrics_per_node
 
@@ -272,7 +326,7 @@ class PubSubAnalyzer:
         expected_per_topic = {
             topic: len(self.topic_subscribers(topic)) for topic in self.topics()
         }
-        for m in self.metrics(ty=PubSubMessageReceived):
+        for m in self.metrics(ty=(PubSubMessageReceived, PubSubMessageSent)):
             if m.delivered:
                 messages_reliability[m.message_id] += 1.0
         for m in messages_reliability.keys():
@@ -323,7 +377,10 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
         return self._kadids[node]
 
     def routing_table_snapshot(
-        self, node: Union[str, list[str], set[str]], topic: str, timestamp: pd.Timedelta
+        self,
+        node: Union[str, list[str], set[str]],
+        topic: str,
+        timestamp: pd.Timedelta,
     ) -> Union[RoutingTableSnapshot, dict[str, RoutingTableSnapshot]]:
         """
         Obtain the routing table of a given node at a given timestamp.
@@ -391,7 +448,8 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
         )
 
         dot = graphviz.Digraph("Message Broadcast Tree")
-        dot.node(broadcasts[0].node)
+        if len(broadcasts) > 0:
+            dot.node(broadcasts[0].node)
         for sub in subscribers:
             node_color = "green" if sub in delivers else "red"
             dot.node(sub, color=node_color)
@@ -427,6 +485,18 @@ class KadPubSubAnalyzer(PubSubAnalyzer):
                     dot.edge(node, peer, label=bucket_index)
 
         return dot
+
+    def check_preconditions(self):
+        super().check_preconditions()
+        self._check_dirty_topic_routing_tables()
+
+    def _check_dirty_topic_routing_tables(self):
+        for snapshot in self.metrics(ty=RoutingTableSnapshot):
+            if snapshot.topic == "":
+                continue
+            subscribers = self.topic_subscribers(snapshot.topic)
+            for node in [n for bucket in snapshot.buckets for n in bucket]:
+                assert node in subscribers, "Dirty routing table"
 
     def _compute_kadids(self) -> Dict[str, KadID]:
         kadids = {}
