@@ -70,39 +70,34 @@ def print_reliability_results(recv_pubs, expected_pubs):
 
 if __name__ == "__main__":
     typ = "structured" if len(sys.argv) < 2 else sys.argv[1]
-    METRICS_PATH = f"{os.path.dirname(os.path.realpath(__file__))}/../metrics_{typ}/"
+    METRICS_PATH = f"{os.path.dirname(os.path.realpath(__file__))}/metrics/"
     os.makedirs(PLOTS_OUT_PATH, exist_ok=True)
 
     sum_received, sum_not_delivered = 0, 0
     list_avg_hops = []
     list_node_metrics = []
-    results = dd(lambda: {})
+    
+    for filename in sorted(os.listdir(METRICS_PATH + "/")):
+        file = open(METRICS_PATH + "/" + filename)
+        node_metrics = list(map(lambda x: json.loads(x), file.readlines()))
+        list_node_metrics.append(node_metrics)
 
-    for folder in sorted(os.listdir(METRICS_PATH)):
-        reres = re.search(r"(\d+)ms_(\d+)b", folder)
-        bi = int(reres.group(1))
-        ps = int(reres.group(2))
-        for filename in sorted(os.listdir(METRICS_PATH + folder + "/")):
-            file = open(METRICS_PATH + folder + "/" + filename)
-            node_metrics = list(map(lambda x: json.loads(x), file.readlines()))
-            list_node_metrics.append(node_metrics)
+        pubs_received, pubs_not_delivered = calc_redundancy(node_metrics)
+        sum_received += pubs_received
+        sum_not_delivered += pubs_not_delivered
 
-            pubs_received, pubs_not_delivered = calc_redundancy(node_metrics)
-            sum_received += pubs_received
-            sum_not_delivered += pubs_not_delivered
+        avg_hops = calc_hop_latency(node_metrics)
+        list_avg_hops.append(avg_hops)
 
-            avg_hops = calc_hop_latency(node_metrics)
-            list_avg_hops.append(avg_hops)
+    print("=" * 100)
+    print(f"Overall bytes):")
+    print_redundancy_results(sum_received, sum_not_delivered)
+    redundancy_res = sum_received, sum_not_delivered
 
-        print("=" * 100)
-        print(f"Overall ({bi}ms {ps}bytes):")
-        print_redundancy_results(sum_received, sum_not_delivered)
-        results["redundancy"][bi, ps] = sum_received, sum_not_delivered
+    avg_hop_latency = np.mean(list_avg_hops)
+    print_hop_latency_results(avg_hop_latency)
+    hop_lat_res = avg_hop_latency
 
-        avg_hop_latency = np.mean(list_avg_hops)
-        print_hop_latency_results(avg_hop_latency)
-        results["hop_latency"][bi, ps] = avg_hop_latency
-
-        all_sorted_by_time = sorted([e for m in list_node_metrics for e in m], key=lambda x: x["timestamp"])
-        recv_pubs, expected_pubs = calc_reliability_fast((all_sorted_by_time))
-        print_reliability_results(recv_pubs, expected_pubs)
+    all_sorted_by_time = sorted([e for m in list_node_metrics for e in m], key=lambda x: x["timestamp"])
+    recv_pubs, expected_pubs = calc_reliability_fast((all_sorted_by_time))
+    print_reliability_results(recv_pubs, expected_pubs)
