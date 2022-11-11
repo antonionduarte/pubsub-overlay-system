@@ -1,7 +1,6 @@
 package asd.protocols.overlay.kad.query;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.LogManager;
@@ -34,7 +33,7 @@ class FindClosestQuery extends Query {
             return;
 
         var closest = set.closest();
-        this.callbacks.onQueryResult(closest);
+        this.callbacks.onQueryResult(new FindClosestQueryResult(closest));
     }
 
 }

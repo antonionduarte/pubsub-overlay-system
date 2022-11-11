@@ -29,7 +29,7 @@ class FindSwarmQuery extends Query {
     void onFinish(QPeerSet set) {
         var closest = set.closest();
         if (this.callbacks != null)
-            this.callbacks.onQueryResult(closest, this.members.stream().toList());
+            this.callbacks.onQueryResult(new FindSwarmQueryResult(closest, this.members.stream().toList()));
     }
 
     @Override

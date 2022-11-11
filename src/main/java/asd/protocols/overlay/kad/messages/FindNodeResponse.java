@@ -29,14 +29,14 @@ public class FindNodeResponse extends MetricsProtoMessage {
     public FindNodeResponse(long context, List<KadPeer> closest, KadID pool) {
         super(ID);
         this.context = context;
-        this.peers = List.copyOf(closest);
+        this.peers = closest;
         this.pool = Optional.of(pool);
     }
 
     public FindNodeResponse(long context, List<KadPeer> closest, Optional<KadID> pool) {
         super(ID);
         this.context = context;
-        this.peers = List.copyOf(closest);
+        this.peers = closest;
         this.pool = pool;
     }
 

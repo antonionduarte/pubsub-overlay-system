@@ -29,7 +29,7 @@ class FindPoolQuery extends Query {
     void onFinish(QPeerSet set) {
         var closest = set.closest();
         if (this.callbacks != null)
-            this.callbacks.onQueryResult(closest, this.members.stream().toList());
+            this.callbacks.onQueryResult(new FindPoolQueryResult(closest, this.members.stream().toList()));
     }
 
     @Override

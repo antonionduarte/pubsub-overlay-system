@@ -32,7 +32,7 @@ class FindValueQuery extends Query {
             return;
         var cache_target = set.stream().filter(entry -> entry.getValue() == QPeerSet.State.FINISHED)
                 .filter(entry -> !entry.getKey().equals(this.provider)).findFirst();
-        this.callbacks.onQueryResult(cache_target.map(entry -> entry.getKey()), this.value);
+        this.callbacks.onQueryResult(new FindValueQueryResult(cache_target.map(entry -> entry.getKey()), this.value));
     }
 
     @Override

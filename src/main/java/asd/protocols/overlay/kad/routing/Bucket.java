@@ -1,6 +1,8 @@
 package asd.protocols.overlay.kad.routing;
 
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.stream.Stream;
 
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
@@ -69,6 +71,10 @@ public class Bucket implements Iterable<KadPeer> {
 
 	public boolean isFull() {
 		return this.size == this.peers.length;
+	}
+
+	public Stream<KadPeer> stream() {
+		return Arrays.stream(this.peers, 0, this.size);
 	}
 
 	private int findPeerIndex(KadID id) {
