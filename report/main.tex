@@ -463,6 +463,9 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
 % Methodology
 % Setting
 
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+% \usepackage{graphicx}
 \begin{table}[]
     \centering
     \caption{Protocol Parameters}
@@ -475,23 +478,23 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
                                & Prepare Time               & 30s               \\
                                & Run Time                   & 60s               \\
                                & Cooldown Time              & 90s               \\
-                               & \#Topics                   & 6                 \\
-                               & \#Topics to Publish        & 3                 \\
-                               & \#Topics to Subscribe      & 3                 \\ \hline
+                               & Num Topics                 & 6                 \\
+                               & Num Topics to Publish      & 3                 \\
+                               & Num Topics to Subscribe    & 3                 \\ \hline
     \multirow{6}{*}{GossipSub} & Degree                     & 6                 \\
                                & Degree High                & 12                \\
                                & Degree Low                 & 4                 \\
                                & Degree Lazy                & 6                 \\
                                & Heartbeat $\Delta T$       & 1s                \\
                                & History TTL                & $1 \times 5 = 5$s \\ \hline
-    \multirow{2}{*}{KadPubSub} & K Topic Buckets Size       & 5                 \\
+    \multirow{2}{*}{KadPubSub} & \#K Topic Buckets          & 5                 \\
                                & Replication Factor         & 1                 \\ \hline
-    \multirow{5}{*}{HyParView} & Active View Size           & 4                 \\
-                               & Passive View Size          & 7                 \\
+    \multirow{5}{*}{HyParView} & \#Active View              & 4                 \\
+                               & \#Passive View             & 7                 \\
                                & Shuffle $\Delta T$         & 2s                \\
                                & Active Random Walk Length  & 6                 \\
                                & Passive Random Walk Length & 3                 \\ \hline
-    \multirow{2}{*}{Kademlia}  & K Buckets Size             & 20                \\
+    \multirow{2}{*}{Kademlia}  & \#K Buckets                & 20                \\
                                & \textbackslash{}alpha      & 3                 \\ \hline
     \end{tabular}%
     }
