@@ -17,16 +17,17 @@ __pycache__/
 asd.iml
 
 # Report
-*.aux
-*.bbl
-*.blg
-main.fdb_latexmk
-main.files
-*.files
-*.cut
-*.out
-*.fls
-*.synctex.gz
+/report/*.aux
+/report/*.bbl
+/report/*.blg
+/report/main.fdb_latexmk
+/report/main.files
+/report/*.files
+/report/*.cut
+/report/*.out
+/report/*.fls
+/report/*.synctex.gz
+/report/*.pdf
 
 # Compiled class file
 /target/
