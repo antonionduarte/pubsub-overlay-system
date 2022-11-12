@@ -495,49 +495,20 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
                                & Active Random Walk Length  & 6                 \\
                                & Passive Random Walk Length & 3                 \\ \hline
     \multirow{2}{*}{Kademlia}  & \#K Buckets                & 20                \\
-                               & \textbackslash{}alpha      & 3                 \\ \hline
+                               & \alpha                     & 3                 \\ \hline
     \end{tabular}%
     }
     \end{table}
 
-\subsection{Reliability}
-Reliability is the average of the ratios of the number of delivered messages to the number of subscribed peers per topic for the given message.
-Figures \ref{fig:reliability-1024} and \ref{fig:reliability-65536} show the reliability of the protocols under different configurations.
-The reliability for gossip sub seems to drop when under heavier load. This is because the machine running the experiments is not able to keep up with the amount of messages being sent. Figure \ref{fig:gossipsub-events5} shows that in the configuration with 85 nodes and 64KB of payload the nodes are still receiving messages for some time after the last message is sent. Because the nodes start shutting down after the cooldown period, the messages are not being delivered to all nodes. Figure \ref{fig:kadpubsub-events5} shows the same plot but for KadPubSub where the machine is able to keep up with the amount of messages being sent.
-
-\begin{figure}[htp]
-    \centering
-    \includegraphics[width=8cm]{reliability-1024.pdf}
-    \caption{Reliability with 1KB of payload}
-    \label{fig:reliability-1024}
-\end{figure}
-
-\begin{figure}[htp]
-    \centering
-    \includegraphics[width=8cm]{reliability-65536.pdf}
-    \caption{Reliability with 64KB of payload}
-    \label{fig:reliability-65536}
-\end{figure}
-
-\begin{figure}[htp]
-    \centering
-    \includegraphics[width=8cm]{gossipsub-events5.pdf}
-    \caption{Experiment events for gossipsub}
-    \label{fig:gossipsub-events5}
-\end{figure}
-
-\begin{figure}[htp]
-    \centering
-    \includegraphics[width=8cm]{kadpubsub-events5.pdf}
-    \caption{Experiment events for kadpubsub}
-    \label{fig:kadpubsub-events5}
-\end{figure}
+Table \ref{tab:parameters} contains the fixed parameters of each protocol and the pubsub app used for the experiments. Some parameters like payload size of sent publishes and the publish send rate are variable, as we show in the results.
 
 %explain graphs
 
 \subsection{Redundancy}
-Redundancy is the ratio of the number of non-delivered messages to the total number of received messages.
-Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redundancy of the protocols under different configurations. GossipSub has a higher redundancy because it relies more on eager push and flooding. Plumtree has a better redundancy since every node only receives the message once but since not every node is subscribed to the topic of a given message some messages end up being ignored and count towards the redundancy. KadPubSub has a lower redundancy because it relies more on lazy push and only sends messages to subscribed peers.
+Redundancy is the ratio of the number of non-delivered messages to the total number of received messages. Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redundancy of the protocols under different configurations. 
+
+GossipSub has a higher redundancy because it most of the times disseminates with eager push, flooding each mesh of a topic. Since the degree (the fanout for eager push gossip) of each node stabilizes to the value 6, the expected overall redundancy is $5 / 6 = 83.3\%$, which matches with the results.
+Plumtree has a better redundancy because every node only receives the message once but since not every node is subscribed to the topic of a given message some messages end up being ignored and count towards the redundancy. KadPubSub has a lower redundancy because it relies more on lazy push and only sends messages to subscribed peers.
 
 \begin{figure}[htp]
     \centering
@@ -553,25 +524,8 @@ Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redund
     \label{fig:redundancy-65536}
 \end{figure}
 
-\subsection{Latency}
-Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency given that, not only aren't the nodes clustered in the overlay according to the subscriptions, given that changing the underlying overlay too frequently would cause Plumtree to reconfigure itself too often, but also because we are launching the nodes in a line (always using the previous launched node as the contact node) to ensure that there are no disconnected islands. The fact that there are several publishers in the network is also not an ideal situation in terms of latency, given that leaves of the dissemination tree might also publish messages, causing the latency in those paths to be higher. GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
-
-\begin{figure}[htp]
-    \centering
-    \includegraphics[width=8cm]{publish-latency-1024.pdf}
-    \caption{Reliability with 1KB of payload}
-    \label{fig:publish-latency-1024}
-\end{figure}
-
-\begin{figure}[htp]
-    \centering
-    \includegraphics[width=8cm]{publish-latency-65536.pdf}
-    \caption{Reliability with 64KB of payload}
-    \label{fig:publish-latency-65536}
-\end{figure}
-
 \subsection{Network Usage}
-Figures \ref{fig:network-usage-1024} and \ref{fig:network-usage-65536} show the network usage of the protocols under different configurations. GossipSub has the highest network usage because it floods the network with messages. KadPubSub has the lowest network usage because it only sends messages to subscribed peers. Plumtree has a slightly higher network usage than KadPubSub because it sends messages to all peers.
+Figures \ref{fig:network-usage-1024} and \ref{fig:network-usage-65536} show the network usage of the protocols under different configurations. GossipSub has the highest network usage because it floods the mesh of each topic with messages. KadPubSub has the lowest network usage because it only sends messages to subscribed peers. Plumtree has a slightly higher network usage than KadPubSub because it sends messages to all peers, whether they are subscribed to the message's topic or not.
 
 Figures \ref{fig:network-efficiency-1024} and \ref{fig:network-efficiency-65536} show the network efficiency of the protocols under different configurations.
 Network efficiency is defined as the ratio of sum of payload size of delivered messages to the total network usage.
@@ -602,6 +556,56 @@ Network efficiency is defined as the ratio of sum of payload size of delivered m
     \includegraphics[width=8cm]{network-efficiency-65536.pdf}
     \caption{Network efficiency with 64KB of payload}
     \label{fig:network-efficiency-65536}
+\end{figure}
+
+\subsection{Reliability}
+Reliability is the average of the ratios of the number of delivered messages to the number of subscribed peers per topic for the given message.
+Figures \ref{fig:reliability-1024} and \ref{fig:reliability-65536} show the reliability of the protocols under different configurations.
+The reliability for GossipSub drops when under heavier load. This is because the high amount of network usage, seen in the previous section, causes messages to not be delivered before the nodes shut down. This is demonstrated in Figure \ref{fig:gossipsub-events5} where in the configuration with 85 nodes and 64KB of payload nodes are still receiving messages for some time after the last message is sent. Figure \ref{fig:kadpubsub-events5} shows the same plot but for KadPubSub, which has much less network usage, where all messages are delivered in time.
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{reliability-1024.pdf}
+    \caption{Reliability with 1KB of payload}
+    \label{fig:reliability-1024}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{reliability-65536.pdf}
+    \caption{Reliability with 64KB of payload}
+    \label{fig:reliability-65536}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{gossipsub-events5.pdf}
+    \caption{Experiment events for gossipsub}
+    \label{fig:gossipsub-events5}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{kadpubsub-events5.pdf}
+    \caption{Experiment events for kadpubsub}
+    \label{fig:kadpubsub-events5}
+\end{figure}
+
+\subsection{Latency}
+Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency given that, not only aren't the nodes clustered in the overlay according to the subscriptions, given that changing the underlying overlay too frequently would cause Plumtree to reconfigure itself too often, but also because we are launching the nodes in a line (always using the previous launched node as the contact node) to ensure that there are no disconnected islands. The fact that there are several publishers in the network is also not an ideal situation in terms of latency, given that leaves of the dissemination tree might also publish messages, causing the latency in those paths to be higher. GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{publish-latency-1024.pdf}
+    \caption{Reliability with 1KB of payload}
+    \label{fig:publish-latency-1024}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{publish-latency-65536.pdf}
+    \caption{Reliability with 64KB of payload}
+    \label{fig:publish-latency-65536}
 \end{figure}
 
 \section{Conclusions}
