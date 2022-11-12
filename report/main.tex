@@ -227,7 +227,7 @@ The fact that it uses both eager push and lazy push strategies, in conjunction w
 Gossip-based pubsub protocols have been introduced in the past as a way to limit the number of messages propagated between processes in pub/sub systems. In most of these approaches, processes forward metadata related to messages they have previously received without forwarding the messages themselves, a method generally called \textit{pull}.
 GossipSub, a gossip-based pubsub protocol, was designed to deal with both fast and resilient message propagation in \textit{permissionless} networks, e.g., open blockchain networks such as Ethereum \cite{dannen2017introducing}.
 GossipSub assures its fast message propagation with its \textit{Mesh Construction}, where a connected mesh is created for each topic. A mesh of a topic in this context is a sub-network of peers, not necessarily forming a clique, that are subscribed to that topic. Each node is connected to a limited number of other peers, forming its local (view of the) mesh. Mesh-connected nodes directly share messages with one another, realizing an \textit{eager push} communication model. Nodes join and leave the mesh as they subscribe and unsubscribe to topics. Those nodes that are not part of the mesh communicate with mesh-connected nodes through gossip (\textit{lazy push}).
-The resilient message propagation is accomplished with GossipSub's \textit{Score Function}, where every node participating in the network is observed by every other one in a reputation system where its actions are evaluated, and \textit{Mitigation Strategies}, such as mesh maintenance using the Score Function or the isolation of malicious nodes for example.
+The resilient message propagation is accomplished with GossipSub's \textit{Score Function}, where every node participating in the network is observed by every other one in a reputation system where its actions are evaluated, and \textit{Mitigation Strategies}, such as mesh maintenance using the \textit{Score Function} or the isolation of malicious nodes for example.
 
 \section{Implementation}
 
@@ -355,44 +355,42 @@ If the peer publishing the message is not subscribed to the topic, it will find 
 % Methodology
 % Setting
 % table with parameter settings 
-% Please add the following required packages to your document preamble:
-% \usepackage{multirow}
-% \usepackage{graphicx}
+
 % Please add the following required packages to your document preamble:
 % \usepackage{multirow}
 % \usepackage{graphicx}
 \begin{table}[]
     \centering
-    \resizebox{\textwidth}{!}{%
-    \begin{tabular}{|l|l|l|}
-    \hline
-    \textbf{Protocol}                          & \textbf{Parameter}         & \textbf{Value}    \\ \hline
-    \multicolumn{1}{|c|}{\multirow{7}{*}{App}} & Bootstrap Time             & 10s               \\
-    \multicolumn{1}{|c|}{}                     & Prepare Time               & 25s               \\
-    \multicolumn{1}{|c|}{}                     & Run Time                   & 15s               \\
-    \multicolumn{1}{|c|}{}                     & Cooldown Time              & 45s               \\
-    \multicolumn{1}{|c|}{}                     & \#Topics                   & 6                 \\
-    \multicolumn{1}{|c|}{}                     & \#Topics to Publish        & 3                 \\
-    \multicolumn{1}{|c|}{}                     & \#Topics to Subscribe      & 3                 \\ \hline
-    PlumTree                                   &                            &                   \\ \hline
-    \multirow{6}{*}{GossipSub}                 & Degree                     & 6                 \\
-                                               & Degree High                & 12                \\
-                                               & Degree Low                 & 4                 \\
-                                               & Degree Lazy                & 6                 \\
-                                               & Heartbeat $\Delta T$       & 1s                \\
-                                               & History TTL                & $1 \times 5 = 5$s \\ \hline
-    KadPubSub                                  &                            &                   \\ \hline
-    \multirow{5}{*}{HyParView}                 & Active View Size           &                   \\
-                                               & Passive View Size          &                   \\
-                                               & Shuffle Sample Size        &                   \\
-                                               & Active Random Walk Length  &                   \\
-                                               & Passive Random Walk Length &                   \\ \hline
-    Kademlia                                   &                            &                   \\ \hline
-    \end{tabular}%
-    }
     \caption{Protocol Parameters}
     \label{tab:my-table}
-    \end{table}
+    \resizebox{\columnwidth}{!}{%
+    \begin{tabular}{|l|l|r|}
+    \hline
+    \textbf{Protocol}          & \textbf{Parameter}         & \textbf{Value}    \\ \hline
+    \multirow{7}{*}{App}       & Bootstrap Time             & 10s               \\
+                               & Prepare Time               & 25s               \\
+                               & Run Time                   & 15s               \\
+                               & Cooldown Time              & 45s               \\
+                               & \#Topics                   & 6                 \\
+                               & \#Topics to Publish        & 3                 \\
+                               & \#Topics to Subscribe      & 3                 \\ \hline
+    PlumTree                   &                            &                   \\ \hline
+    \multirow{6}{*}{GossipSub} & Degree                     & 6                 \\
+                               & Degree High                & 12                \\
+                               & Degree Low                 & 4                 \\
+                               & Degree Lazy                & 6                 \\
+                               & Heartbeat $\Delta T$       & 1s                \\
+                               & History TTL                & $1 \times 5 = 5$s \\ \hline
+    KadPubSub                  &                            &                   \\ \hline
+    \multirow{5}{*}{HyParView} & Active View Size           &                   \\
+                               & Passive View Size          &                   \\
+                               & Shuffle Sample Size        &                   \\
+                               & Active Random Walk Length  &                   \\
+                               & Passive Random Walk Length &                   \\ \hline
+    Kademlia                   &                            &                   \\ \hline
+    \end{tabular}%
+    }
+\end{table}
 
 \subsection{Reliability}
 
