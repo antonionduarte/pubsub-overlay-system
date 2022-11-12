@@ -30,6 +30,8 @@
 % \usepackage{algorithm}
 % \usepackage{algpseudocode}
 
+\graphicspath{ {images/} }
+
 \SetKwBlock{Interface}{Interface:}{}
 \SetKwBlock{State}{State:}{}
 \SetKwBlock{Requests}{Requests:}{}
@@ -402,11 +404,67 @@ If the peer publishing the message is not subscribed to the topic, it will find 
 
 % plumtree-hyparview, gossipsub-kademlia 4 configs each 
 
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{reliability-1024.pdf}
+    \caption{Reliability with 1024 bytes of payload}
+    \label{fig:reliability-1024}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{reliability-65536.pdf}
+    \caption{Reliability with 64KB of payload}
+    \label{fig:reliability-65536}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{gossipsub-events5.pdf}
+    \caption{Experiment events for gossipsub}
+    \label{fig:gossipsub-events5}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{kadpubsub-events5.pdf}
+    \caption{Experiment events for kadpubsub}
+    \label{fig:kadpubsub-events5}
+\end{figure}
+
 %explain graphs
 
 \subsection{Redundancy}
 
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{redundancy-1024.pdf}
+    \caption{Redundancy with 1024 bytes of payload}
+    \label{fig:redundancy-1024}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{redundancy-65536.pdf}
+    \caption{Redundancy with 64KB of payload}
+    \label{fig:redundancy-65536}
+\end{figure}
+
 \subsection{Latency}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{publish-latency-1024.pdf}
+    \caption{Reliability with 1024 bytes of payload}
+    \label{fig:reliability-1024}
+\end{figure}
+
+\begin{figure}[htp]
+    \centering
+    \includegraphics[width=8cm]{publish-latency-65536.pdf}
+    \caption{Reliability with 64KB of payload}
+    \label{fig:reliability-65536}
+\end{figure}
 
 \section{Conclusions}
 
