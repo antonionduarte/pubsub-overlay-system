@@ -37,10 +37,11 @@
 \SetKwBlock{Requests}{Requests:}{}
 \SetKwBlock{Indications}{Indications:}{}
 
-\SetKwProg{UponTimer}{Upon Timer}{ do}{}
-\SetKwProg{Procedure}{Procedure}{ do}{}
-\SetKwProg{Upon}{Upon}{ do}{}
-\SetKwProg{If}{If}{ do}{}
+\SetKwProg{UponTimer}{Upon Timer}{ do:}{}
+\SetKwProg{Procedure}{Procedure}{ do:}{}
+\SetKwProg{Upon}{Upon}{ do:}{}
+\SetKwProg{If}{If}{ do:}{}
+\SetKwProg{Foreach}{Foreach}{ do:}{}
 
 \SetKwComment{Comment}{/* }{ */}
 \SetKw{Trigger}{Trigger}
@@ -165,11 +166,11 @@ These solutions are typically called overlay protocols which can be structured, 
 The above-mentioned implementations, however, impose challenges. Imagining a distributed system in which we represent processes as vertices of a graph, and connections between those processes as edges, the first challenge would be to guarantee that the resulting graph is strongly connected, specially in the case of churn or node failure. Another important detail is the network load imposed by the system, given that under specific solutions the redundancy (an undesired or repeated message being sent to a process in the system) of the messages being propagated throughout the system could be excessively high.
 
 In this work, we evaluate three possible solutions to implement a Publish-Subscribe system: The first on top of a Structured Overlay (Kademlia), using GossipSup as the Publish-Subscribe protocol that is responsible for disseminating messages to subscribers of a topic.
-The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we’ll explain later, helps reduce redundancy in the message dissemination process.
+The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we'll explain later, helps reduce redundancy in the message dissemination process.
 The third is an extension of Kademlia to support Publish-Subscribe.
 
 The remainder of this document is organized as follows:
-In the Section 2 we will be going over the Related Work, approaching in detail some already introduced methodologies, as well as some other possibilities that we could’ve chosen; In Section 3 we will go over the Implementation details of both our chosen protocols, and the way we decided to use them in conjunction with each other. In Section 4 we will present the results of our experimental evaluation, testing both of the systems against different loads, both in terms of the rate in which messages are propagated and their size. In Section 5 we will summarize the applicability of our solutions given the results obtained.
+In the Section 2 we will be going over the Related Work, approaching in detail some already introduced methodologies, as well as some other possibilities that we could've chosen; In Section 3 we will go over the Implementation details of both our chosen protocols, and the way we decided to use them in conjunction with each other. In Section 4 we will present the results of our experimental evaluation, testing both of the systems against different loads, both in terms of the rate in which messages are propagated and their size. In Section 5 we will summarize the applicability of our solutions given the results obtained.
 
 \section{Related Work}
 
@@ -190,7 +191,6 @@ The protocol also ensures that the active views are always symmetric, which is e
 \subsubsection{Kademlia}
 Kademlia is a peer-to-peer distributed hash table with proven consistency and performance \cite{maymounkov2002kademlia}.
 In a distributed hash table each peer has a unique identifier and they organize themselves using those identifiers to provide a structured overlay.
-Our implementation of kademlia, like the one in the original paper \cite{maymounkov2002kademlia}, uses a 160-bit identifier space and data is mapped into this identifier space using the SHA1 function.
 
 The distance between two peers is given by the xor of their identifiers.
 The common prefix length, cpl, between two peers is the number of leading zeros in their distance.
@@ -233,8 +233,11 @@ The fact that it uses both eager push and lazy push strategies, in conjunction w
 \subsubsection{GossipSub} % TODO: Almeida
 
 Gossip-based pubsub protocols have been introduced in the past as a way to limit the number of messages propagated between processes in pub/sub systems. In most of these approaches, processes forward metadata related to messages they have previously received without forwarding the messages themselves, a method generally called \textit{pull}.
+
 GossipSub, a gossip-based pubsub protocol, was designed to deal with both fast and resilient message propagation in \textit{permissionless} networks, e.g., open blockchain networks such as Ethereum \cite{dannen2017introducing}.
+
 GossipSub assures its fast message propagation with its \textit{Mesh Construction}, where a connected mesh is created for each topic. A mesh of a topic in this context is a sub-network of peers, not necessarily forming a clique, that are subscribed to that topic. Each node is connected to a limited number of other peers, forming its local (view of the) mesh. Mesh-connected nodes directly share messages with one another, realizing an \textit{eager push} communication model. Nodes join and leave the mesh as they subscribe and unsubscribe to topics. Those nodes that are not part of the mesh communicate with mesh-connected nodes through gossip (\textit{lazy push}).
+
 The resilient message propagation is accomplished with GossipSub's \textit{Score Function}, where every node participating in the network is observed by every other one in a reputation system where its actions are evaluated, and \textit{Mitigation Strategies}, such as mesh maintenance using the \textit{Score Function} or the isolation of malicious nodes for example.
 
 \section{Implementation}
@@ -316,20 +319,101 @@ Whenever a publish is made, the message and its topic are disseminated to the en
 
 \subsubsection{GossipSub + Kademlia}
 
-For the structured variant of the Publish-Subscribe system, we use the Kademlia DHT in conjuntion with GossipSub pubsub protocol.
-Since we are only addressing systems with the crash fault model in this work, our implementation of GossipSub is modified, removing the features associated with byzantine fault model, namely the \textit{Score Function} and \textit{Mitigation Strategies}, leaving only the \textit{Mesh Construction}.
-% 
-% 
-% possible optimizations/variants
-% 
+\begin{algorithm}[htp]
+    % TODO: Write the Pseudocode to how the PubSub interacts with PlumTree
+    \Interface{
+        \Requests{
+            Subscribe(topic)\;
+            Unsubscribe(topic)\;
+            Publish(msg, topic)\;
+        }
 
-% TODO: Fona say any modification you did to Kademlia?
+        \Indications{
+            SubscriptionReply(topic)\;
+            UnsubscriptionReply(topic)\;
+        }
+    }
 
-% Interacao e utilidade entre o GossipSub e Kademlia
+    \texttt{\\}
 
+    \State{
+        $seenMessages$\;
+        $subscribedTopics$\;
+        $mesh$\;
+        $degree$\;
+        $pendingPublishes$\;
+    }
 
+    \texttt{\\}
 
-% 
+    \Upon{Init()}{
+        $seenMessages \leftarrow \emptyset$\;
+        $subscribedTopics \leftarrow \emptyset$\;
+        $mesh \leftarrow \emptyset$\;
+        $degree \leftarrow 6$\;
+        $pendingPublishes \leftarrow \emptyset$\;
+    }
+
+    \texttt{\\}
+
+    \Upon{Subscribe(topic)} {
+        $subscribedTopics \leftarrow subscribedTopics \cup \{topic\}$\;
+        $mesh[topic] \leftarrow findMeshPeers(topic, degree)$\;
+        \Trigger JoinSwarm(topic)\;
+        \Trigger SubscriptionReply(topic)\;
+    }
+
+    \texttt{\\}
+
+    \Upon{Unsubscribe(topic)} {
+        $subscribedTopics \leftarrow subscribedTopics \setminus \{topic\}$\;
+        \Trigger UnsubscriptionReply(topic)\;
+    }
+
+    \texttt{\\}
+
+    \Upon{Publish(msg, topic)} {
+        $peers \leftarrow findMeshPeers(topic, degree)$\;
+        \Foreach{$p \in peers$}{
+            \Call publishMessage(msg, topic, p)\;
+        }
+        \If{$\#peers = 0$} {
+            $pendingPublishes[topic] \leftarrow pendingPublishes[topic] \cup \{msg\}$\;
+            \Trigger FindSwarm(topic)\;
+        }   
+    }
+
+    \texttt{\\}
+
+    \Upon{JoinSwarmReply(\{swarmPeers, topic\})} {
+        \If{$\#mesh[topic] < degree$} {
+            $mesh[topic] \leftarrow mesh[topic] \cup sample(swarmPeers, degree - \#mesh[topic])$\;
+        }
+    }
+
+    \texttt{\\}
+
+    \Upon{FindSwarmReply(\{swarmPeers, topic\})} {
+        \Foreach{$p \in sample(swarmPeers, degree)$} {
+            \Foreach{$msg \in pendingPublishes[topic]$} {
+                \Call publishMessage(msg, topic, p)\;
+            }
+        }
+    }
+
+    \caption{GossipSub + Kademlia Interaction}
+    \label{alg:gossipsub_kad}
+\end{algorithm}
+
+For a structured variant of the Publish-Subscribe system, we use the Kademlia DHT in conjuntion with GossipSub pubsub protocol.
+
+Since we are only addressing systems with the crash fault model in this work, our implementation of GossipSub is modified, removing the features associated with byzantine fault tolerance, namely the \textit{Score Function} and \textit{Mitigation Strategies}, leaving only the \textit{Mesh Construction}. GossipSub's \textit{Mesh Construction} behavior was implemented with no special optimizations. 
+
+In the pseudo-code \ref{alg:gossipsub_kad} the interaction between GossipSub and Kademlia is presented, with some implementation details omitted for clarity. GossipSub takes use of Kademlia by leveraging the connections it makes to other peers and issuing the \textit{JoinSwarm(topic)} and \textit{FindSwarm(topic)} requests. 
+GossipSub calls \textit{JoinSwarm} when a subscription to a topic is requested, Kademlia then adds the node to the swarm of peers subscribed to that topic. This is used to help a node populate his local mesh view of the system, if it didn't know any adequate from its connections.  
+\textit{FindSwarm} is called when a node tries to publish a messsage to a topic but it doesn't know any nodes that are subscribed to that topic, this usually happens when the node recently joins the network. Kademlia then replies with a subset of peers belonging to the swarm of the topic, if any, so the node can complete the publish operation.
+
+A issue with this implementation is that whn a node unsubscribes to a topic, in the Kademlia DHT you can't "leave a swarm", which makes the request above return swarm peers that might not be subscribed to the target topic. This can originate sendings of redundant messages, or in the extreme case fill a node's partial view of a topic mesh with nodes that are not subscribed to that topic, making his publishes unreachable.
 
 \subsubsection{KadPubSub}
 KadPubSub is an extension of the Kademlia DHT that provides support for Publish-Subscribe.
@@ -364,19 +448,13 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
 
 \section{Experimental Evaluation}
 
-
-
 % Methodology
 % Setting
-% table with parameter settings 
 
-% Please add the following required packages to your document preamble:
-% \usepackage{multirow}
-% \usepackage{graphicx}
 \begin{table}[]
     \centering
     \caption{Protocol Parameters}
-    \label{tab:my-table}
+    \label{tab:parameters}
     \resizebox{\columnwidth}{!}{%
     \begin{tabular}{|l|l|r|}
     \hline
@@ -395,16 +473,18 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
                                & Degree Lazy                & 6                 \\
                                & Heartbeat $\Delta T$       & 1s                \\
                                & History TTL                & $1 \times 5 = 5$s \\ \hline
-    KadPubSub                  &                            &                   \\ \hline
-    \multirow{5}{*}{HyParView} & Active View Size           &                   \\
-                               & Passive View Size          &                   \\
-                               & Shuffle Sample Size        &                   \\
-                               & Active Random Walk Length  &                   \\
-                               & Passive Random Walk Length &                   \\ \hline
-    Kademlia                   &                            &                   \\ \hline
+    \multirow{2}{*}{KadPubSub} & K Buckets Size             & 5                 \\
+                               & Replication Factor         & 1                 \\ \hline
+    \multirow{5}{*}{HyParView} & Active View Size           & 4                 \\
+                               & Passive View Size          & 7                 \\
+                               & Shuffle $\Delta T$         & 2s                \\
+                               & Active Random Walk Length  & 6                 \\
+                               & Passive Random Walk Length & 3                 \\ \hline
+    \multirow{2}{*}{Kademlia}  & K Buckets Size             & 20                \\
+                               & \#Requests/Query           & 3                 \\ \hline
     \end{tabular}%
     }
-\end{table}
+    \end{table}
 
 \subsection{Reliability}
 Figures \ref{fig:reliability-1024} and \ref{fig:reliability-65536} show the reliability of the protocols under different configurations.
