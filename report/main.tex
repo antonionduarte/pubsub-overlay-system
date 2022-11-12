@@ -350,10 +350,16 @@ This protocol uses lazy push when sending messages except for the original sende
 When publishing or republishing a message a peer will pick $\mathit{rfac}$ peers for each $\mathit{cpl}$ from $\mathit{cpl}_{ceil}$ to $\mathit{cpl}_{max} - 1$ and all peers with $\mathit{cpl} = \mathit{cpl}_{max}$.
 For every peer in this set a message will be sent with $\mathit{cpl}_{ceil} = \mathit{cpl} + 1$. If a peer does not know of any other peer with a given $\mathit{cpl}$ it will do a lookup and later, if any peers do exist, send them the message.
 If the peer publishing the message is not subscribed to the topic, it will find a subscribed peer and forward the message so that he can follow the process described above as the original sender.
+Every peer should receive the message as long as every peer in the network knows, or is able to find, its closest peers and one peer per $\mathit{cpl}$ up to $\mathit{cpl}_{max}$, if such peers exist.
 
+To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} shows the path a message takes when published by peer \textit{5000} in the configuration with 50 nodes. This figure ommits the have/want messages involved in lazy push and only shows the messages that carried payload. The number on the edges is the number of hops that takes into account the have/want messages.
 
-% To publish a message a peer will pick $\mathit{rfac}$ peers for each $\mathit{cpl}$ from $\mathit{cpl}_{ceil}$ to $\mathit{cpl}_{max} - 1$ and send eachof them a copy of the message
-
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{kadpubsub-message-graph}
+    \caption{Message path in KadPubSub}
+    \label{fig:kadpubsub-message-graph}
+\end{figure}
 
 
 \section{Experimental Evaluation}
@@ -452,7 +458,7 @@ Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redund
 \end{figure}
 
 \subsection{Latency}
-Figures \ref{fig:latency-1024} and \ref{fig:latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency because .... GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
+Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency because .... GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
 
 \begin{figure}[htp]
     \centering
