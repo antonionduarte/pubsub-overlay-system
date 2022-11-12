@@ -340,7 +340,7 @@ To track subscriptions, the peers closest to a topic keep a set of peers that ar
 Subscribing to a topic happens in two steps.
 First, a lookup is made to find the closest peers to a topic.
 This peers will be notified of the new subscription and return a set of already subscribed peers.
-Second, a new routing table is created for the topic. The bootstrap peers are added to this routing table and a lookup is made to find the closest peer to ourselfs.
+Secondly, a new routing table is created for the topic. The bootstrap peers are added to this routing table and a lookup is made to find the closest peer to ourselfs.
 
 In the process of publishing a message a few parameters are required.
 The replication factor, $\mathit{rfac}$, is parameter that defines how many messages are sent per $\mathit{cpl}$.
@@ -401,8 +401,8 @@ If the peer publishing the message is not subscribed to the topic, it will find 
 \end{table}
 
 \subsection{Reliability}
-
-% plumtree-hyparview, gossipsub-kademlia 4 configs each 
+Figures \ref{fig:reliability-1024} and \ref{fig:reliability-65536} show the reliability of the protocols under different configurations.
+The reliability for gossip sub seems to drop when under heavier load. This is because the machine running the experiments is not able to keep up with the amount of messages being sent. Figure \ref{fig:gossipsub-events5} shows that in the configuration with 85 nodes and 64KB of payload the nodes are still receiving messages for some time after the last message is sent. Because the nodes start shutting down after the cooldown period, the messages are not being delivered to all nodes. Figure \ref{fig:kadpubsub-events5} shows the same plot but for KadPubSub where the machine is able to keep up with the amount of messages being sent.
 
 \begin{figure}[htp]
     \centering
@@ -435,6 +435,7 @@ If the peer publishing the message is not subscribed to the topic, it will find 
 %explain graphs
 
 \subsection{Redundancy}
+Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redundancy of the protocols under different configurations. GossipSub has a higher redundancy because it relies more on eager push and flooding. Plumtree has a better redundancy since every node only receives the message once but since not every node is subscribed to the topic of a given message some messages end up being ignored and count towards the redundancy. KadPubSub has a lower redundancy because it relies more on lazy push and only sends messages to subscribed peers.
 
 \begin{figure}[htp]
     \centering
@@ -451,35 +452,40 @@ If the peer publishing the message is not subscribed to the topic, it will find 
 \end{figure}
 
 \subsection{Latency}
+Figures \ref{fig:latency-1024} and \ref{fig:latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency because .... GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
 
 \begin{figure}[htp]
     \centering
     \includegraphics[width=8cm]{publish-latency-1024.pdf}
     \caption{Reliability with 1KB of payload}
-    \label{fig:reliability-1024}
+    \label{fig:publish-latency-1024}
 \end{figure}
 
 \begin{figure}[htp]
     \centering
     \includegraphics[width=8cm]{publish-latency-65536.pdf}
     \caption{Reliability with 64KB of payload}
-    \label{fig:reliability-65536}
+    \label{fig:publish-latency-65536}
 \end{figure}
 
 \subsection{Network Usage}
+Figures \ref{fig:network-usage-1024} and \ref{fig:network-usage-65536} show the network usage of the protocols under different configurations. GossipSub has the highest network usage because it floods the network with messages. KadPubSub has the lowest network usage because it only sends messages to subscribed peers. Plumtree has a slightly higher network usage than KadPubSub because it sends messages to all peers.
+
+Figures \ref{fig:network-efficiency-1024} and \ref{fig:network-efficiency-65536} show the network efficiency of the protocols under different configurations.
+Network efficiency is defined as the ratio of sum of payload size of delivered messages to the total network usage.
 
 \begin{figure}[htp]
     \centering
     \includegraphics[width=8cm]{network-usage-1024.pdf}
     \caption{Network usage with 1KB of payload}
-    \label{fig:reliability-1024}
+    \label{fig:network-usage-1024}
 \end{figure}
 
 \begin{figure}[htp]
     \centering
     \includegraphics[width=8cm]{network-usage-65536.pdf}
     \caption{Network usage with 64KB of payload}
-    \label{fig:reliability-65536}
+    \label{fig:network-usage-65536}
 \end{figure}
 
 \begin{figure}[htp]
