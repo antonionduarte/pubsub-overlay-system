@@ -152,7 +152,7 @@
 
 Publish-Subscribe systems are a message exchange pattern between processes in a system. Processes can subscribe to topics (thus being subscribers to a certain topic), or publish messages to topics (thus being publishers). It is important to note that processes can be both publishers and subscribers at the same time, to one or more topics. The subscribers of a topic should receive all the messages that were published to that topic.
 
-Although the concept may seem simple, there are challenges related to the implementation of such systems. A naive approach would assume a global known membership, making the system easy to reason about and implement:
+Although the concept may seem simple, there are challenges related to the implementation of such systems. A naïve approach would assume a global known membership, making the system easy to reason about and implement:
 Whenever a node subscribes to a topic, it broadcasts the subscription to all nodes in the system. Each node would keep track of all the topics subscribed by each node, and whenever it publishes a message to a topic, it broadcasts the messages to all the known nodes subscribed to that topic.
 
 The challenge arises when we decide to tackle the issue of scalability, given that the bookkeeping necessary to maintain a system consisting of tens of thousands of nodes would be excessively expensive.
@@ -177,9 +177,13 @@ Membership protocol are the ones that are used to ensure the scalability of the 
 
 \subsubsection{HyParView}
 
-HyParView is a Membership Management protocol that forms an Unstructured Overlay network amongst the peers that are part of it.
-This protocol is highly resistant to the failure of even a high percentage of nodes in the system. As already stated, in a Membership Protocol it’s important for a node to not be dependent on a Global View of the system, since the bookkeeping would be excessively expensive. HyParView keeps two sets of nodes, called views, on each node. The active view, which keeps open TCP connections with the nodes in it, should have a size of $ln(n)$, where $n$ is the number of nodes in the system, and is relatively stable, only changing when a connection is dropped. The passive view, larger than the active view, is shuffled regularly with nodes selected through random walks through the network, and is used to replace the nodes in the active view in case of their failure.
-The protocol also ensures that the active views are always symmetric, which is essential for the usage of some dissemination protocols.
+HyParView is a Membership Management protocol that forms an Unstructured Overlay network amongst the peers that are part of it. 
+This protocol is highly resistant to the failure of even a high percentage of nodes in the system. As already stated, in a Membership Protocol, it’s important for a node to not be dependent on a Global View of the system, since the bookkeeping would be excessively expensive. HyParView keeps two sets of nodes, called views, on each node: 
+
+The \textbf{active view}, which is responsible for storing the peers that the protocol keeps open TCP connections with and should have a size of ln(n), n being the number of nodes in the system. This view is relatively stable, only changing when a connection is dropped; 
+
+The \textbf{passive view}, larger than the active view, is shuffled regularly with nodes selected through random walks on the network. It is used to replace the nodes in the active view in case of their failure. 
+The protocol also ensures that the active views are always symmetric, which is essential for the usage of some dissemination protocols. 
 
 \subsubsection{Kademlia}
 Kademlia is a peer-to-peer distributed hash table with proven consistency and performance \cite{maymounkov2002kademlia}.
@@ -194,18 +198,17 @@ This arrangement allows identifier lookups in $log(n)$ time since each peer shou
 
 \subsection{Dissemination Protocols}
 
-An essential part of building a pub-sub system, is to think about in which way we will propagate messages throughout the underlying logical network (the membership protocol), to achieve this, we studied two of the possible dissemination protocols:
-
-\subsubsection{Flood}
+An essential part of building a pub-sub system, is to think about in which way we will propagate messages throughout the underlying logical network (the membership protocol), to achieve this, we studied two of the possible dissemination protocols: 
+\subsubsection{Flood} 
 
 A simple way to propagate messages in a system composed of many interconnected nodes, would be to flood the links between them. In a flood protocol, when a node decides to broadcast a message, it sends the message to all of its neighbors (the nodes that it is connected to). When a node receives a message that is being flooded throughout the system for the first time, it forwards the message to all of its neighboring nodes, except the one that it received the message from.
-If we're using a membership protocol that ensures a strongly connected graph, with an adequate fanout, this dissemination strategy guarantees with probabilistic certainty that a message will reach every node in the system.
+If we're using a membership protocol that ensures a strongly connected graph, with an adequate fanout, this dissemination strategy guarantees with probabilistic certainty that a message will reach every node in the system. 
 This protocol, however, causes a large strain on the network, given that many nodes in the system will receive the same message multiple times. Although some level of redundancy is what ensures that a message will reach every node in the system, specially in the event of node failure, lower levels of redundancy can be achieved by employing other dissemination strategies.
 
 \subsubsection{Plumtree}
 
-In order to solve the excessive redundancy that comes from employing a flooding strategy to broadcast messages, a possible solution is the usage of Epidemic Broadcast Trees.
-In order to understand the functioning of this protocol, we need to first go over two of the possible mechanisms for two nodes to exchange a message, which we refer to as gossip mechanisms:
+In order to solve the excessive redundancy that comes from employing a flood strategy to broadcast messages, a possible solution is the usage of Epidemic Broadcast Trees.
+In order to understand the functioning of this protocol, we need to first go over two of the possible mechanisms for nodes to exchange a message, which we refer to as gossip mechanisms:
 Eager push gossip, where a node sends a message directly to another node, and lazy push gossip, where a node first sends an identifier of the message, and the node on the receiving end can then ask the sending node for the full message.
 A process in Plumtree keeps two sets, eager push peers, and lazy push peers.
 In Plumtree, at an initial moment, all the neighbors of a node are considered eager push peers. When a node receives a message from another node, it forwards it to its eager push peers using the eager push gossip strategy, and sends an identifier of the message to all of its lazy push peers. When it receives the same message twice, it moves the node that it received it from to its lazy push peers set. It also sends a Prune message to the node it received the message from. Upon receiving a Prune message, a process moves the node it received the message from to its lazy push peers set.
@@ -294,9 +297,9 @@ Whenever a publish is made, the message and its topic are disseminated to the en
 
     \texttt{\\}
 
-    \Upon{Publish(message, topic)} {
-        \Trigger PlumtreeBroadcast(message, topic)\;
-
+    \Upon{Publish(\{message, topic\})} {
+        \Trigger PlumtreeBroadcast(\{message, topic\})\;
+        
         \If{$topic \in subscribedTopics$} {
             \Trigger PubsubDeliver(msg)\;
         }
