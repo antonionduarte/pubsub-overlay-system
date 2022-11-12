@@ -254,6 +254,8 @@ Our Publish-Subscribe system for Unstructured Overlays uses a filtering based so
 Subscribe operations are completely local to each node, the Publish-Subscribe protocol keeps track of all the topics that the node is subscribed to.
 Whenever a publish is made, the message and its topic are disseminated to the entire system, using Plumtree as previously explained. When a node receives the published message, it simply filters the message, only delivering it to the Application Layer if the message's topic is contained in the set of currently subscribed topics.
 
+The pseudocode for this PubSub solution can be found on Algorithm \ref{alg:uns_pubsub}.
+
 \begin{algorithm}
     % TODO: Write the Pseudocode to how the PubSub interacts with PlumTree
     \Interface{
@@ -278,6 +280,13 @@ Whenever a publish is made, the message and its topic are disseminated to the en
     }
 
     \texttt{\\}
+
+		\Upon{Init}{
+			$seenMessages \leftarrow \{\}$\;
+			$subscribedTopics \leftarrow \{\}$\; 
+		}
+
+		\texttt{\\}
 
     \Upon{PlumtreeDeliver(sender, \{\textbf{GOSSIP}, msg, topic)\}} {
         \If{$topic \in subscribedTopics \land msg \notin seenMessages$} {
@@ -310,6 +319,7 @@ Whenever a publish is made, the message and its topic are disseminated to the en
         }
     }
     \caption{Unstructured Publish-Subscribe}
+		\label{alg:uns_pubsub}
 \end{algorithm}
 
 % Maybe write the PseudoCode to how HyParView interacts with PlumTree
