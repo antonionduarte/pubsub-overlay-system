@@ -165,8 +165,8 @@ These solutions are typically called overlay protocols which can be structured, 
 
 The above-mentioned implementations, however, impose challenges. Imagining a distributed system in which we represent processes as vertices of a graph, and connections between those processes as edges, the first challenge would be to guarantee that the resulting graph is strongly connected, specially in the case of churn or node failure. Another important detail is the network load imposed by the system, given that under specific solutions the redundancy (an undesired or repeated message being sent to a process in the system) of the messages being propagated throughout the system could be excessively high.
 
-In this work, we evaluate three possible solutions to implement a Publish-Subscribe system: The first on top of a Structured Overlay (Kademlia), using GossipSup as the Publish-Subscribe protocol that is responsible for disseminating messages to subscribers of a topic.
-The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we'll explain later, helps reduce redundancy in the message dissemination process.
+In this work, we evaluate three possible solutions to implement a Publish-Subscribe system: The first on top of a Structured Overlay (Kademlia \cite{maymounkov2002kademlia}), using GossipSup \cite{vyzovitis2020gossipsub} as the Publish-Subscribe protocol that is responsible for disseminating messages to subscribers of a topic.
+The second on top of an Unstructured Overlay (HyParView \cite{leitao2007epidemic}), using PlumTree \cite{leitao2007epidemic} as the dissemination protocol, which as we'll explain later, helps reduce redundancy in the message dissemination process.
 The third is an extension of Kademlia to support Publish-Subscribe.
 
 The remainder of this document is organized as follows:
@@ -181,7 +181,7 @@ Membership protocol are the ones that are used to ensure the scalability of the 
 \subsubsection{HyParView}
 
 HyParView is a Membership Management protocol that forms an Unstructured Overlay network amongst the peers that are part of it. 
-This protocol is highly resistant to the failure of even a high percentage of nodes in the system. As already stated, in a Membership Protocol, it’s important for a node to not be dependent on a Global View of the system, since the bookkeeping would be excessively expensive. HyParView keeps two sets of nodes, called views, on each node: 
+This protocol is highly resistant to the failure of even a high percentage of nodes in the system. As already stated, in a Membership Protocol, it's important for a node to not be dependent on a Global View of the system, since the bookkeeping would be excessively expensive. HyParView keeps two sets of nodes, called views, on each node: 
 
 The \textbf{active view}, which is responsible for storing the peers that the protocol keeps open TCP connections with and should have a size of ln(n), n being the number of nodes in the system. This view is relatively stable, only changing when a connection is dropped; 
 
@@ -201,8 +201,8 @@ This arrangement allows identifier lookups in $log(n)$ time since each peer shou
 \subsection{Dissemination Protocols}
 
 An essential part of building a pub-sub system, is to think about in which way we will propagate messages throughout the underlying logical network (the membership protocol), to achieve this, we studied two of the possible dissemination protocols: 
-\subsubsection{Flood} 
 
+\subsubsection{Flood} 
 A simple way to propagate messages in a system composed of many interconnected nodes, would be to flood the links between them. In a flood protocol, when a node decides to broadcast a message, it sends the message to all of its neighbors (the nodes that it is connected to). When a node receives a message that is being flooded throughout the system for the first time, it forwards the message to all of its neighboring nodes, except the one that it received the message from.
 If we're using a membership protocol that ensures a strongly connected graph, with an adequate fanout, this dissemination strategy guarantees with probabilistic certainty that a message will reach every node in the system. 
 This protocol, however, causes a large strain on the network, given that many nodes in the system will receive the same message multiple times. Although some level of redundancy is what ensures that a message will reach every node in the system, specially in the event of node failure, lower levels of redundancy can be achieved by employing other dissemination strategies.
@@ -471,21 +471,20 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
     \begin{tabular}{|l|l|r|}
     \hline
     \textbf{Protocol}          & \textbf{Parameter}         & \textbf{Value}    \\ \hline
-    \multirow{7}{*}{App}       & Bootstrap Time             & 10s               \\
-                               & Prepare Time               & 25s               \\
-                               & Run Time                   & 15s               \\
-                               & Cooldown Time              & 45s               \\
+    \multirow{7}{*}{App}       & Bootstrap Time             & 30s               \\
+                               & Prepare Time               & 30s               \\
+                               & Run Time                   & 60s               \\
+                               & Cooldown Time              & 90s               \\
                                & \#Topics                   & 6                 \\
                                & \#Topics to Publish        & 3                 \\
                                & \#Topics to Subscribe      & 3                 \\ \hline
-    PlumTree                   &                            &                   \\ \hline
     \multirow{6}{*}{GossipSub} & Degree                     & 6                 \\
                                & Degree High                & 12                \\
                                & Degree Low                 & 4                 \\
                                & Degree Lazy                & 6                 \\
                                & Heartbeat $\Delta T$       & 1s                \\
                                & History TTL                & $1 \times 5 = 5$s \\ \hline
-    \multirow{2}{*}{KadPubSub} & K Buckets Size             & 5                 \\
+    \multirow{2}{*}{KadPubSub} & K Topic Buckets Size       & 5                 \\
                                & Replication Factor         & 1                 \\ \hline
     \multirow{5}{*}{HyParView} & Active View Size           & 4                 \\
                                & Passive View Size          & 7                 \\
@@ -493,7 +492,7 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
                                & Active Random Walk Length  & 6                 \\
                                & Passive Random Walk Length & 3                 \\ \hline
     \multirow{2}{*}{Kademlia}  & K Buckets Size             & 20                \\
-                               & \#Requests/Query           & 3                 \\ \hline
+                               & \textbackslash{}alpha      & 3                 \\ \hline
     \end{tabular}%
     }
     \end{table}
