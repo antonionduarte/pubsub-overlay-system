@@ -554,7 +554,7 @@ Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redund
 \end{figure}
 
 \subsection{Latency}
-Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency given that, not only aren't the nodes clustered in the overlay according to the subscriptions, given that changing the underlying overlay too frequently would cause Plumtree to reconfigure itself too often, but also because we are launching the nodes in a line (always using the previous launched node as the contact node) to ensure that there are no disconnected islands. The fact that there are several publishers in the network is also not an ideal situation in terms of latency, given that leafs of the dissemination tree might also publish messages, causing the latency in those paths to be higher. GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
+Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency given that, not only aren't the nodes clustered in the overlay according to the subscriptions, given that changing the underlying overlay too frequently would cause Plumtree to reconfigure itself too often, but also because we are launching the nodes in a line (always using the previous launched node as the contact node) to ensure that there are no disconnected islands. The fact that there are several publishers in the network is also not an ideal situation in terms of latency, given that leaves of the dissemination tree might also publish messages, causing the latency in those paths to be higher. GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
 
 \begin{figure}[htp]
     \centering
@@ -613,7 +613,7 @@ Network efficiency is defined as the ratio of sum of payload size of delivered m
 %% consistent spelling of the heading.
 \begin{acks}
     To João Leitão, for teaching us how to implement protocols and write good reports.
-\end{acks}
+	\end{acks}
 
 %%
 %% The next two lines define the bibliography style to be used, and
