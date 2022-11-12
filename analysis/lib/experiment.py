@@ -246,7 +246,7 @@ def run_experiment(name: str, experiment: PubSubExperiment, jarpath: str):
         if i == 0:
             time.sleep(2)
         if experiment.protocol == PROTOCOL_PLUMTREE:
-            time.sleep(0.2)
+            time.sleep(0.5)
 
     procs = []
     for i in range(experiment.number_nodes):

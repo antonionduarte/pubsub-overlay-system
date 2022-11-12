@@ -21,7 +21,7 @@ templates:
       run_time: 60
 
       ## How long each will stay active after stopping to send messages
-      cooldown_time: 45
+      cooldown_time: 90
 
       ## How large is the payload in each message
       payload_size: 1024
@@ -244,6 +244,8 @@ experiments:
     derive: [gossipsub, config5]
   plumtree-config5:
     derive: [plumtree, config5]
+    parameters:
+      prepare_time: 90
 
   kadpubsub-config6:
     derive: [kadpubsub, config6]
@@ -256,19 +258,23 @@ experiments:
     derive: [gossipsub, config6]
   plumtree-config6:
     derive: [plumtree, config6]
+    parameters:
+      prepare_time: 90
 
   kadpubsub-debug:
-    derive: [config2, kadpubsub]
+    derive: [config5, kadpubsub]
     parameters:
-      run_time: 15
-      metric_level: detailed
-
-  kadpubsub-rfac2-debug:
-    derive: [config2, kadpubsub]
-    parameters:
-      run_time: 15
+      run_time: 60
       metric_level: detailed
       payload_size: 65536
-      cooldown_time: 120
+      cooldown_time: 90
+
+  kadpubsub-rfac2-debug:
+    derive: [config5, kadpubsub]
+    parameters:
+      run_time: 60
+      metric_level: detailed
+      payload_size: 65536
+      cooldown_time: 90
       protocol_parameters:
         kad_pubsub_rfac: 2
