@@ -162,11 +162,12 @@ These solutions are typically called overlay protocols which can be structured, 
 
 The above-mentioned implementations, however, impose challenges. Imagining a distributed system in which we represent processes as vertices of a graph, and connections between those processes as edges, the first challenge would be to guarantee that the resulting graph is strongly connected, specially in the case of churn or node failure. Another important detail is the network load imposed by the system, given that under specific solutions the redundancy (an undesired or repeated message being sent to a process in the system) of the messages being propagated throughout the system could be excessively high.
 
-In this work, we evaluate two possible solutions to implement a Publish-Subscribe system: The first on top of a Structured Overlay (Kademlia), using GossipSup as the Publish-Subscribe protocol that is responsible for disseminating messages to subscribers of a topic.
-The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we'll explain later, helps reduce redundancy in the message dissemination process.
+In this work, we evaluate three possible solutions to implement a Publish-Subscribe system: The first on top of a Structured Overlay (Kademlia), using GossipSup as the Publish-Subscribe protocol that is responsible for disseminating messages to subscribers of a topic.
+The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we’ll explain later, helps reduce redundancy in the message dissemination process.
+The third is an extension of Kademlia to support Publish-Subscribe.
 
 The remainder of this document is organized as follows:
-In the following Section we will be going over the Related Work, approaching in detail some already introduced methodologies, as well as some other possibilities that we could've chosen; In Section 3 we will go over the Implementation details of both our chosen protocols, and the way we decided to use them in conjunction with each other. In Section 4 we will present the results of our experimental evaluation, testing both of the systems against different loads, both in terms of the rate in which messages are propagated and their size. In Section 5 we will summarize the applicability of our solutions given the results obtained.
+In the Section 2 we will be going over the Related Work, approaching in detail some already introduced methodologies, as well as some other possibilities that we could’ve chosen; In Section 3 we will go over the Implementation details of both our chosen protocols, and the way we decided to use them in conjunction with each other. In Section 4 we will present the results of our experimental evaluation, testing both of the systems against different loads, both in terms of the rate in which messages are propagated and their size. In Section 5 we will summarize the applicability of our solutions given the results obtained.
 
 \section{Related Work}
 
@@ -322,7 +323,30 @@ Since we are only addressing systems with the crash fault model in this work, ou
 
 % 
 
-\subsubsection{KadPubSub + Kademlia} % ?
+\subsubsection{KadPubSub}
+KadPubSub is an extension of the Kademlia DHT that provides support for Publish-Subscribe.
+Each topic is assigned an identifier that is the SHA1 of the topic name.
+To track subscriptions, the peers closest to a topic keep a set of peers that are subscribed to that topic. This set of peers will serve as the entrypoint to that topic.
+
+
+Subscribing to a topic happens in two steps.
+First, a lookup is made to find the closest peers to a topic.
+This peers will be notified of the new subscription and return a set of already subscribed peers.
+Second, a new routing table is created for the topic. The bootstrap peers are added to this routing table and a lookup is made to find the closest peer to ourselfs.
+
+In the process of publishing a message a few parameters are required.
+The replication factor, $\mathit{rfac}$, is parameter that defines how many messages are sent per $\mathit{cpl}$.
+The $\mathit{cpl}_{ceil}$ parameter defines the minimum $\mathit{cpl}$ to broadcast messages to. This parameter is $0$ if the peer broadcasting is the original sender, otherwise this value comes defined in the message received from the network.
+The $\mathit{cpl}_{max}$ parameter is the $cpl$ of the closest peer in a peer's routing table.
+This protocol uses lazy push when sending messages except for the original sender that does eager pushing.
+When publishing or republishing a message a peer will pick $\mathit{rfac}$ peers for each $\mathit{cpl}$ from $\mathit{cpl}_{ceil}$ to $\mathit{cpl}_{max} - 1$ and all peers with $\mathit{cpl} = \mathit{cpl}_{max}$.
+For every peer in this set a message will be sent with $\mathit{cpl}_{ceil} = \mathit{cpl} + 1$. If a peer does not know of any other peer with a given $\mathit{cpl}$ it will do a lookup and later, if any peers do exist, send them the message.
+If the peer publishing the message is not subscribed to the topic, it will find a subscribed peer and forward the message so that he can follow the process described above as the original sender.
+
+
+% To publish a message a peer will pick $\mathit{rfac}$ peers for each $\mathit{cpl}$ from $\mathit{cpl}_{ceil}$ to $\mathit{cpl}_{max} - 1$ and send eachof them a copy of the message
+
+
 
 \section{Experimental Evaluation}
 
