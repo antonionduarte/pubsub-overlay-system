@@ -161,10 +161,10 @@ These solutions are typically called overlay protocols which can be structured, 
 The above-mentioned implementations, however, impose challenges. Imagining a distributed system in which we represent processes as vertices of a graph, and connections between those processes as edges, the first challenge would be to guarantee that the resulting graph is strongly connected, specially in the case of churn or node failure. Another important detail is the network load imposed by the system, given that under specific solutions the redundancy (an undesired or repeated message being sent to a process in the system) of the messages being propagated throughout the system could be excessively high.
 
 In this work, we evaluate two possible solutions to implement a Publish-Subscribe system: The first on top of a Structured Overlay (Kademlia), using GossipSup as the Publish-Subscribe protocol that is responsible for disseminating messages to subscribers of a topic.
-The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we’ll explain later, helps reduce redundancy in the message dissemination process.
+The second on top of an Unstructured Overlay (HyparView), using PlumTree as the dissemination protocol, which as we'll explain later, helps reduce redundancy in the message dissemination process.
 
 The remainder of this document is organized as follows:
-In the following Section we will be going over the Related Work, approaching in detail some already introduced methodologies, as well as some other possibilities that we could’ve chosen; In Section 3 we will go over the Implementation details of both our chosen protocols, and the way we decided to use them in conjunction with each other. In Section 4 we will present the results of our experimental evaluation, testing both of the systems against different loads, both in terms of the rate in which messages are propagated and their size. In Section 5 we will summarize the applicability of our solutions given the results obtained.
+In the following Section we will be going over the Related Work, approaching in detail some already introduced methodologies, as well as some other possibilities that we could've chosen; In Section 3 we will go over the Implementation details of both our chosen protocols, and the way we decided to use them in conjunction with each other. In Section 4 we will present the results of our experimental evaluation, testing both of the systems against different loads, both in terms of the rate in which messages are propagated and their size. In Section 5 we will summarize the applicability of our solutions given the results obtained.
 
 \section{Related Work}
 
@@ -178,15 +178,13 @@ HyParView is a Membership Management protocol that forms an Unstructured Overlay
 This protocol is highly resistant to the failure of even a high percentage of nodes in the system. As already stated, in a Membership Protocol it’s important for a node to not be dependent on a Global View of the system, since the bookkeeping would be excessively expensive. HyParView keeps two sets of nodes, called views, on each node. The active view, which keeps open TCP connections with the nodes in it, should have a size of $ln(n)$, where $n$ is the number of nodes in the system, and is relatively stable, only changing when a connection is dropped. The passive view, larger than the active view, is shuffled regularly with nodes selected through random walks through the network, and is used to replace the nodes in the active view in case of their failure.
 The protocol also ensures that the active views are always symmetric, which is essential for the usage of some dissemination protocols.
 
-\subsubsection{Kademlia}
+\subsubsection{Kademlia} % TODO: Fona
 Kademlia is a peer-to-peer distributed hash table with proven consistency and performance \cite{maymounkov2002kademlia}.
 In a distributed hash table each peer has a unique identifier and they organize themselves using those identifiers to provide a structured overlay.
 Our implementation of kademlia, like the one in the original paper \cite{maymounkov2002kademlia}, uses a 160-bit identifier space and data is mapped into this identifier space using the SHA1 function.
-The distance between two peers is given by the xor of their identifiers.
-The common prefix length, cpl, between two peers is the number of leading zeros in their distance.
-In kademlia each peer has a routing table that keeps track of other peers in the network. The routing table is made up of buckets.
-Each bucket has a maximum size $k$ and the peers inside each bucket have a cpl equal to the bucket's index, except for the last bucket that can have peers with cpl greater than or equal to the index.
-This arrangement allows identifier lookups in $log(n)$ time since each peer should know someone that is at least half the distance of himself to the identifier that is being searched for.
+
+
+% não te esqueças de explicar oq é uma DHT e isso tudo :)
 
 \subsection{Dissemination Protocols}
 
@@ -195,7 +193,7 @@ An essential part of building a pub-sub system, is to think about in which way w
 \subsubsection{Flood}
 
 A simple way to propagate messages in a system composed of many interconnected nodes, would be to flood the links between them. In a flood protocol, when a node decides to broadcast a message, it sends the message to all of its neighbors (the nodes that it is connected to). When a node receives a message that is being flooded throughout the system for the first time, it forwards the message to all of its neighboring nodes, except the one that it received the message from.
-If we’re using a membership protocol that ensures a strongly connected graph, with an adequate fanout, this dissemination strategy guarantees with probabilistic certainty that a message will reach every node in the system.
+If we're using a membership protocol that ensures a strongly connected graph, with an adequate fanout, this dissemination strategy guarantees with probabilistic certainty that a message will reach every node in the system.
 This protocol, however, causes a large strain on the network, given that many nodes in the system will receive the same message multiple times. Although some level of redundancy is what ensures that a message will reach every node in the system, specially in the event of node failure, lower levels of redundancy can be achieved by employing other dissemination strategies.
 
 \subsubsection{Plumtree}
@@ -239,7 +237,7 @@ This section presents the implemented variants of our Publish-Subscribe systems.
 Our Publish-Subscribe system for Unstructured Overlays uses a filtering based solution, using HyParView as the Membership protocol and Plumtree to disseminate messages in the network.
 
 Subscribe operations are completely local to each node, the Publish-Subscribe protocol keeps track of all the topics that the node is subscribed to.
-Whenever a publish is made, the message and its topic are disseminated to the entire system, using Plumtree as previously explained. When a node receives the published message, it simply filters the message, only delivering it to the Application Layer if the message’s topic is contained in the set of currently subscribed topics.
+Whenever a publish is made, the message and its topic are disseminated to the entire system, using Plumtree as previously explained. When a node receives the published message, it simply filters the message, only delivering it to the Application Layer if the message's topic is contained in the set of currently subscribed topics.
 
 \begin{algorithm}
     % TODO: Write the Pseudocode to how the PubSub interacts with PlumTree
@@ -303,14 +301,15 @@ Whenever a publish is made, the message and its topic are disseminated to the en
 
 \subsection{Structured Variant}
 
+
 \subsubsection{GossipSub + Kademlia}
 
 For the structured variant of the Publish-Subscribe system, we use the Kademlia DHT in conjuntion with GossipSub pubsub protocol.
 
-Since we are only addressing systems with the crash fault model in this work, our implementation of GossipSub is modified, stripped away of all its resilient inducing components, namely the \textit{Score Function} and \textit{Mitigation Strategies}, leaving only the \textit{Mesh Construction} details.
+Since we are only addressing systems with the crash fault model in this work, our implementation of GossipSub is modified, removing the features associated with byzantine fault model, namely the \textit{Score Function} and \textit{Mitigation Strategies}, leaving only the \textit{Mesh Construction}.
 
-
-
+% 
+% 
 % possible optimizations/variants
 % 
 
