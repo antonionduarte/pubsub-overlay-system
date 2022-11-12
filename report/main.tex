@@ -490,7 +490,7 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
                                & Active Random Walk Length  & 6                 \\
                                & Passive Random Walk Length & 3                 \\ \hline
     \multirow{2}{*}{Kademlia}  & \#K Buckets                & 20                \\
-                               & \alpha                     & 3                 \\ \hline
+                               & $\alpha$                   & 3                 \\ \hline
     \end{tabular}%
     }
     \end{table}
@@ -505,7 +505,7 @@ Table \ref{tab:parameters} contains the fixed parameters of each protocol and th
 \subsection{Redundancy}
 Redundancy is the ratio of the number of non-delivered messages to the total number of received messages. Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redundancy of the protocols under different configurations. 
 
-GossipSub has a higher redundancy because it most of the times disseminates with eager push, flooding each mesh of a topic. Since the degree (the fanout for eager push gossip) of each node stabilizes to the value 6, the expected overall redundancy is $5 / 6 = 83.3\%$, which matches with the results.
+GossipSub has a higher redundancy because most of the times it disseminates with eager push, flooding each mesh of a topic. Since the degree (the fanout for eager push gossip) of each node stabilizes to the value 6, the expected overall redundancy is $5 / 6 = 83.3\%$, which matches with the results.
 Plumtree has a better redundancy because every node only receives the message once but since not every node is subscribed to the topic of a given message some messages end up being ignored and count towards the redundancy. KadPubSub has a lower redundancy because it relies more on lazy push and only sends messages to subscribed peers.
 
 \begin{figure}[htp]
@@ -526,7 +526,7 @@ Plumtree has a better redundancy because every node only receives the message on
 Figures \ref{fig:network-usage-1024} and \ref{fig:network-usage-65536} show the network usage of the protocols under different configurations. GossipSub has the highest network usage because it floods the mesh of each topic with messages. KadPubSub has the lowest network usage because it only sends messages to subscribed peers. Plumtree has a slightly higher network usage than KadPubSub because it sends messages to all peers, whether they are subscribed to the message's topic or not.
 
 Figures \ref{fig:network-efficiency-1024} and \ref{fig:network-efficiency-65536} show the network efficiency of the protocols under different configurations.
-Network efficiency is defined as the ratio of sum of payload size of delivered messages to the total network usage.
+Network efficiency is defined as the ratio between the sum of payload size of delivered messages and the total network usage.
 
 \begin{figure}[htp]
     \centering
@@ -590,7 +590,7 @@ The reliability for GossipSub drops when under heavier load. This is because the
 \end{figure}
 
 \subsection{Latency}
-We measure latency in hops, because the network in these experiments are uniform. This means every pair of nodes have an equal latency value for every other pair (experiments were executed by processes one machine). 
+We measure latency in hops, because the network in these experiments is uniform. This means every pair of nodes have an equal latency value for every other pair (experiments were executed by processes one machine). 
 
 Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency given that, not only aren't the nodes clustered in the overlay according to the subscriptions, given that changing the underlying overlay too frequently would cause Plumtree to reconfigure itself too often, but also because we are launching the nodes in a line (always using the previous launched node as the contact node) to ensure that there are no disconnected islands. The fact that there are several publishers in the network is also not an ideal situation in terms of latency, given that leaves of the dissemination tree might also publish messages, causing the latency in those paths to be higher. GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
 
