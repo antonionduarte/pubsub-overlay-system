@@ -409,7 +409,7 @@ For a structured variant of the Publish-Subscribe system, we use the Kademlia DH
 
 Since we are only addressing systems with the crash fault model in this work, our implementation of GossipSub is modified, removing the features associated with byzantine fault tolerance, namely the \textit{Score Function} and \textit{Mitigation Strategies}, leaving only the \textit{Mesh Construction}. GossipSub's \textit{Mesh Construction} behavior was implemented with no special optimizations. 
 
-In the pseudo-code \ref{alg:gossipsub_kad} the interaction between GossipSub and Kademlia is presented, with some implementation details omitted for clarity. GossipSub takes use of Kademlia by leveraging the connections it makes to other peers and issuing the \textit{JoinSwarm(topic)} and \textit{FindSwarm(topic)} requests. 
+In Algorithm \ref{alg:gossipsub_kad} the interaction between GossipSub and Kademlia is presented, with some implementation details omitted for clarity. GossipSub takes use of Kademlia by leveraging the connections it makes to other peers and issuing the \textit{JoinSwarm(topic)} and \textit{FindSwarm(topic)} requests. 
 GossipSub calls \textit{JoinSwarm} when a subscription to a topic is requested, Kademlia then adds the node to the swarm of peers subscribed to that topic. This is used to help a node populate his local mesh view of the system, if it didn't know any adequate from its connections.  
 \textit{FindSwarm} is called when a node tries to publish a messsage to a topic but it doesn't know any nodes that are subscribed to that topic, this usually happens when the node recently joins the network. Kademlia then replies with a subset of peers belonging to the swarm of the topic, if any, so the node can complete the publish operation.
 
