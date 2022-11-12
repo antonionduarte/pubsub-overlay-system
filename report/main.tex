@@ -458,11 +458,6 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
 
 \section{Experimental Evaluation}
 
-\textbf{Testbench:} we ran our experimental tests, using a docker setup with a container per process, using a single machine with an Intel Xeon Gold 6346 CPU, 128 GiB of DDR4 3200MHz RAM, and 1 Gbps of network bandwidth. 
-
-% Methodology
-% Setting
-
 % Please add the following required packages to your document preamble:
 % \usepackage{multirow}
 % \usepackage{graphicx}
@@ -501,6 +496,9 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
     \end{table}
 
 Table \ref{tab:parameters} contains the fixed parameters of each protocol and the pubsub app used for the experiments. Some parameters like payload size of sent publishes and the publish send rate are variable, as we show in the results.
+
+\textbf{Testbench:} we ran our experimental tests, using a docker setup with a container per process, using a single machine with an Intel Xeon Gold 6346 CPU, 128 GiB of DDR4 3200MHz RAM, and 1 Gbps of network bandwidth. 
+
 
 %explain graphs
 
@@ -592,6 +590,8 @@ The reliability for GossipSub drops when under heavier load. This is because the
 \end{figure}
 
 \subsection{Latency}
+We measure latency in hops, because the network in these experiments are uniform. This means every pair of nodes have an equal latency value for every other pair (experiments were executed by processes one machine). 
+
 Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show the publish latency of the protocols under different configurations. Plumtree has a higher latency given that, not only aren't the nodes clustered in the overlay according to the subscriptions, given that changing the underlying overlay too frequently would cause Plumtree to reconfigure itself too often, but also because we are launching the nodes in a line (always using the previous launched node as the contact node) to ensure that there are no disconnected islands. The fact that there are several publishers in the network is also not an ideal situation in terms of latency, given that leaves of the dissemination tree might also publish messages, causing the latency in those paths to be higher. GossipSub has the lowest latency since it floods the network with message but this has tradeoffs as it also increases network usage.
 
 \begin{figure}[htp]
@@ -609,6 +609,8 @@ Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show 
 \end{figure}
 
 \section{Conclusions}
+
+
 
 \subsection{Future Work}
 In KadPubSub more work is done by the earlier receivers of a message. It might be possible to even out the work across multiple peers by sending, together with the payload, a list of other peers to forward the message. This would increase the overall latency.
