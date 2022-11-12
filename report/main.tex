@@ -24,6 +24,8 @@
 %% The first command in your LaTeX source must be the \documentclass command.
 \documentclass[sigconf]{acmart}
 
+\usepackage{multirow}
+\usepackage{graphicx}
 \usepackage[ruled, vlined]{algorithm2e}
 % \usepackage{algorithm}
 % \usepackage{algpseudocode}
@@ -229,6 +231,7 @@ The resilient message propagation is accomplished with GossipSub's \textit{Score
 \section{Implementation}
 
 This section presents the implemented variants of our Publish-Subscribe systems. These are assumed to execute above asynchronous systems using the crash fault model.
+The following were concretely implemented with Babel \cite{fouto2022babel}, a Java framework that provides a programming environment for implementing distributed protocols.
 
 \subsection{Unstructured Variant}
 
@@ -305,9 +308,7 @@ Whenever a publish is made, the message and its topic are disseminated to the en
 \subsubsection{GossipSub + Kademlia}
 
 For the structured variant of the Publish-Subscribe system, we use the Kademlia DHT in conjuntion with GossipSub pubsub protocol.
-
 Since we are only addressing systems with the crash fault model in this work, our implementation of GossipSub is modified, removing the features associated with byzantine fault model, namely the \textit{Score Function} and \textit{Mitigation Strategies}, leaving only the \textit{Mesh Construction}.
-
 % 
 % 
 % possible optimizations/variants
@@ -316,6 +317,8 @@ Since we are only addressing systems with the crash fault model in this work, ou
 % TODO: Fona say any modification you did to Kademlia?
 
 % Interacao e utilidade entre o GossipSub e Kademlia
+
+
 
 % 
 
@@ -327,6 +330,45 @@ Since we are only addressing systems with the crash fault model in this work, ou
 
 % Methodology
 % Setting
+% table with parameter settings 
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+% \usepackage{graphicx}
+% Please add the following required packages to your document preamble:
+% \usepackage{multirow}
+% \usepackage{graphicx}
+\begin{table}[]
+    \centering
+    \resizebox{\textwidth}{!}{%
+    \begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Protocol}                          & \textbf{Parameter}         & \textbf{Value}    \\ \hline
+    \multicolumn{1}{|c|}{\multirow{7}{*}{App}} & Bootstrap Time             & 10s               \\
+    \multicolumn{1}{|c|}{}                     & Prepare Time               & 25s               \\
+    \multicolumn{1}{|c|}{}                     & Run Time                   & 15s               \\
+    \multicolumn{1}{|c|}{}                     & Cooldown Time              & 45s               \\
+    \multicolumn{1}{|c|}{}                     & \#Topics                   & 6                 \\
+    \multicolumn{1}{|c|}{}                     & \#Topics to Publish        & 3                 \\
+    \multicolumn{1}{|c|}{}                     & \#Topics to Subscribe      & 3                 \\ \hline
+    PlumTree                                   &                            &                   \\ \hline
+    \multirow{6}{*}{GossipSub}                 & Degree                     & 6                 \\
+                                               & Degree High                & 12                \\
+                                               & Degree Low                 & 4                 \\
+                                               & Degree Lazy                & 6                 \\
+                                               & Heartbeat $\Delta T$       & 1s                \\
+                                               & History TTL                & $1 \times 5 = 5$s \\ \hline
+    KadPubSub                                  &                            &                   \\ \hline
+    \multirow{5}{*}{HyParView}                 & Active View Size           &                   \\
+                                               & Passive View Size          &                   \\
+                                               & Shuffle Sample Size        &                   \\
+                                               & Active Random Walk Length  &                   \\
+                                               & Passive Random Walk Length &                   \\ \hline
+    Kademlia                                   &                            &                   \\ \hline
+    \end{tabular}%
+    }
+    \caption{Protocol Parameters}
+    \label{tab:my-table}
+    \end{table}
 
 \subsection{Reliability}
 
