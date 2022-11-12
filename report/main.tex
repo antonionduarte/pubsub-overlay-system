@@ -487,6 +487,7 @@ To ilustrate the broadcast process, figure \ref{fig:kadpubsub-message-graph} sho
     \end{table}
 
 \subsection{Reliability}
+Reliability is the average of the ratios of the number of delivered messages to the number of subscribed peers per topic for the given message.
 Figures \ref{fig:reliability-1024} and \ref{fig:reliability-65536} show the reliability of the protocols under different configurations.
 The reliability for gossip sub seems to drop when under heavier load. This is because the machine running the experiments is not able to keep up with the amount of messages being sent. Figure \ref{fig:gossipsub-events5} shows that in the configuration with 85 nodes and 64KB of payload the nodes are still receiving messages for some time after the last message is sent. Because the nodes start shutting down after the cooldown period, the messages are not being delivered to all nodes. Figure \ref{fig:kadpubsub-events5} shows the same plot but for KadPubSub where the machine is able to keep up with the amount of messages being sent.
 
@@ -521,6 +522,7 @@ The reliability for gossip sub seems to drop when under heavier load. This is be
 %explain graphs
 
 \subsection{Redundancy}
+Redundancy is the ratio of the number of non-delivered messages to the total number of received messages.
 Figures \ref{fig:redundancy-1024} and \ref{fig:redundancy-65536} show the redundancy of the protocols under different configurations. GossipSub has a higher redundancy because it relies more on eager push and flooding. Plumtree has a better redundancy since every node only receives the message once but since not every node is subscribed to the topic of a given message some messages end up being ignored and count towards the redundancy. KadPubSub has a lower redundancy because it relies more on lazy push and only sends messages to subscribed peers.
 
 \begin{figure}[htp]
