@@ -181,13 +181,16 @@ HyParView is a Membership Management protocol that forms an Unstructured Overlay
 This protocol is highly resistant to the failure of even a high percentage of nodes in the system. As already stated, in a Membership Protocol it’s important for a node to not be dependent on a Global View of the system, since the bookkeeping would be excessively expensive. HyParView keeps two sets of nodes, called views, on each node. The active view, which keeps open TCP connections with the nodes in it, should have a size of $ln(n)$, where $n$ is the number of nodes in the system, and is relatively stable, only changing when a connection is dropped. The passive view, larger than the active view, is shuffled regularly with nodes selected through random walks through the network, and is used to replace the nodes in the active view in case of their failure.
 The protocol also ensures that the active views are always symmetric, which is essential for the usage of some dissemination protocols.
 
-\subsubsection{Kademlia} % TODO: Fona
+\subsubsection{Kademlia}
 Kademlia is a peer-to-peer distributed hash table with proven consistency and performance \cite{maymounkov2002kademlia}.
 In a distributed hash table each peer has a unique identifier and they organize themselves using those identifiers to provide a structured overlay.
 Our implementation of kademlia, like the one in the original paper \cite{maymounkov2002kademlia}, uses a 160-bit identifier space and data is mapped into this identifier space using the SHA1 function.
 
-
-% não te esqueças de explicar oq é uma DHT e isso tudo :)
+The distance between two peers is given by the xor of their identifiers.
+The common prefix length, cpl, between two peers is the number of leading zeros in their distance.
+In kademlia each peer has a routing table that keeps track of other peers in the network. The routing table is made up of buckets.
+Each bucket has a maximum size $k$ and the peers inside each bucket have a cpl equal to the bucket's index, except for the last bucket that can have peers with cpl greater than or equal to the index.
+This arrangement allows identifier lookups in $log(n)$ time since each peer should know someone that is at least half the distance of himself to the identifier that is being searched for.
 
 \subsection{Dissemination Protocols}
 
