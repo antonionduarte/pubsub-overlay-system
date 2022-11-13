@@ -223,7 +223,7 @@ class PubSubAnalyzer:
         usages = self._last_network_metrics_per_node()
         return sum(map(lambda m: m.outbound, usages.values()))
 
-    def network_usage_usefullness_fraction(self) -> float:
+    def network_usage_efficiency_fraction(self) -> float:
         total_network_usage = self.network_usage()
         delivered_messages = len(
             self.metrics(ty=PubSubMessageReceived, filter=lambda m: m.delivered)
