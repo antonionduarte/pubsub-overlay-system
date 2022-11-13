@@ -610,7 +610,12 @@ Figures \ref{fig:publish-latency-1024} and \ref{fig:publish-latency-65536} show 
 
 \section{Conclusions}
 
+In this work we presented a set of proposals for Peer-to-Peer Publish-Subscribe Systems. 
+From the experimental results, we can see that different systems can have their distinct applications:
 
+HyParView + PlumTree has a fair usage of network and redundancy with higher overall latency. We expect, but didn't benchmark, that this system would work better under faulty systems.
+GossipSub + Kademlia achieves the lowest latency in hops in trade of heavy network usage and high redundancy, in particular because of GossipSub. This system could be better used to disseminate messages with low payload size like control messages. 
+KadPubSub, a new proposal we developed, provides a very good trade-off between all evaluated metrics, having close to 0\% redundancy and mantaining good latency values.
 
 \subsection{Future Work}
 In KadPubSub more work is done by the earlier receivers of a message. It might be possible to even out the work across multiple peers by sending, together with the payload, a list of other peers to forward the message. This would increase the overall latency.
