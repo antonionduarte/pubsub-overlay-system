@@ -22,27 +22,21 @@ import java.util.*;
 
 public class PlumTree extends GenericProtocol {
 
-	private static final Logger logger = LogManager.getLogger();
-
 	public static final short PROTOCOL_ID = 400;
 	public static final String PROTOCOL_NAME = "PlumTree";
-
-	private int channelId;
-
+	private static final Logger logger = LogManager.getLogger();
 	private final Host self;
-
 	private final long missingTimeoutMs;
 	private final long missingTimeoutSecondMs;
-
 	private final Set<Host> eagerPushPeers;
 	private final Set<Host> lazyPushPeers;
-
 	/**
 	 * Integer represents the ID of a message. Gossip represents a gossip message.
 	 */
 	private final Map<UUID, Gossip> receivedMessages; // messageId -> gossipMessage
 	private final Map<UUID, Long> missingTimers; // messageId -> timerId
 	private final Map<UUID, List<Host>> haveMessage; // messageId -> host
+	private int channelId;
 
 	public PlumTree(Properties properties, Host self) throws HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);

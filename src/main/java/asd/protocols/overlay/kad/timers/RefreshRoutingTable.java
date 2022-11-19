@@ -5,22 +5,22 @@ import asd.protocols.overlay.kad.Kademlia;
 import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 
 public class RefreshRoutingTable extends ProtoTimer {
-    public static final short ID = Kademlia.ID + 3;
+	public static final short ID = Kademlia.ID + 3;
 
-    public final KadID rtid;
+	public final KadID rtid;
 
-    public RefreshRoutingTable() {
-        super(ID);
-        this.rtid = KadID.DEFAULT_RTID;
-    }
+	public RefreshRoutingTable() {
+		super(ID);
+		this.rtid = KadID.DEFAULT_RTID;
+	}
 
-    public RefreshRoutingTable(KadID rtid) {
-        super(ID);
-        this.rtid = rtid;
-    }
+	public RefreshRoutingTable(KadID rtid) {
+		super(ID);
+		this.rtid = rtid;
+	}
 
-    @Override
-    public ProtoTimer clone() {
-        return this;
-    }
+	@Override
+	public ProtoTimer clone() {
+		return this;
+	}
 }

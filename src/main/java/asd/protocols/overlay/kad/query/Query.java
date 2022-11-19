@@ -1,199 +1,210 @@
 package asd.protocols.overlay.kad.query;
 
+import asd.metrics.Profiling;
+import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.KadParams;
+import asd.protocols.overlay.kad.KadPeer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
-import asd.metrics.Profiling;
-import asd.protocols.overlay.kad.KadID;
-import asd.protocols.overlay.kad.KadParams;
-import asd.protocols.overlay.kad.KadPeer;
-
 abstract class Query {
-    private static final Logger logger = LogManager.getLogger(Query.class);
+	private static final Logger logger = LogManager.getLogger(Query.class);
+	private final QueryIO qio;
+	private final KadID self;
+	private final KadParams kadparams;
+	private final KadID target;
+	private final QPeerSet peers;
+	private final ArrayList<ActiveRequest> active_requests;
+	private boolean finished;
 
-    private static class ActiveRequest implements AutoCloseable {
-        public final KadID peer;
-        public final Instant start;
-        public final Profiling.Span span;
+	Query(QueryIO qio, KadID self, KadParams kadparams, KadID target, List<KadPeer> seeds) {
+		this.qio = qio;
+		this.self = self;
+		this.kadparams = kadparams;
+		this.target = target;
+		this.peers = new QPeerSet(this.kadparams.k, target);
+		this.finished = false;
+		this.active_requests = new ArrayList<>();
 
-        public ActiveRequest(KadID peer) {
-            this.peer = peer;
-            this.start = Instant.now();
-            this.span = Profiling.span("query");
-        }
+		this.addExtraPeers(seeds);
+	}
 
-        @Override
-        public void close() {
-            this.span.close();
-        }
-    }
+	public final void start() {
+		this.makeRequests();
+	}
 
-    private final QueryIO qio;
-    private final KadID self;
-    private final KadParams kadparams;
-    private final KadID target;
-    private final QPeerSet peers;
-    private final ArrayList<ActiveRequest> active_requests;
+	public final boolean isFinished() {
+		return this.finished;
+	}
 
-    private boolean finished;
+	abstract void request(QueryIO qio, KadID peer, KadID target);
 
-    Query(QueryIO qio, KadID self, KadParams kadparams, KadID target, List<KadPeer> seeds) {
-        this.qio = qio;
-        this.self = self;
-        this.kadparams = kadparams;
-        this.target = target;
-        this.peers = new QPeerSet(this.kadparams.k, target);
-        this.finished = false;
-        this.active_requests = new ArrayList<>();
+	abstract void onFinish(QPeerSet set);
 
-        this.addExtraPeers(seeds);
-    }
+	protected void onFindNodeResponse(KadID from, List<KadPeer> closest) {
+		if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+				|| this.peers.isInState(from, QPeerSet.State.FAILED))) {
+			throw new IllegalStateException("Received FindNodeResponse from peer that was not requested: " + from
+					+ ". Peer state is " + this.peers.getState(from));
+		}
+		if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED)) {
+			return;
+		}
+		this.peers.markFinished(from);
+		this.removeActiveRequest(from);
+		this.addExtraPeers(closest);
+		this.makeRequests();
+	}
 
-    public final void start() {
-        this.makeRequests();
-    }
+	protected void onFindValueResponse(KadID from, List<KadPeer> closest, Optional<byte[]> value) {
+		if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+				|| this.peers.isInState(from, QPeerSet.State.FAILED))) {
+			throw new IllegalStateException("Received FindValueResponse from peer that was not requested: " + from
+					+ ". Peer state is " + this.peers.getState(from));
+		}
+		if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED)) {
+			return;
+		}
+		this.peers.markFinished(from);
+		this.removeActiveRequest(from);
+		this.addExtraPeers(closest);
+		this.makeRequests();
+	}
 
-    public final boolean isFinished() {
-        return this.finished;
-    }
+	protected void onFindSwarmResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
+		if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+				|| this.peers.isInState(from, QPeerSet.State.FAILED))) {
+			throw new IllegalStateException("Received FindSwarmResponse from peer that was not requested: " + from
+					+ ". Peer state is " + this.peers.getState(from));
+		}
+		if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED)) {
+			return;
+		}
+		this.peers.markFinished(from);
+		this.removeActiveRequest(from);
+		this.addExtraPeers(closest);
+		this.makeRequests();
+	}
 
-    abstract void request(QueryIO qio, KadID peer, KadID target);
+	protected void onFindPoolResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
+		if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
+				|| this.peers.isInState(from, QPeerSet.State.FAILED))) {
+			throw new IllegalStateException("Received FindPoolResponse from peer that was not requested: " + from
+					+ ". Peer state is " + this.peers.getState(from));
+		}
+		if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED)) {
+			return;
+		}
+		this.peers.markFinished(from);
+		this.removeActiveRequest(from);
+		this.addExtraPeers(closest);
+		this.makeRequests();
+	}
 
-    abstract void onFinish(QPeerSet set);
+	final void onPeerError(KadID peer) {
+		if (this.isFinished()) {
+			return;
+		}
+		if (!this.peers.contains(peer)) {
+			return;
+		}
+		if (this.peers.isInState(peer, QPeerSet.State.FINISHED) || this.peers.isInState(peer, QPeerSet.State.FAILED)) {
+			return;
+		}
+		logger.warn("Peer {} failed", peer);
+		this.removeActiveRequest(peer);
+		this.peers.markFailed(peer);
+		this.makeRequests();
+	}
 
-    protected void onFindNodeResponse(KadID from, List<KadPeer> closest) {
-        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
-                || this.peers.isInState(from, QPeerSet.State.FAILED)))
-            throw new IllegalStateException("Received FindNodeResponse from peer that was not requested: " + from
-                    + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
-            return;
-        this.peers.markFinished(from);
-        this.removeActiveRequest(from);
-        this.addExtraPeers(closest);
-        this.makeRequests();
-    }
+	final void checkTimeouts() {
+		if (this.isFinished()) {
+			return;
+		}
 
-    protected void onFindValueResponse(KadID from, List<KadPeer> closest, Optional<byte[]> value) {
-        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
-                || this.peers.isInState(from, QPeerSet.State.FAILED)))
-            throw new IllegalStateException("Received FindValueResponse from peer that was not requested: " + from
-                    + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
-            return;
-        this.peers.markFinished(from);
-        this.removeActiveRequest(from);
-        this.addExtraPeers(closest);
-        this.makeRequests();
-    }
+		var timedout = new ArrayList<KadID>();
+		var now = Instant.now();
 
-    protected void onFindSwarmResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
-        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
-                || this.peers.isInState(from, QPeerSet.State.FAILED)))
-            throw new IllegalStateException("Received FindSwarmResponse from peer that was not requested: " + from
-                    + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
-            return;
-        this.peers.markFinished(from);
-        this.removeActiveRequest(from);
-        this.addExtraPeers(closest);
-        this.makeRequests();
-    }
+		for (var req : this.active_requests) {
+			if (req.start.plus(this.kadparams.query_request_timeout).isBefore(now)) {
+				timedout.add(req.peer);
+			}
+		}
 
-    protected void onFindPoolResponse(KadID from, List<KadPeer> closest, List<KadPeer> members) {
-        if (!(this.peers.isInState(from, QPeerSet.State.INPROGRESS)
-                || this.peers.isInState(from, QPeerSet.State.FAILED)))
-            throw new IllegalStateException("Received FindPoolResponse from peer that was not requested: " + from
-                    + ". Peer state is " + this.peers.getState(from));
-        if (this.isFinished() || this.peers.isInState(from, QPeerSet.State.FAILED))
-            return;
-        this.peers.markFinished(from);
-        this.removeActiveRequest(from);
-        this.addExtraPeers(closest);
-        this.makeRequests();
-    }
+		for (var peer : timedout) {
+			logger.warn("Peer {} timed out in {}", peer, this.getClass().getName());
+			this.onPeerError(peer);
+		}
+	}
 
-    final void onPeerError(KadID peer) {
-        if (this.isFinished())
-            return;
-        if (!this.peers.contains(peer))
-            return;
-        if (this.peers.isInState(peer, QPeerSet.State.FINISHED) || this.peers.isInState(peer, QPeerSet.State.FAILED))
-            return;
-        logger.warn("Peer {} failed", peer);
-        this.removeActiveRequest(peer);
-        this.peers.markFailed(peer);
-        this.makeRequests();
-    }
+	protected final void finish() {
+		assert !this.finished;
+		this.finished = true;
+		this.onFinish(this.peers);
+	}
 
-    final void checkTimeouts() {
-        if (this.isFinished())
-            return;
+	private void makeRequests() {
+		assert !this.isFinished();
 
-        var timedout = new ArrayList<KadID>();
-        var now = Instant.now();
+		while (this.peers.getNumInProgress() < this.kadparams.alpha && this.peers.getNumCandidates() > 0) {
+			var candidate = this.peers.getCandidate();
+			assert candidate != null;
+			this.peers.markInProgress(candidate);
+			this.addActiveRequest(candidate);
+			this.request(this.qio, candidate, this.target);
+		}
 
-        for (var req : this.active_requests) {
-            if (req.start.plus(this.kadparams.query_request_timeout).isBefore(now))
-                timedout.add(req.peer);
-        }
+		if (this.peers.getNumInProgress() == 0 && this.peers.getNumCandidates() == 0) {
+			this.finish();
+		}
+	}
 
-        for (var peer : timedout) {
-            logger.warn("Peer {} timed out in {}", peer, this.getClass().getName());
-            this.onPeerError(peer);
-        }
-    }
+	private void addExtraPeers(List<KadPeer> peers) {
+		for (var peer : peers) {
+			if (!peer.id.equals(this.self)) {
+				this.qio.discover(peer);
+				this.peers.add(peer.id);
+			}
+		}
+	}
 
-    protected final void finish() {
-        assert !this.finished;
-        this.finished = true;
-        this.onFinish(this.peers);
-    }
+	private void addActiveRequest(KadID peer) {
+		assert this.active_requests.size() <= this.kadparams.alpha;
+		this.active_requests.add(new ActiveRequest(peer));
+	}
 
-    private void makeRequests() {
-        assert !this.isFinished();
+	private void removeActiveRequest(KadID peer) {
+		assert this.active_requests.size() <= this.kadparams.alpha;
+		var removed = this.active_requests.removeIf(r -> {
+			if (r.peer.equals(peer)) {
+				r.close();
+				return true;
+			} else {
+				return false;
+			}
+		});
+		assert removed;
+	}
 
-        while (this.peers.getNumInProgress() < this.kadparams.alpha && this.peers.getNumCandidates() > 0) {
-            var candidate = this.peers.getCandidate();
-            assert candidate != null;
-            this.peers.markInProgress(candidate);
-            this.addActiveRequest(candidate);
-            this.request(this.qio, candidate, this.target);
-        }
+	private static class ActiveRequest implements AutoCloseable {
+		public final KadID peer;
+		public final Instant start;
+		public final Profiling.Span span;
 
-        if (this.peers.getNumInProgress() == 0 && this.peers.getNumCandidates() == 0)
-            this.finish();
-    }
+		public ActiveRequest(KadID peer) {
+			this.peer = peer;
+			this.start = Instant.now();
+			this.span = Profiling.span("query");
+		}
 
-    private void addExtraPeers(List<KadPeer> peers) {
-        for (var peer : peers) {
-            if (!peer.id.equals(this.self)) {
-                this.qio.discover(peer);
-                this.peers.add(peer.id);
-            }
-        }
-    }
-
-    private void addActiveRequest(KadID peer) {
-        assert this.active_requests.size() <= this.kadparams.alpha;
-        this.active_requests.add(new ActiveRequest(peer));
-    }
-
-    private void removeActiveRequest(KadID peer) {
-        assert this.active_requests.size() <= this.kadparams.alpha;
-        var removed = this.active_requests.removeIf(r -> {
-            if (r.peer.equals(peer)) {
-                r.close();
-                return true;
-            } else {
-                return false;
-            }
-        });
-        assert removed;
-    }
+		@Override
+		public void close() {
+			this.span.close();
+		}
+	}
 }

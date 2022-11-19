@@ -21,12 +21,10 @@ import java.util.*;
 
 public class Hyparview extends GenericProtocol {
 
-	private static final Logger logger = LogManager.getLogger();
-
 	public static final short PROTOCOL_ID = 200;
 	public static final String PROTOCOL_NAME = "Hyparview";
 	public static final String CONTACT_PROPERTY = "hypar_bootstrap";
-
+	private static final Logger logger = LogManager.getLogger();
 	public final int ARWL;
 	public final int PRWL;
 
@@ -40,16 +38,13 @@ public class Hyparview extends GenericProtocol {
 	private final Host self;
 
 	private final Set<Host> pending; // The nodes that are pending to be added into the activeView.
-	private Map<UUID, Set<Host>> currentShuffles; // TODO;
-
 	/**
-	 * General Ideas uwu:
-	 * - Subscribe to a notification from the upper layer, so you always know what topics you have.
-	 * - Disseminate the topics you have through PlumTree.
-	 * - When you receive a Topic Dessimination message from a peer
+	 * General Ideas uwu: - Subscribe to a notification from the upper layer, so you always know what topics you have. -
+	 * Disseminate the topics you have through PlumTree. - When you receive a Topic Dessimination message from a peer
 	 */
 
 	private final int channelId;
+	private Map<UUID, Set<Host>> currentShuffles; // TODO;
 
 	public Hyparview(Properties properties, Host self) throws IOException, HandlerRegistrationException {
 		super(PROTOCOL_NAME, PROTOCOL_ID);
@@ -59,14 +54,14 @@ public class Hyparview extends GenericProtocol {
 		/*---------------------- Channel Configuration ---------------------- */
 		Properties channelProps = new Properties();
 		channelProps.setProperty(TCPChannel.ADDRESS_KEY, properties.getProperty("babel_address")); // The address to
-																									// bind to
+		// bind to
 		channelProps.setProperty(TCPChannel.PORT_KEY, properties.getProperty("babel_port")); // The port to bind to
 		channelProps.setProperty(TCPChannel.METRICS_INTERVAL_KEY, channelMetricsInterval); // The interval to receive
-																							// channel metrics
+		// channel metrics
 		channelProps.setProperty(TCPChannel.HEARTBEAT_INTERVAL_KEY, "1000"); // Heartbeats interval for established
-																				// connections
+		// connections
 		channelProps.setProperty(TCPChannel.HEARTBEAT_TOLERANCE_KEY, "3000"); // Time passed without heartbeats until
-																				// closing a connection
+		// closing a connection
 		channelProps.setProperty(TCPChannel.CONNECT_TIMEOUT_KEY, "1000"); // TCP connect timeout
 		this.channelId = createChannel(TCPChannel.NAME, channelProps); // Create the channel with the given properties
 
@@ -258,8 +253,9 @@ public class Hyparview extends GenericProtocol {
 		for (Host node : shuffleSet) {
 			if (!node.equals(self) && !activeView.getView().contains(node)) {
 				var dropped = this.passiveView.addPeer(node);
-				if (dropped != null)
+				if (dropped != null) {
 					logger.info("Dropped " + dropped + " from passive view");
+				}
 				logger.info("Node " + node + " added to passive view");
 			}
 		}
@@ -352,7 +348,7 @@ public class Hyparview extends GenericProtocol {
 		}
 	}
 
-	private void handleActiveAddition(Host toAdd) {;
+	private void handleActiveAddition(Host toAdd) {
 		var dropped = activeView.addPeer(toAdd);
 
 		this.passiveView.removePeer(toAdd);

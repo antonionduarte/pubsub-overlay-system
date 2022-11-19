@@ -58,7 +58,7 @@
     </dependency>
   </dependencies>
 
-  <build>
+  <build>z
     <pluginManagement>
       <plugins>
         <plugin>

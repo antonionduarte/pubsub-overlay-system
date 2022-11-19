@@ -12,7 +12,33 @@ import java.util.UUID;
 
 public class Gossip extends ProtoMessage {
 	public static final short MSG_ID = PlumTree.PROTOCOL_ID + 1;
+	public static ISerializer<Gossip> serializer = new ISerializer<Gossip>() {
+		@Override
+		public void serialize(Gossip gossip, ByteBuf byteBuf) throws IOException {
+			Host.serializer.serialize(gossip.sender, byteBuf);
+			ASDUtils.stringSerializer.serialize(gossip.topic, byteBuf);
+			byteBuf.writeLong(gossip.msgId.getMostSignificantBits());
+			byteBuf.writeLong(gossip.msgId.getLeastSignificantBits());
+			byteBuf.writeInt(gossip.msg.length);
+			byteBuf.writeBytes(gossip.msg);
+			byteBuf.writeInt(gossip.hopCount);
+		}
 
+		@Override
+		public Gossip deserialize(ByteBuf byteBuf) throws IOException {
+			var sender = Host.serializer.deserialize(byteBuf);
+			var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
+			var mostSigBits = byteBuf.readLong();
+			var leastSigBits = byteBuf.readLong();
+			var msgId = new UUID(mostSigBits, leastSigBits);
+			var lenMsg = byteBuf.readInt();
+			var msg = new byte[lenMsg];
+			byteBuf.readBytes(msg);
+			var hopCount = byteBuf.readInt();
+
+			return new Gossip(msg, topic, msgId, sender, hopCount);
+		}
+	};
 	private final String topic;
 	private final UUID msgId;
 	private final Host sender;
@@ -47,32 +73,4 @@ public class Gossip extends ProtoMessage {
 	public byte[] getMsg() {
 		return msg;
 	}
-
-	public static ISerializer<Gossip> serializer = new ISerializer<Gossip>() {
-		@Override
-		public void serialize(Gossip gossip, ByteBuf byteBuf) throws IOException {
-			Host.serializer.serialize(gossip.sender, byteBuf);
-			ASDUtils.stringSerializer.serialize(gossip.topic, byteBuf);
-			byteBuf.writeLong(gossip.msgId.getMostSignificantBits());
-			byteBuf.writeLong(gossip.msgId.getLeastSignificantBits());
-			byteBuf.writeInt(gossip.msg.length);
-			byteBuf.writeBytes(gossip.msg);
-			byteBuf.writeInt(gossip.hopCount);
-		}
-
-		@Override
-		public Gossip deserialize(ByteBuf byteBuf) throws IOException {
-			var sender = Host.serializer.deserialize(byteBuf);
-			var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
-			var mostSigBits = byteBuf.readLong();
-			var leastSigBits = byteBuf.readLong();
-			var msgId = new UUID(mostSigBits, leastSigBits);
-			var lenMsg = byteBuf.readInt();
-			var msg = new byte[lenMsg];
-			byteBuf.readBytes(msg);
-			var hopCount = byteBuf.readInt();
-
-			return new Gossip(msg, topic, msgId, sender, hopCount);
-		}
-	};
 }

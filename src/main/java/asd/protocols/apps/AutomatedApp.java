@@ -18,12 +18,10 @@ import java.util.Properties;
 import java.util.Random;
 
 public class AutomatedApp extends GenericProtocol {
-	private static final Logger logger = LogManager.getLogger(AutomatedApp.class);
-
 	// Protocol information, to register in babel
 	public static final String PROTO_NAME = "AutomatedPubSubApp";
 	public static final short PROTO_ID = 300;
-
+	private static final Logger logger = LogManager.getLogger(AutomatedApp.class);
 	private final short pubSubProtoId;
 
 	// Size of the payload of each message (in bytes)
@@ -52,9 +50,9 @@ public class AutomatedApp extends GenericProtocol {
 
 	private long broadCastTimer;
 
-	private ArrayList<String> topics;
-	private ArrayList<String> publishTopics;
-	private ArrayList<String> subscribeTopics;
+	private final ArrayList<String> topics;
+	private final ArrayList<String> publishTopics;
+	private final ArrayList<String> subscribeTopics;
 
 	private Random r;
 
@@ -112,11 +110,19 @@ public class AutomatedApp extends GenericProtocol {
 
 	}
 
+	public static String randomCapitalLetters(int length) {
+		int leftLimit = 65; // letter 'A'
+		int rightLimit = 90; // letter 'Z'
+		Random random = new Random();
+		return random.ints(leftLimit, rightLimit + 1).limit(length)
+				.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
+	}
+
 	@Override
 	public void init(Properties props) {
 		// Wait prepareTime seconds before starting
 		logger.info("Waiting...");
-		setupTimer(new StartTimer(), preparePrepareTime * 1000);
+		setupTimer(new StartTimer(), preparePrepareTime * 1000L);
 	}
 
 	private void uponStartTimer(StartTimer startTimer, long timerId) {
@@ -129,9 +135,9 @@ public class AutomatedApp extends GenericProtocol {
 
 		logger.info("Starting publications in 2 seconds");
 		// Start broadcasting periodically
-		broadCastTimer = setupPeriodicTimer(new DisseminationTimer(), prepareTime * 1000, disseminationInterval);
+		broadCastTimer = setupPeriodicTimer(new DisseminationTimer(), prepareTime * 1000L, disseminationInterval);
 		// And set up the stop timer
-		setupTimer(new StopTimer(), prepareTime * 1000 + runTime * 1000);
+		setupTimer(new StopTimer(), prepareTime * 1000L + runTime * 1000L);
 	}
 
 	private void uponBroadcastTimer(DisseminationTimer broadcastTimer, long timerId) {
@@ -156,7 +162,7 @@ public class AutomatedApp extends GenericProtocol {
 	private void uponStopTimer(StopTimer stopTimer, long timerId) {
 		logger.info("Stopping publications");
 		this.cancelTimer(broadCastTimer);
-		setupTimer(new ExitTimer(), cooldownTime * 1000);
+		setupTimer(new ExitTimer(), cooldownTime * 1000L);
 	}
 
 	private void uponExitTimer(ExitTimer exitTimer, long timerId) {
@@ -170,13 +176,5 @@ public class AutomatedApp extends GenericProtocol {
 
 	private void uponPublishReply(PublishReply reply, short sourceProto) {
 		logger.info("Completed publication on topic " + reply.getTopic() + " and id: " + reply.getMsgID());
-	}
-
-	public static String randomCapitalLetters(int length) {
-		int leftLimit = 65; // letter 'A'
-		int rightLimit = 90; // letter 'Z'
-		Random random = new Random();
-		return random.ints(leftLimit, rightLimit + 1).limit(length)
-				.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
 	}
 }

@@ -10,30 +10,28 @@ import java.io.IOException;
 
 public class UnsubscribeMessage extends ProtoMessage {
 
-    public static final short ID = GossipSub.ID + 2;
+	public static final short ID = GossipSub.ID + 2;
+	public static ISerializer<UnsubscribeMessage> serializer = new ISerializer<>() {
+		@Override
+		public void serialize(UnsubscribeMessage unsubscribeMessage, ByteBuf byteBuf) throws IOException {
+			ASDUtils.stringSerializer.serialize(unsubscribeMessage.topic, byteBuf);
+		}
 
-    private final String topic;
+		@Override
+		public UnsubscribeMessage deserialize(ByteBuf byteBuf) throws IOException {
+			var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
 
-    public UnsubscribeMessage(String topic) {
-        super(ID);
-        this.topic = topic;
-    }
+			return new UnsubscribeMessage(topic);
+		}
+	};
+	private final String topic;
 
-    public String getTopic() {
-        return topic;
-    }
+	public UnsubscribeMessage(String topic) {
+		super(ID);
+		this.topic = topic;
+	}
 
-    public static ISerializer<UnsubscribeMessage> serializer = new ISerializer<>() {
-        @Override
-        public void serialize(UnsubscribeMessage unsubscribeMessage, ByteBuf byteBuf) throws IOException {
-            ASDUtils.stringSerializer.serialize(unsubscribeMessage.topic, byteBuf);
-        }
-
-        @Override
-        public UnsubscribeMessage deserialize(ByteBuf byteBuf) throws IOException {
-            var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
-
-            return new UnsubscribeMessage(topic);
-        }
-    };
+	public String getTopic() {
+		return topic;
+	}
 }

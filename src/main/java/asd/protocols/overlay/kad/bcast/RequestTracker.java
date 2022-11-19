@@ -1,41 +1,12 @@
 package asd.protocols.overlay.kad.bcast;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.UUID;
-
 import asd.protocols.overlay.kad.KadID;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+
 public class RequestTracker {
-
-	public static record ExpiredRequest(KadID rtid, UUID uuid) {
-	}
-
-	private static class State {
-		public final KadID rtid;
-		public final HashSet<KadID> providers;
-		public RequestState request;
-
-		public State(KadID rtid) {
-			this.rtid = rtid;
-			this.providers = new HashSet<>();
-			this.request = null;
-		}
-	}
-
-	private static class RequestState {
-		public final KadID peer;
-		public final Instant start;
-
-		public RequestState(KadID peer) {
-			this.peer = peer;
-			this.start = Instant.now();
-		}
-	}
 
 	private final HashMap<UUID, State> states;
 	private final Duration requestTimeout;
@@ -76,8 +47,9 @@ public class RequestTracker {
 	public KadID getProvider(UUID uuid) {
 		assert this.states.containsKey(uuid);
 		var state = this.states.get(uuid);
-		if (state.providers.isEmpty())
+		if (state.providers.isEmpty()) {
 			return null;
+		}
 		return state.providers.iterator().next();
 	}
 
@@ -105,13 +77,40 @@ public class RequestTracker {
 		var expired = new ArrayList<ExpiredRequest>();
 		this.states.entrySet().removeIf(entry -> {
 			var state = entry.getValue();
-			if (state.request == null)
+			if (state.request == null) {
 				return false;
+			}
 			var remove = state.request.start.plus(this.requestTimeout).isBefore(now);
-			if (remove)
+			if (remove) {
 				expired.add(new ExpiredRequest(entry.getValue().rtid, entry.getKey()));
+			}
 			return remove;
 		});
 		return expired;
+	}
+
+	public record ExpiredRequest(KadID rtid, UUID uuid) {
+	}
+
+	private static class State {
+		public final KadID rtid;
+		public final HashSet<KadID> providers;
+		public RequestState request;
+
+		public State(KadID rtid) {
+			this.rtid = rtid;
+			this.providers = new HashSet<>();
+			this.request = null;
+		}
+	}
+
+	private static class RequestState {
+		public final KadID peer;
+		public final Instant start;
+
+		public RequestState(KadID peer) {
+			this.peer = peer;
+			this.start = Instant.now();
+		}
 	}
 }

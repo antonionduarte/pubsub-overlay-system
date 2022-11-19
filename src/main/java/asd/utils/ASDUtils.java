@@ -11,6 +11,21 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 public class ASDUtils {
+	public static ISerializer<String> stringSerializer = new ISerializer<String>() {
+		@Override
+		public void serialize(String s, ByteBuf byteBuf) throws IOException {
+			var len = s.getBytes().length;
+			byteBuf.writeInt(len);
+			ByteBufUtil.reserveAndWriteUtf8(byteBuf, s, len);
+		}
+
+		@Override
+		public String deserialize(ByteBuf byteBuf) throws IOException {
+			var len = byteBuf.readInt();
+			return byteBuf.readCharSequence(len, StandardCharsets.UTF_8).toString();
+		}
+	};
+
 	public static List<Host> hostsFromProp(String value) {
 		Set<Host> hosts = new HashSet<>();
 		for (var hostStr : value.split(",")) {
@@ -35,19 +50,4 @@ public class ASDUtils {
 		}
 		return subset;
 	}
-
-	public static ISerializer<String> stringSerializer = new ISerializer<String>() {
-		@Override
-		public void serialize(String s, ByteBuf byteBuf) throws IOException {
-			var len = s.getBytes().length;
-			byteBuf.writeInt(len);
-			ByteBufUtil.reserveAndWriteUtf8(byteBuf, s, len);
-		}
-
-		@Override
-		public String deserialize(ByteBuf byteBuf) throws IOException {
-			var len = byteBuf.readInt();
-			return byteBuf.readCharSequence(len, StandardCharsets.UTF_8).toString();
-		}
-	};
 }

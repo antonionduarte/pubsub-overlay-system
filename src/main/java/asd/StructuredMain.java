@@ -4,7 +4,6 @@ import asd.metrics.Metrics;
 import asd.protocols.apps.AutomatedApp;
 import asd.protocols.apps.InteractiveApp;
 import asd.protocols.overlay.kad.Kademlia;
-import asd.protocols.pubsub.EmptyPubSub;
 import asd.protocols.pubsub.gossipsub.GossipSub;
 import asd.utils.InterfaceToIp;
 import org.apache.logging.log4j.LogManager;
@@ -18,20 +17,18 @@ import java.util.Properties;
 
 public class StructuredMain {
 
+	// Creates the logger object
+	private static final Logger logger = LogManager.getLogger(ManualMain.class);
+	// Default babel configuration file (can be overridden by the "-config" launch
+	// argument)
+	private static final String DEFAULT_CONF = "babel_config.properties";
+	// Numerical identifier of the pub-sub protocol to be used by the application
+	private static final short PUBSUB_PROTO_ID = GossipSub.ID;
+
 	// Sets the log4j (logging library) configuration file
 	static {
 		System.setProperty("log4j.configurationFile", "log4j2.xml");
 	}
-
-	// Creates the logger object
-	private static final Logger logger = LogManager.getLogger(ManualMain.class);
-
-	// Default babel configuration file (can be overridden by the "-config" launch
-	// argument)
-	private static final String DEFAULT_CONF = "babel_config.properties";
-
-	// Numerical identifier of the pub-sub protocol to be used by the application
-	private static final short PUBSUB_PROTO_ID = GossipSub.ID;
 
 	public static void main(String[] args) throws Exception {
 

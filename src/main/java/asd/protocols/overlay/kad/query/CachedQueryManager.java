@@ -1,213 +1,213 @@
 package asd.protocols.overlay.kad.query;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.function.Consumer;
-
 import asd.protocols.overlay.kad.KadID;
 import asd.protocols.overlay.kad.KadPeer;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.function.Consumer;
+
 public class CachedQueryManager extends QueryManager {
 
-    private static record FindClosestKey(KadID rtid, KadID target) {
-    }
+	private final QueryManager inner;
+	private final HashMap<Object, CacheEntry> entries;
+	private final Duration ttl;
 
-    private static record FindPoolKey(KadID rtid, KadID target) {
-    }
+	public CachedQueryManager(QueryManager qm, Duration ttl) {
+		this.inner = qm;
+		this.entries = new HashMap<>();
+		this.ttl = ttl;
+	}
 
-    private static record findSwarmKey(KadID rtid, Integer sample_size, KadID target) {
-    }
+	@Override
+	public void findClosest(KadID rtid, KadID target, FindClosestQueryCallbacks callbacks) {
+		var key = new FindClosestKey(rtid, target);
+		var entry = this.getOrCreateEntry(key);
 
-    private static record FindValueKey(KadID rtid, KadID target) {
-    }
+		if (callbacks != null) {
+			entry.callbacks.add(callbacks);
+		}
 
-    private static class CacheEntry {
-        public boolean in_progress;
-        public Instant timestamp;
-        // Receives a queue of callbacks and executes them
-        public Consumer<Object> executor;
-        public Queue<Object> callbacks;
+		if (entry.executor != null) {
+			entry.executor.accept(entry.callbacks);
+			return;
+		}
 
-        public CacheEntry() {
-            this.in_progress = false;
-            this.timestamp = null;
-            this.executor = null;
-            this.callbacks = new ArrayDeque<>();
-        }
-    }
+		if (!entry.in_progress) {
+			entry.in_progress = true;
+			this.inner.findClosest(rtid, target, (closest) -> {
+				entry.timestamp = Instant.now();
+				entry.executor = (queue) -> {
+					@SuppressWarnings("unchecked")
+					var q = (Queue<FindClosestQueryCallbacks>) queue;
+					while (!q.isEmpty()) {
+						var cb = q.poll();
+						cb.onQueryResult(closest);
+					}
+				};
+				entry.executor.accept(entry.callbacks);
+			});
+		}
+	}
 
-    private final QueryManager inner;
-    private final HashMap<Object, CacheEntry> entries;
-    private final Duration ttl;
+	@Override
+	public void findPool(KadID rtid, FindPoolQueryCallbacks callbacks) {
+		var key = new FindPoolKey(rtid, KadID.DEFAULT_RTID);
+		var entry = this.getOrCreateEntry(key);
 
-    public CachedQueryManager(QueryManager qm, Duration ttl) {
-        this.inner = qm;
-        this.entries = new HashMap<>();
-        this.ttl = ttl;
-    }
+		if (callbacks != null) {
+			entry.callbacks.add(callbacks);
+		}
 
-    @Override
-    public void findClosest(KadID rtid, KadID target, FindClosestQueryCallbacks callbacks) {
-        var key = new FindClosestKey(rtid, target);
-        var entry = this.getOrCreateEntry(key);
+		if (entry.executor != null) {
+			entry.executor.accept(entry.callbacks);
+			return;
+		}
 
-        if (callbacks != null)
-            entry.callbacks.add(callbacks);
+		if (!entry.in_progress) {
+			entry.in_progress = true;
+			this.inner.findPool(rtid, result -> {
+				entry.timestamp = Instant.now();
+				entry.executor = (queue) -> {
+					@SuppressWarnings("unchecked")
+					var q = (Queue<FindPoolQueryCallbacks>) queue;
+					while (!q.isEmpty()) {
+						var cb = q.poll();
+						cb.onQueryResult(result);
+					}
+				};
+				entry.executor.accept(entry.callbacks);
+			});
+		}
+	}
 
-        if (entry.executor != null) {
-            entry.executor.accept(entry.callbacks);
-            return;
-        }
+	public void findSwarm(KadID swarm_id, int sample_size, FindSwarmQueryCallbacks callbacks) {
+		var key = new findSwarmKey(swarm_id, sample_size, KadID.DEFAULT_RTID);
+		var entry = this.getOrCreateEntry(key);
 
-        if (!entry.in_progress) {
-            entry.in_progress = true;
-            this.inner.findClosest(rtid, target, (closest) -> {
-                entry.timestamp = Instant.now();
-                entry.executor = (queue) -> {
-                    @SuppressWarnings("unchecked")
-                    var q = (Queue<FindClosestQueryCallbacks>) queue;
-                    while (!q.isEmpty()) {
-                        var cb = q.poll();
-                        cb.onQueryResult(closest);
-                    }
-                };
-                entry.executor.accept(entry.callbacks);
-            });
-        }
-    }
+		if (callbacks != null) {
+			entry.callbacks.add(callbacks);
+		}
 
-    @Override
-    public void findPool(KadID rtid, FindPoolQueryCallbacks callbacks) {
-        var key = new FindPoolKey(rtid, KadID.DEFAULT_RTID);
-        var entry = this.getOrCreateEntry(key);
+		if (entry.executor != null) {
+			entry.executor.accept(entry.callbacks);
+			return;
+		}
 
-        if (callbacks != null)
-            entry.callbacks.add(callbacks);
+		if (!entry.in_progress) {
+			entry.in_progress = true;
+			this.inner.findSwarm(swarm_id, sample_size, result -> {
+				entry.timestamp = Instant.now();
+				entry.executor = (queue) -> {
+					@SuppressWarnings("unchecked")
+					var q = (Queue<FindSwarmQueryCallbacks>) queue;
+					while (!q.isEmpty()) {
+						var cb = q.poll();
+						cb.onQueryResult(result);
+					}
+				};
+				entry.executor.accept(entry.callbacks);
+			});
+		}
+	}
 
-        if (entry.executor != null) {
-            entry.executor.accept(entry.callbacks);
-            return;
-        }
+	@Override
+	public void findValue(KadID key, FindValueQueryCallbacks callbacks) {
+		var k = new FindValueKey(key, KadID.DEFAULT_RTID);
+		var entry = this.getOrCreateEntry(k);
 
-        if (!entry.in_progress) {
-            entry.in_progress = true;
-            this.inner.findPool(rtid, result -> {
-                entry.timestamp = Instant.now();
-                entry.executor = (queue) -> {
-                    @SuppressWarnings("unchecked")
-                    var q = (Queue<FindPoolQueryCallbacks>) queue;
-                    while (!q.isEmpty()) {
-                        var cb = q.poll();
-                        cb.onQueryResult(result);
-                    }
-                };
-                entry.executor.accept(entry.callbacks);
-            });
-        }
-    }
+		if (callbacks != null) {
+			entry.callbacks.add(callbacks);
+		}
 
-    public void findSwarm(KadID swarm_id, int sample_size, FindSwarmQueryCallbacks callbacks) {
-        var key = new findSwarmKey(swarm_id, sample_size, KadID.DEFAULT_RTID);
-        var entry = this.getOrCreateEntry(key);
+		if (entry.executor != null) {
+			entry.executor.accept(entry.callbacks);
+			return;
+		}
 
-        if (callbacks != null)
-            entry.callbacks.add(callbacks);
+		if (!entry.in_progress) {
+			entry.in_progress = true;
+			this.inner.findValue(key, result -> {
+				entry.timestamp = Instant.now();
+				entry.executor = (queue) -> {
+					@SuppressWarnings("unchecked")
+					var q = (Queue<FindValueQueryCallbacks>) queue;
+					while (!q.isEmpty()) {
+						var cb = q.poll();
+						cb.onQueryResult(result);
+					}
+				};
+				entry.executor.accept(entry.callbacks);
+			});
+		}
+	}
 
-        if (entry.executor != null) {
-            entry.executor.accept(entry.callbacks);
-            return;
-        }
+	@Override
+	public void onFindNodeResponse(long context, KadID from, List<KadPeer> closest) {
+		this.inner.onFindNodeResponse(context, from, closest);
+	}
 
-        if (!entry.in_progress) {
-            entry.in_progress = true;
-            this.inner.findSwarm(swarm_id, sample_size, result -> {
-                entry.timestamp = Instant.now();
-                entry.executor = (queue) -> {
-                    @SuppressWarnings("unchecked")
-                    var q = (Queue<FindSwarmQueryCallbacks>) queue;
-                    while (!q.isEmpty()) {
-                        var cb = q.poll();
-                        cb.onQueryResult(result);
-                    }
-                };
-                entry.executor.accept(entry.callbacks);
-            });
-        }
-    }
+	@Override
+	public void onFindValueResponse(long context, KadID from, List<KadPeer> closest, Optional<byte[]> value) {
+		this.inner.onFindValueResponse(context, from, closest, value);
+	}
 
-    @Override
-    public void findValue(KadID key, FindValueQueryCallbacks callbacks) {
-        var k = new FindValueKey(key, KadID.DEFAULT_RTID);
-        var entry = this.getOrCreateEntry(k);
+	@Override
+	public void onFindSwarmResponse(long context, KadID from, List<KadPeer> closest, List<KadPeer> members) {
+		this.inner.onFindSwarmResponse(context, from, closest, members);
+	}
 
-        if (callbacks != null)
-            entry.callbacks.add(callbacks);
+	@Override
+	public void onFindPoolResponse(long context, KadID from, List<KadPeer> closest, List<KadPeer> members) {
+		this.inner.onFindPoolResponse(context, from, closest, members);
+	}
 
-        if (entry.executor != null) {
-            entry.executor.accept(entry.callbacks);
-            return;
-        }
+	@Override
+	public void onPeerError(long context, KadID peer) {
+		this.inner.onPeerError(context, peer);
+	}
 
-        if (!entry.in_progress) {
-            entry.in_progress = true;
-            this.inner.findValue(key, result -> {
-                entry.timestamp = Instant.now();
-                entry.executor = (queue) -> {
-                    @SuppressWarnings("unchecked")
-                    var q = (Queue<FindValueQueryCallbacks>) queue;
-                    while (!q.isEmpty()) {
-                        var cb = q.poll();
-                        cb.onQueryResult(result);
-                    }
-                };
-                entry.executor.accept(entry.callbacks);
-            });
-        }
-    }
+	@Override
+	public void checkTimeouts() {
+		this.inner.checkTimeouts();
+	}
 
-    @Override
-    public void onFindNodeResponse(long context, KadID from, List<KadPeer> closest) {
-        this.inner.onFindNodeResponse(context, from, closest);
-    }
+	private CacheEntry getOrCreateEntry(Object key) {
+		var entry = this.entries.computeIfAbsent(key, (k) -> new CacheEntry());
+		if (entry.timestamp != null && entry.timestamp.isBefore(Instant.now().minus(this.ttl))) {
+			entry.in_progress = false;
+			entry.timestamp = null;
+			entry.executor = null;
+			entry.callbacks.clear();
+		}
+		return entry;
+	}
 
-    @Override
-    public void onFindValueResponse(long context, KadID from, List<KadPeer> closest, Optional<byte[]> value) {
-        this.inner.onFindValueResponse(context, from, closest, value);
-    }
+	private record FindClosestKey(KadID rtid, KadID target) {
+	}
 
-    @Override
-    public void onFindSwarmResponse(long context, KadID from, List<KadPeer> closest, List<KadPeer> members) {
-        this.inner.onFindSwarmResponse(context, from, closest, members);
-    }
+	private record FindPoolKey(KadID rtid, KadID target) {
+	}
 
-    @Override
-    public void onFindPoolResponse(long context, KadID from, List<KadPeer> closest, List<KadPeer> members) {
-        this.inner.onFindPoolResponse(context, from, closest, members);
-    }
+	private record findSwarmKey(KadID rtid, Integer sample_size, KadID target) {
+	}
 
-    @Override
-    public void onPeerError(long context, KadID peer) {
-        this.inner.onPeerError(context, peer);
-    }
+	private record FindValueKey(KadID rtid, KadID target) {
+	}
 
-    @Override
-    public void checkTimeouts() {
-        this.inner.checkTimeouts();
-    }
+	private static class CacheEntry {
+		public boolean in_progress;
+		public Instant timestamp;
+		// Receives a queue of callbacks and executes them
+		public Consumer<Object> executor;
+		public Queue<Object> callbacks;
 
-    private CacheEntry getOrCreateEntry(Object key) {
-        var entry = this.entries.computeIfAbsent(key, (k) -> new CacheEntry());
-        if (entry.timestamp != null && entry.timestamp.isBefore(Instant.now().minus(this.ttl))) {
-            entry.in_progress = false;
-            entry.timestamp = null;
-            entry.executor = null;
-            entry.callbacks.clear();
-        }
-        return entry;
-    }
+		public CacheEntry() {
+			this.in_progress = false;
+			this.timestamp = null;
+			this.executor = null;
+			this.callbacks = new ArrayDeque<>();
+		}
+	}
 }

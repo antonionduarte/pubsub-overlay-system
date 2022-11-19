@@ -19,11 +19,9 @@ import java.util.UUID;
 
 public class UnstructuredPubsub extends GenericProtocol {
 
-	private static final Logger logger = LogManager.getLogger(UnstructuredPubsub.class);
-
 	public static final String PROTO_NAME = "Unstructured PubSub";
 	public static final short PROTO_ID = 800;
-
+	private static final Logger logger = LogManager.getLogger(UnstructuredPubsub.class);
 	private final Host self;
 	private final Set<String> subscribedTopics;
 	private final Set<UUID> seenMessages;

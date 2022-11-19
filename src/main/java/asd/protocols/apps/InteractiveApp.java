@@ -13,12 +13,10 @@ import java.util.Random;
 import java.util.Scanner;
 
 public class InteractiveApp extends GenericProtocol {
-	private static final Logger logger = LogManager.getLogger(InteractiveApp.class);
-
 	//Protocol information, to register in babel
 	public static final String PROTO_NAME = "InteractivePubSubApp";
 	public static final short PROTO_ID = 300;
-
+	private static final Logger logger = LogManager.getLogger(InteractiveApp.class);
 	private final short pubSubProtoId;
 
 	//Size of the payload of each message (in bytes)
@@ -41,6 +39,14 @@ public class InteractiveApp extends GenericProtocol {
 		registerReplyHandler(SubscriptionReply.REQUEST_ID, this::uponSubscriptionReply);
 		registerReplyHandler(PublishReply.REQUEST_ID, this::uponPublishReply);
 
+	}
+
+	public static String randomCapitalLetters(int length) {
+		int leftLimit = 65; // letter 'A'
+		int rightLimit = 90; // letter 'Z'
+		Random random = new Random();
+		return random.ints(leftLimit, rightLimit + 1).limit(length)
+				.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
 	}
 
 	@Override
@@ -118,14 +124,5 @@ public class InteractiveApp extends GenericProtocol {
 
 	private void uponPublishReply(PublishReply reply, short sourceProto) {
 		logger.info("Completed publication on topic " + reply.getTopic() + " and id: " + reply.getMsgID());
-	}
-
-
-	public static String randomCapitalLetters(int length) {
-		int leftLimit = 65; // letter 'A'
-		int rightLimit = 90; // letter 'Z'
-		Random random = new Random();
-		return random.ints(leftLimit, rightLimit + 1).limit(length)
-				.collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString();
 	}
 }

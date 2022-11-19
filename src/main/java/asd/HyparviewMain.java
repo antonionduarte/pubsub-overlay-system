@@ -12,16 +12,15 @@ import java.util.Properties;
 
 public class HyparviewMain {
 
+	// Creates the logger object
+	private static final Logger logger = LogManager.getLogger(Hyparview.class);
+	// Default babel configuration file (can be overridden by the "-config" launch argument)
+	private static final String DEFAULT_CONF = "babel_config.properties";
+
 	// Sets the log4j (logging library) configuration file
 	static {
 		System.setProperty("log4j.configurationFile", "log4j2.xml");
 	}
-
-	// Creates the logger object
-	private static final Logger logger = LogManager.getLogger(Hyparview.class);
-
-	// Default babel configuration file (can be overridden by the "-config" launch argument)
-	private static final String DEFAULT_CONF = "babel_config.properties";
 
 	public static void main(String[] args) {
 		try {

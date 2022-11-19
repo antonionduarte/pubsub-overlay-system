@@ -1,12 +1,14 @@
 package asd.metrics;
 
-import com.google.gson.Gson;
-
 import asd.protocols.overlay.kad.KadID;
+import com.google.gson.Gson;
 import pt.unl.fct.di.novasys.channel.tcp.events.ChannelMetrics;
 import pt.unl.fct.di.novasys.network.data.Host;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.time.Clock;
@@ -19,21 +21,20 @@ public class Metrics {
 	public static final int METRIC_LEVEL_OFF = 0;
 	public static final int METRIC_LEVEL_BASIC = 1;
 	public static final int METRIC_LEVEL_DETAILED = 2;
-
-	private static String FOLDER = "metrics/";
 	private static final String FILE_PATH_MASK = "%s%d.json";
+	private static final Clock clock = Clock.systemUTC();
+	private static final Gson gson = new Gson();
+	private static String FOLDER = "metrics/";
 	private static FileOutputStream fileOutputStream;
 	private static File metricsFile = null;
 	private static int metricsLevel = 0;
 
-	private static final Clock clock = Clock.systemUTC();
-	private static final Gson gson = new Gson();
-
 	public static void initMetrics(Properties props) {
 		var nodeId = Integer.parseInt(props.getProperty("babel_port"));
 
-		if (props.containsKey("metrics_folder"))
+		if (props.containsKey("metrics_folder")) {
 			FOLDER = props.getProperty("metrics_folder");
+		}
 
 		var filepath = String.format(FILE_PATH_MASK, FOLDER, nodeId);
 		metricsFile = new File(filepath);
@@ -55,12 +56,10 @@ public class Metrics {
 		return metricsLevel;
 	}
 
-	public record Metric(long timestamp, String metric_type, Object metric) {
-	}
-
 	public static synchronized <T> void writeMetric(T message, String message_type) {
-		if (fileOutputStream == null)
+		if (fileOutputStream == null) {
 			return;
+		}
 
 		var now = clock.instant();
 		var nano_now = now.getEpochSecond() * 1_000_000_000 + ((long) now.getNano());
@@ -74,74 +73,58 @@ public class Metrics {
 		}
 	}
 
-	public record Boot() {
-	}
-
 	public static void boot() {
-		if (metricsLevel >= METRIC_LEVEL_BASIC)
+		if (metricsLevel >= METRIC_LEVEL_BASIC) {
 			writeMetric(new Boot(), "Boot");
-	}
-
-	public record Shutdown() {
+		}
 	}
 
 	public static void shutdown() {
-		if (metricsLevel >= METRIC_LEVEL_BASIC)
+		if (metricsLevel >= METRIC_LEVEL_BASIC) {
 			writeMetric(new Shutdown(), "Shutdown");
-	}
-
-	public record PubMessageSent(String source, String message_id, String topic, boolean delivered) {
+		}
 	}
 
 	public static void pubMessageSent(Host source, UUID messageId, String topic, boolean delivered) {
-		if (metricsLevel < METRIC_LEVEL_BASIC)
+		if (metricsLevel < METRIC_LEVEL_BASIC) {
 			return;
+		}
 		writeMetric(new PubMessageSent(source.toString(), messageId.toString(), topic, delivered), "PubSubMessageSent");
 	}
 
-	public record PubMessageReceived(String source, String message_id, String topic, int hop_count, boolean delivered) {
-	}
-
 	public static void pubMessageReceived(Host source, UUID messageId, String topic, int hopCount, boolean delivered) {
-		if (metricsLevel < METRIC_LEVEL_BASIC)
+		if (metricsLevel < METRIC_LEVEL_BASIC) {
 			return;
+		}
 		writeMetric(new PubMessageReceived(source.toString(), messageId.toString(), topic, hopCount, delivered),
 				"PubSubMessageReceived");
 	}
 
-	public record SubscribedTopic(String topic) {
-	}
-
 	public static void subscribedTopic(String topic) {
-		if (metricsLevel < METRIC_LEVEL_BASIC)
+		if (metricsLevel < METRIC_LEVEL_BASIC) {
 			return;
+		}
 		writeMetric(new SubscribedTopic(topic), "PubSubSubscription");
 	}
 
-	public record UnsubscribedTopic(String topic) {
-	}
-
 	public static void unsubscribedTopic(String topic) {
-		if (metricsLevel < METRIC_LEVEL_BASIC)
+		if (metricsLevel < METRIC_LEVEL_BASIC) {
 			return;
+		}
 		writeMetric(new UnsubscribedTopic(topic), "PubSubUnsubscription");
 	}
 
-	public record Span(String name, double duration) {
-	}
-
 	public static void span(String name, double duration) {
-		if (metricsLevel < METRIC_LEVEL_DETAILED)
+		if (metricsLevel < METRIC_LEVEL_DETAILED) {
 			return;
+		}
 		writeMetric(new Span(name, duration), "Span");
 	}
 
-	public record Network(long inbound, long outbound) {
-	}
-
 	public static void network(long in, long out) {
-		if (metricsLevel < METRIC_LEVEL_BASIC)
+		if (metricsLevel < METRIC_LEVEL_BASIC) {
 			return;
+		}
 		writeMetric(new Network(in, out), "Network");
 	}
 
@@ -159,14 +142,13 @@ public class Metrics {
 		network(in, out);
 	}
 
-	public record MessageSent(String message_type, String destination, Map<String, Object> properties) {
-	}
-
 	public static void messageSent(Host destination, MetricsMessage msg) {
-		if (metricsLevel < METRIC_LEVEL_DETAILED)
+		if (metricsLevel < METRIC_LEVEL_DETAILED) {
 			return;
-		if (msg == null)
+		}
+		if (msg == null) {
 			return;
+		}
 		writeMetric(new MessageSent(msg.name, destination.toString(), msg.properties), "MessageSent");
 	}
 
@@ -175,14 +157,13 @@ public class Metrics {
 		messageSent(destination, msg.serializeToMetric());
 	}
 
-	public record MessageReceived(String message_type, String source, Map<String, Object> properties) {
-	}
-
 	public static void messageReceived(Host source, MetricsMessage msg) {
-		if (metricsLevel < METRIC_LEVEL_DETAILED)
+		if (metricsLevel < METRIC_LEVEL_DETAILED) {
 			return;
-		if (msg == null)
+		}
+		if (msg == null) {
 			return;
+		}
 		writeMetric(new MessageReceived(msg.name, source.toString(), msg.properties), "MessageReceived");
 	}
 
@@ -190,23 +171,58 @@ public class Metrics {
 		messageReceived(source, msg.serializeToMetric());
 	}
 
-	public record KademliaIdentifier(String identifier) {
+	public static void kademliaIdentifier(KadID id) {
+		if (metricsLevel < METRIC_LEVEL_BASIC) {
+			return;
+		}
+		writeMetric(new KademliaIdentifier(id.toString()), "KademliaIdentifier");
 	}
 
-	public static void kademliaIdentifier(KadID id) {
-		if (metricsLevel < METRIC_LEVEL_BASIC)
+	public static void routingTable(String topic, List<List<String>> routingTable) {
+		if (metricsLevel < METRIC_LEVEL_DETAILED) {
 			return;
-		writeMetric(new KademliaIdentifier(id.toString()), "KademliaIdentifier");
+		}
+		writeMetric(new RoutingTable(topic, routingTable), "RoutingTable");
+	}
+
+	public record Metric(long timestamp, String metric_type, Object metric) {
+	}
+
+	public record Boot() {
+	}
+
+	public record Shutdown() {
+	}
+
+	public record PubMessageSent(String source, String message_id, String topic, boolean delivered) {
+	}
+
+	public record PubMessageReceived(String source, String message_id, String topic, int hop_count, boolean delivered) {
+	}
+
+	public record SubscribedTopic(String topic) {
+	}
+
+	public record UnsubscribedTopic(String topic) {
+	}
+
+	public record Span(String name, double duration) {
+	}
+
+	public record Network(long inbound, long outbound) {
+	}
+
+	public record MessageSent(String message_type, String destination, Map<String, Object> properties) {
+	}
+
+	public record MessageReceived(String message_type, String source, Map<String, Object> properties) {
+	}
+
+	public record KademliaIdentifier(String identifier) {
 	}
 
 	public record RoutingTable(String topic, List<List<String>> buckets) {
 
-	}
-
-	public static void routingTable(String topic, List<List<String>> routingTable) {
-		if (metricsLevel < METRIC_LEVEL_DETAILED)
-			return;
-		writeMetric(new RoutingTable(topic, routingTable), "RoutingTable");
 	}
 
 }

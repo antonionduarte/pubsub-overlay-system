@@ -9,18 +9,6 @@ import java.util.UUID;
 
 public class IHave extends ProtoMessage {
 	public static final short MSG_ID = PlumTree.PROTOCOL_ID + 4;
-
-	private final UUID msgId;
-
-	public IHave(UUID msgId) {
-		super(MSG_ID);
-		this.msgId = msgId;
-	}
-
-	public UUID getMsgId() {
-		return msgId;
-	}
-
 	public static ISerializer<IHave> serializer = new ISerializer<>() {
 		@Override
 		public void serialize(IHave iHave, ByteBuf byteBuf) {
@@ -36,4 +24,14 @@ public class IHave extends ProtoMessage {
 			return new IHave(msgId);
 		}
 	};
+	private final UUID msgId;
+
+	public IHave(UUID msgId) {
+		super(MSG_ID);
+		this.msgId = msgId;
+	}
+
+	public UUID getMsgId() {
+		return msgId;
+	}
 }

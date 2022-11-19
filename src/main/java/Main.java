@@ -1,27 +1,25 @@
-import java.net.InetAddress;
-import java.util.Properties;
-
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import asd.InteractiveKad;
 import asd.protocols.overlay.kad.Kademlia;
 import asd.utils.InterfaceToIp;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import pt.unl.fct.di.novasys.babel.core.Babel;
 import pt.unl.fct.di.novasys.network.data.Host;
 
+import java.net.InetAddress;
+import java.util.Properties;
+
 public class Main {
+	// Creates the logger object
+	private static final Logger logger = LogManager.getLogger(Main.class);
+	// Default babel configuration file (can be overridden by the "-config" launch
+	// argument)
+	private static final String DEFAULT_CONF = "babel_config.properties";
+
 	// Sets the log4j (logging library) configuration file
 	static {
 		System.setProperty("log4j.configurationFile", "log4j2.xml");
 	}
-
-	// Creates the logger object
-	private static final Logger logger = LogManager.getLogger(Main.class);
-
-	// Default babel configuration file (can be overridden by the "-config" launch
-	// argument)
-	private static final String DEFAULT_CONF = "babel_config.properties";
 
 	public static void main(String[] args) throws Exception {
 		try {

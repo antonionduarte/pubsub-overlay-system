@@ -1,18 +1,19 @@
 package asd.protocols.overlay.kad;
 
-import java.io.IOException;
-
 import io.netty.buffer.ByteBuf;
+
+import java.io.IOException;
 
 class KadUtils {
 	static int byteLeadingZeroes(byte v) {
 		var lz = 0;
 		for (int j = 7; j >= 0; --j) {
 			var b = v & (1 << j);
-			if (b == 0)
+			if (b == 0) {
 				lz += 1;
-			else
+			} else {
 				break;
+			}
 		}
 		return lz;
 	}

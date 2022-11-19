@@ -11,62 +11,60 @@ import java.util.*;
 
 public class IHave extends ProtoMessage {
 
-    public static final short ID = GossipSub.ID + 5;
+	public static final short ID = GossipSub.ID + 5;
+	public static ISerializer<IHave> serializer = new ISerializer<>() {
+		@Override
+		public void serialize(IHave iHave, ByteBuf byteBuf) throws IOException {
+			byteBuf.writeInt(iHave.msgIdsPerTopic.entrySet().size());
+			for (var entry : iHave.msgIdsPerTopic.entrySet()) {
+				var topic = entry.getKey();
+				ASDUtils.stringSerializer.serialize(topic, byteBuf);
 
-    private final Map<String, Set<UUID>> msgIdsPerTopic;
+				var msgIds = entry.getValue();
+				byteBuf.writeInt(msgIds.size());
+				for (var msgId : msgIds) {
+					byteBuf.writeLong(msgId.getMostSignificantBits());
+					byteBuf.writeLong(msgId.getLeastSignificantBits());
+				}
+			}
+		}
 
-    public IHave(Map<String, Set<UUID>> msgIdsPerTopic) {
-        super(ID);
-        this.msgIdsPerTopic = msgIdsPerTopic;
-    }
+		@Override
+		public IHave deserialize(ByteBuf byteBuf) throws IOException {
+			int numEntries = byteBuf.readInt();
+			Map<String, Set<UUID>> msgIdsPerTopic = new HashMap<>(numEntries);
 
-    public IHave() {
-        this(new HashMap<>());
-    }
+			for (int i = 0; i < numEntries; i++) {
+				var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
 
-    public void put(String topic, Set<UUID> msgIds) {
-        msgIdsPerTopic.put(topic, msgIds);
-    }
+				var numIds = byteBuf.readInt();
+				Set<UUID> msgIds = new HashSet<>(numIds);
+				for (int j = 0; j < numIds; j++) {
+					var mostSigBits = byteBuf.readLong();
+					var leastSigBits = byteBuf.readLong();
+					msgIds.add(new UUID(mostSigBits, leastSigBits));
+				}
+				msgIdsPerTopic.put(topic, msgIds);
+			}
+			return new IHave(msgIdsPerTopic);
+		}
+	};
+	private final Map<String, Set<UUID>> msgIdsPerTopic;
 
-    public Map<String, Set<UUID>> getMsgIdsPerTopic() {
-        return msgIdsPerTopic;
-    }
+	public IHave(Map<String, Set<UUID>> msgIdsPerTopic) {
+		super(ID);
+		this.msgIdsPerTopic = msgIdsPerTopic;
+	}
 
-    public static ISerializer<IHave> serializer = new ISerializer<>() {
-        @Override
-        public void serialize(IHave iHave, ByteBuf byteBuf) throws IOException {
-            byteBuf.writeInt(iHave.msgIdsPerTopic.entrySet().size());
-            for (var entry : iHave.msgIdsPerTopic.entrySet()) {
-                var topic = entry.getKey();
-                ASDUtils.stringSerializer.serialize(topic, byteBuf);
+	public IHave() {
+		this(new HashMap<>());
+	}
 
-                var msgIds = entry.getValue();
-                byteBuf.writeInt(msgIds.size());
-                for (var msgId : msgIds) {
-                    byteBuf.writeLong(msgId.getMostSignificantBits());
-                    byteBuf.writeLong(msgId.getLeastSignificantBits());
-                }
-            }
-        }
+	public void put(String topic, Set<UUID> msgIds) {
+		msgIdsPerTopic.put(topic, msgIds);
+	}
 
-        @Override
-        public IHave deserialize(ByteBuf byteBuf) throws IOException {
-            int numEntries = byteBuf.readInt();
-            Map<String, Set<UUID>> msgIdsPerTopic = new HashMap<>(numEntries);
-
-            for (int i = 0; i < numEntries; i++) {
-                var topic = ASDUtils.stringSerializer.deserialize(byteBuf);
-
-                var numIds = byteBuf.readInt();
-                Set<UUID> msgIds = new HashSet<>(numIds);
-                for (int j = 0; j < numIds; j++) {
-                    var mostSigBits = byteBuf.readLong();
-                    var leastSigBits = byteBuf.readLong();
-                    msgIds.add(new UUID(mostSigBits, leastSigBits));
-                }
-                msgIdsPerTopic.put(topic, msgIds);
-            }
-            return new IHave(msgIdsPerTopic);
-        }
-    };
+	public Map<String, Set<UUID>> getMsgIdsPerTopic() {
+		return msgIdsPerTopic;
+	}
 }

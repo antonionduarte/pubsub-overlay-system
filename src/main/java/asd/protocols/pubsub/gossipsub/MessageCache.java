@@ -22,8 +22,9 @@ public class MessageCache {
 
 	public void put(PublishMessage publishMessage) {
 		var msgId = publishMessage.getMsgId();
-		if (messages.containsKey(msgId))
+		if (messages.containsKey(msgId)) {
 			return;
+		}
 
 		messages.put(publishMessage.getMsgId(), publishMessage);
 		history.get(0).add(Pair.of(msgId, publishMessage.getTopic()));

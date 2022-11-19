@@ -13,10 +13,9 @@ import java.util.Properties;
 
 public class EmptyPubSub extends GenericProtocol {
 
-	private static final Logger logger = LogManager.getLogger(EmptyPubSub.class);
-
 	public static final String PROTO_NAME = "EmptyPubSub";
 	public static final short PROTO_ID = 200;
+	private static final Logger logger = LogManager.getLogger(EmptyPubSub.class);
 
 	public EmptyPubSub() throws HandlerRegistrationException {
 		super(PROTO_NAME, PROTO_ID);

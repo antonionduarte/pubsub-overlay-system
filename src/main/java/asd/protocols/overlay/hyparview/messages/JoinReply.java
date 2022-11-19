@@ -5,16 +5,9 @@ import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-import java.io.IOException;
-
 public class JoinReply extends ProtoMessage {
 
 	public static final short MESSAGE_ID = Hyparview.PROTOCOL_ID + 7;
-
-	public JoinReply() {
-		super(MESSAGE_ID);
-	}
-
 	public static ISerializer<JoinReply> serializer = new ISerializer<>() {
 		@Override
 		public void serialize(JoinReply joinReply, ByteBuf byteBuf) {
@@ -25,4 +18,8 @@ public class JoinReply extends ProtoMessage {
 			return new JoinReply();
 		}
 	};
+
+	public JoinReply() {
+		super(MESSAGE_ID);
+	}
 }

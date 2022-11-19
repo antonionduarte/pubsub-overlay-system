@@ -5,15 +5,8 @@ import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-import java.io.IOException;
-
 public class Prune extends ProtoMessage {
 	public static final short MSG_ID = PlumTree.PROTOCOL_ID + 2;
-
-	public Prune() {
-		super(MSG_ID);
-	}
-
 	public static ISerializer<Prune> serializer = new ISerializer<>() {
 		@Override
 		public void serialize(Prune prune, ByteBuf byteBuf) {
@@ -24,4 +17,8 @@ public class Prune extends ProtoMessage {
 			return new Prune();
 		}
 	};
+
+	public Prune() {
+		super(MSG_ID);
+	}
 }

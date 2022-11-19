@@ -4,33 +4,33 @@ import java.util.HashMap;
 import java.util.Optional;
 
 public class KadStorage {
-    private class Value {
-        public final KadID key;
-        public final byte[] value;
-        public final long last_refresh;
+	private final HashMap<KadID, Value> storage;
 
-        public Value(KadID key, byte[] value, long last_refresh) {
-            this.key = key;
-            this.value = value;
-            this.last_refresh = last_refresh;
-        }
-    }
+	public KadStorage() {
+		this.storage = new HashMap<>();
+	}
 
-    private final HashMap<KadID, Value> storage;
+	public void store(KadID key, byte[] value) {
+		this.storage.put(key, new Value(key, value, System.currentTimeMillis()));
+	}
 
-    public KadStorage() {
-        this.storage = new HashMap<>();
-    }
+	public Optional<byte[]> get(KadID key) {
+		Value value = this.storage.get(key);
+		if (value == null) {
+			return Optional.empty();
+		}
+		return Optional.of(value.value);
+	}
 
-    public void store(KadID key, byte[] value) {
-        this.storage.put(key, new Value(key, value, System.currentTimeMillis()));
-    }
+	private class Value {
+		public final KadID key;
+		public final byte[] value;
+		public final long last_refresh;
 
-    public Optional<byte[]> get(KadID key) {
-        Value value = this.storage.get(key);
-        if (value == null) {
-            return Optional.empty();
-        }
-        return Optional.of(value.value);
-    }
+		public Value(KadID key, byte[] value, long last_refresh) {
+			this.key = key;
+			this.value = value;
+			this.last_refresh = last_refresh;
+		}
+	}
 }

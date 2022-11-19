@@ -26,8 +26,9 @@ public class View {
 	public Host addPeer(Host peer) {
 		Host dropped = null;
 		if (!peer.equals(self) && !membership.contains(peer)) {
-			if (this.isFull())
+			if (this.isFull()) {
 				dropped = this.dropRandomElement();
+			}
 			this.membership.add(peer);
 		}
 		return dropped;
@@ -47,7 +48,9 @@ public class View {
 		if (membership.size() != 0) {
 			var nodeIndex = random.nextInt(membership.size());
 			return (Host) membership.toArray()[nodeIndex];
-		} else return null;
+		} else {
+			return null;
+		}
 	}
 
 	public Host selectRandomDiffPeer(Host node) {

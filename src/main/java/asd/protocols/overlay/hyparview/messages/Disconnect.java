@@ -5,16 +5,9 @@ import io.netty.buffer.ByteBuf;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
-import java.io.IOException;
-
 public class Disconnect extends ProtoMessage {
 
 	public static final short MESSAGE_ID = Hyparview.PROTOCOL_ID + 3;
-
-	public Disconnect() {
-		super(MESSAGE_ID);
-	}
-
 	public static final ISerializer<Disconnect> serializer = new ISerializer<>() {
 		@Override
 		public void serialize(Disconnect disconnect, ByteBuf byteBuf) {
@@ -25,4 +18,8 @@ public class Disconnect extends ProtoMessage {
 			return new Disconnect();
 		}
 	};
+
+	public Disconnect() {
+		super(MESSAGE_ID);
+	}
 }

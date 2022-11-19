@@ -1,15 +1,15 @@
 package asd.protocols.overlay.kad.routing;
 
+import asd.protocols.overlay.kad.KadID;
+import asd.protocols.overlay.kad.KadPeer;
+import asd.protocols.overlay.kad.PeerDistanceComparator;
+import asd.utils.ASDUtils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Stream;
-
-import asd.protocols.overlay.kad.KadID;
-import asd.protocols.overlay.kad.KadPeer;
-import asd.protocols.overlay.kad.PeerDistanceComparator;
-import asd.utils.ASDUtils;
 
 public class RoutingTable {
 	private final int k;
@@ -68,8 +68,9 @@ public class RoutingTable {
 			var idx = Math.floorMod(bucket_idx - i, iter_count);
 			var bucket = this.buckets.get(idx);
 			for (var peer : bucket)
-				if (!peer.id.equals(ignore))
+				if (!peer.id.equals(ignore)) {
 					peers.add(peer);
+				}
 		}
 		Collections.sort(peers, new PeerDistanceComparator(id));
 		while (peers.size() > this.k)
@@ -92,8 +93,9 @@ public class RoutingTable {
 		for (var bucket : this.buckets) {
 			for (int i = 0; i < bucket.size(); ++i) {
 				peers.add(bucket.get(i));
-				if (peers.size() >= size)
+				if (peers.size() >= size) {
 					return peers;
+				}
 			}
 		}
 		return peers;
@@ -144,24 +146,28 @@ public class RoutingTable {
 	}
 
 	private Bucket getBucketForCpl(int cpl) {
-		if (cpl < this.buckets.size())
+		if (cpl < this.buckets.size()) {
 			return this.buckets.get(cpl);
+		}
 		var last = this.buckets.get(this.buckets.size() - 1);
 		return last;
 	}
 
 	private Bucket getOrCreateBucketForCpl(int cpl) {
 		if (cpl < this.buckets.size()) {
-			if (cpl == this.buckets.size() - 1)
-				if (this.buckets.get(cpl).isFull())
+			if (cpl == this.buckets.size() - 1) {
+				if (this.buckets.get(cpl).isFull()) {
 					this.unfoldLastBucket();
+				}
+			}
 			return this.buckets.get(cpl);
 		}
 
 		while (true) {
 			var last = this.buckets.get(this.buckets.size() - 1);
-			if (!last.isFull())
+			if (!last.isFull()) {
 				break;
+			}
 
 			this.unfoldLastBucket();
 		}

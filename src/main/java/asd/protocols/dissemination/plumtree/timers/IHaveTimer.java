@@ -1,7 +1,6 @@
 package asd.protocols.dissemination.plumtree.timers;
 
 import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
-import pt.unl.fct.di.novasys.network.data.Host;
 
 import java.util.UUID;
 
